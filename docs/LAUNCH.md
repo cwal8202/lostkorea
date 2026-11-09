@@ -17,11 +17,13 @@
 공개 레포에 적힌 기본값(`findit_pw`)이던 것을 무작위 값으로 교체(서버 `.env`에만 저장, 옛 값은 접속 거부 확인).
 이제 compose에 기본값이 없어 비밀번호 없이는 뜨지 않는다. 다시 바꾸는 절차는 DEPLOY.md 8-2.
 
-### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · 진행 중(2026-11-09)
+### 1-2. 검색엔진 등록 — ✅ 완료(2026-11-09, 구글·네이버·Bing)
 - ✅ **Google Search Console**: 도메인 속성 `lostkorea.com`, 소유 확인은 DNS TXT(Cloudflare 1회 승인 — 이후 변경 권한 없음,
   **TXT 기록 지우지 말 것**). 사이트맵 제출 '성공', 발견 페이지 9개.
-- 네이버 서치어드바이저: HTML 태그 방식 — 확인 값은 `apps/api/site.py`의 `SITE_VERIFICATION`(모든 페이지 head). 배포 후 소유확인 → 사이트맵 제출.
-- Bing: Search Console에서 가져오기.
+- ✅ **네이버 서치어드바이저**: HTML 태그 방식(확인 값은 `apps/api/site.py`의 `SITE_VERIFICATION`, 모든 페이지 head — **지우지 말 것**),
+  소유확인 완료, 사이트맵 제출.
+- ✅ **Bing Webmaster Tools**: Search Console에서 가져오기(별도 확인 불필요), 사이트맵 제출(처리 중). Bing은 DuckDuckGo 등에도 결과를 준다.
+- 효과는 며칠~몇 주 뒤 각 도구의 실적(검색어·노출·클릭)에서 확인. 새 페이지를 만들면 사이트맵은 자동 반영(`site.py` PAGES).
 지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 주소 `https://lostkorea.com`으로 등록.
 소유 확인은 **DNS(TXT 레코드) 방식**이 가장 간단 — 도메인이 Cloudflare에 있으니 Cloudflare DNS에 한 줄 추가.
 - **Google Search Console** (search.google.com/search-console): 속성 추가 → 소유 확인(HTML 태그 방식이면 알려주시면 head에 넣어 드림)
