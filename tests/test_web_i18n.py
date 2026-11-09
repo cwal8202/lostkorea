@@ -75,3 +75,12 @@ def test_english_guide_page_in_sitemap():
     assert r.status_code == 200 and "Lost something in Korea?" in r.text and "1330" in r.text
     assert "<loc>https://findit-lost.duckdns.org/en/guide</loc>" in client.get("/sitemap.xml").text
     assert store.metrics_since("2000-01-01").get("view_guide") == 1
+
+
+def test_search_box_comes_first_and_form_is_minimal():
+    """물건을 막 잃어버린 사람이 바로 입력하게: 검색창이 소개보다 위, 첫 폼엔 이메일 칸 없음(알림은 결과 화면에서)."""
+    t = client.get("/ko", headers=KO_BROWSER).text
+    body = t[t.index("<body>"):]
+    assert body.index('id="text"') < body.index('data-i18n="f1t"')
+    assert 'id="email"' not in body and 'id="goImg"' not in body      # 사진 검색도 같은 버튼 하나로
+    assert 'aria-live="polite"' in body                                # 진행 상황을 화면낭독기에도
