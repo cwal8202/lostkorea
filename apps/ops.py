@@ -47,6 +47,8 @@ def report_error(where: str, exc: BaseException) -> bool:
     from apps import store
 
     store.bump("error")
+    if settings.app_env != "production":  # 로컬 개발 중 오류로 관리자 메일이 나가지 않게
+        return False
     key = f"{where}:{type(exc).__name__}"
     now = time.monotonic()
     with _ERR_LOCK:

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FindIt — Privacy Policy</title>
+<link rel="icon" type="image/png" href="/static/icon-192.png" />
+<link rel="alternate" hreflang="ko" href="/privacy" />
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --ink:#1f2430; --sub:#6b7280; --brand:#2563eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  .wrap { max-width:820px; margin:0 auto; padding:24px 16px 64px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; }
+  h1 { font-size:22px; margin:8px 0 4px; } h2 { font-size:16px; margin:26px 0 8px; }
+  p, li { margin:4px 0; } ul { padding-left:20px; } .sub { color:var(--sub); font-size:13px; }
+  .tbl { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:14px; margin:6px 0; }
+  th, td { border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top; }
+  th { background:#f3f4f6; } a { color:var(--brand); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/en">← Back to FindIt</a></p>
+  <div class="card">
+  <h1>Privacy Policy</h1>
+  <p class="sub">Effective: November 9, 2026 · <a href="/privacy">한국어 원문</a> (the Korean version prevails if they differ)</p>
+  <p>FindIt (the "Service") is an individually operated project that matches lost-item reports against Korea's public
+     found-item data using AI. We collect only what matching needs, and delete it automatically when it is no longer needed.</p>
+
+  <h2>1. What we process</h2>
+  <div class="tbl"><table>
+    <tr><th>Item</th><th>Required?</th><th>Purpose</th></tr>
+    <tr><td>Your description of the lost item (or the description read from your photo), date lost</td><td>Required to search (date optional)</td><td>Searching and matching found items; daily re-matching</td></tr>
+    <tr><td>Photo of the item</td><td>Optional</td><td>Reading the item's features and comparing with found-item photos. <b>We do not store the photo.</b></td></tr>
+    <tr><td>Email address</td><td>Optional</td><td>Match alerts — sent only after you confirm the address via the confirmation email</td></tr>
+    <tr><td>Report language</td><td>Automatic</td><td>Giving reasons and alert emails in your language</td></tr>
+    <tr><td>IP address</td><td>Automatic</td><td>Limiting excessive requests (abuse prevention). Held briefly in server memory only — <b>never stored</b>.</td></tr>
+  </table></div>
+  <p>⚠ Please do not write names, phone numbers, passport/ID numbers or card numbers in your report. They are not needed to find your item.</p>
+  <p>To run the Service we count <b>daily totals only</b> (e.g., number of visits, reports and alerts). These statistics contain no
+     IP address, email, report text or anything else that could identify you.</p>
+
+  <h2>2. Retention and deletion</h2>
+  <ul>
+    <li>Reports are <b>deleted automatically 30 days after the alert period ends</b> (30 days by default; you can change it).</li>
+    <li>You can <b>delete a report anytime under "My reports"</b>; it is erased immediately.</li>
+    <li>Database backups for disaster recovery are kept for 14 days, so deleted data may remain in a backup for up to 14 days.</li>
+    <li>Email confirmation links expire after 48 hours.</li>
+  </ul>
+
+  <h2>3. Third-party services (processing and transfer outside Korea)</h2>
+  <p>We use the services below; in doing so your data is transferred outside Korea (e.g., to the United States, where the providers' data centers are).</p>
+  <div class="tbl"><table>
+    <tr><th>Recipient</th><th>Data</th><th>Purpose</th><th>When / how</th></tr>
+    <tr><td>Google LLC — Gemini API</td><td>Report text, photo, report language</td><td>Extracting item details, grading candidates, comparing photos</td><td>On report and daily re-matching, encrypted (HTTPS)</td></tr>
+    <tr><td>Google LLC — Gmail</td><td>Email address, alert content</td><td>Sending confirmation and alert emails</td><td>When an email is sent, encrypted</td></tr>
+  </table></div>
+  <p>Transferred data is handled under each provider's terms and privacy policy. If you do not want this transfer, do not use the
+     Service, or use it without email and photo (analysis of the report text is the core of the Service and cannot be skipped).</p>
+  <p>Choosing a language other than Korean or English uses Google Translate, which may set cookies.</p>
+
+  <h2>4. Data stored in your browser</h2>
+  <p>The Service itself uses no cookies. So that you can manage your reports, <b>the report number and a management token are stored
+     only in this browser (localStorage)</b>. The server keeps only a hash of the token, so without it no one but the operator can view
+     or change your report. If you clear your browser data, "My reports" will no longer show in that browser.</p>
+
+  <h2>5. Where found-item data comes from</h2>
+  <p>Found-item information is public data released by Korea's Public Data Portal and the National Police Agency's LOST112 portal.
+     We show only published information such as the holding office's name and main phone number.</p>
+
+  <h2>6. Security measures</h2>
+  <ul>
+    <li>All traffic encrypted with HTTPS; management tokens stored only as hashes</li>
+    <li>Email double opt-in (we only email addresses you confirmed); request rate limits</li>
+    <li>The database runs on an internal network with no direct outside access</li>
+  </ul>
+
+  <h2>7. Your rights</h2>
+  <p>You can view and delete your reports under "My reports", and turn off or change email alerts under "Alert settings" on the
+     result screen. For other requests (access, correction, deletion, suspension) or questions, contact us below.</p>
+
+  <h2>8. Contact</h2>
+  <p>Operator: the FindIt project operator (individual) ·
+     Contact: <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">GitHub Issues</a></p>
+  <p class="sub">If this policy changes, we will post it on this page with a new effective date.</p>
+  </div>
+  <p class="sub" style="margin-top:14px"><a href="/en/terms">Terms of Service</a></p>
+</div>
+</body>
+</html>

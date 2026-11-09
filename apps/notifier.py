@@ -212,6 +212,12 @@ def _intro(lost: dict, weak: bool, S: dict = KO) -> tuple[str, str]:
     return S[f"head_{kind}"], _fill(S[f"desc_{kind}"], t=t)
 
 
+def _site(lost: dict) -> str:
+    """메일 속 사이트 링크 — 한국어 외 신고자는 영어 화면(/en)으로."""
+    base = settings.public_base_url.rstrip("/")
+    return base if (lost.get("lang") or "ko") == "ko" else f"{base}/en"
+
+
 def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO) -> str:
     m = _top(matches)
     head, desc = _intro(lost, weak, S)
@@ -240,7 +246,7 @@ def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
     lines += [
         "",
         S["claim"],
-        _fill(S["cta_text"], url=settings.public_base_url),
+        _fill(S["cta_text"], url=_site(lost)),
         _fill(S["official"], lost112="https://www.lost112.go.kr"),
         f"({S['footer']})",
     ]
@@ -287,7 +293,7 @@ def _card_html(m: dict, primary: bool = False, S: dict = KO) -> str:
 
 def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO) -> str:
     e = _html.escape
-    site = settings.public_base_url
+    site = _site(lost)
     head, desc = _intro(lost, weak, S)
     others = matches[1 : 1 + TOP_OTHERS]
     others_html = ""

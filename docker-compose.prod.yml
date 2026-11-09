@@ -57,6 +57,7 @@ services:
     environment:
       - OPENSEARCH_URL=http://opensearch:9200   # 컨테이너 내부 DNS(로컬호스트 아님)
       - DATABASE_URL=postgresql://findit:${POSTGRES_PASSWORD:-findit_pw}@postgres:5432/findit
+      - APP_ENV=production                 # 앱 오류 메일 등 운영 전용 동작
     depends_on:
       opensearch:
         condition: service_healthy

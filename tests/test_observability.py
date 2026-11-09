@@ -28,6 +28,7 @@ def clean():
 
 @pytest.fixture
 def mails(monkeypatch):
+    monkeypatch.setattr(settings, "app_env", "production")
     sent = []
     monkeypatch.setattr(ops, "alert", lambda subject, body: sent.append((subject, body)) or True)
     monkeypatch.setattr(ops.threading, "Thread",  # 백그라운드 발송을 즉시 실행으로(테스트 결정성)
@@ -85,3 +86,11 @@ def test_deep_health_fails_when_search_down(monkeypatch):
     monkeypatch.setattr(main.urllib.request, "urlopen", down)
     r = client.get("/health/deep")
     assert r.status_code == 503 and r.json() == {"status": "fail", "search": False, "db": True}
+
+
+def test_no_error_mail_outside_production(monkeypatch):
+    sent = []
+    monkeypatch.setattr(ops, "alert", lambda s, b: sent.append(s))
+    monkeypatch.setattr(settings, "app_env", "dev")
+    assert ops.report_error("로컬", RuntimeError("x")) is False
+    assert sent == [] and store.metrics_since("2000-01-01").get("error") == 1

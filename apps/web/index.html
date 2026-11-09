@@ -3,12 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FindIt — 분실물 찾기</title>
-<link rel="icon" type="image/jpeg" href="/static/logo.jpg" />
+<!--HEAD-->
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
+<link rel="apple-touch-icon" href="/static/icon-192.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#2563eb" />
 <style>
   :root { --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --ink:#1f2430; --sub:#6b7280;
           --brand:#2563eb; --brand-d:#1d4ed8; --green:#16a34a; --amber:#d97706; --gray:#9ca3af; }
   * { box-sizing:border-box; }
+  /* 머리글: 좁은 화면(휴대폰)에선 언어 선택이 다음 줄로 — 부제가 한 글자 폭으로 눌리지 않게 */
+  .site-head { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
+  .head-title { flex:1 1 220px; min-width:0; }
+  .head-lang { margin-left:auto; display:flex; align-items:center; gap:8px; }
   .privacy-note { font-size:12px; color:var(--sub); margin:12px 0 0; line-height:1.5; }
   .privacy-note a, .site-foot a { color:var(--sub); }
   .site-foot { text-align:center; font-size:12px; color:var(--sub); margin-top:24px; }
@@ -128,14 +135,14 @@
 </head>
 <body>
 <div class="wrap">
-  <header style="display:flex; align-items:center; gap:14px;">
+  <header class="site-head">
     <img src="/static/logo.jpg" alt="FindIt" width="56" height="56"
          style="border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,.12);" />
-    <div>
+    <div class="head-title">
       <h1 style="margin:0;">FindIt</h1>
       <p style="margin:2px 0 0;" data-i18n="subtitle">잃어버린 물건을 자연어로 적으면, 습득물 공개데이터에서 찾아드려요.</p>
     </div>
-    <div style="margin-left:auto; display:flex; align-items:center; gap:8px">
+    <div class="head-lang">
       <div id="google_translate_element"></div>
       <select id="langPicker" class="langsel" onchange="pickLang(this.value)" title="Language / 언어" translate="no">
         <option value="ko">🌐 한국어</option>
@@ -157,28 +164,23 @@
   </header>
 
   <section class="hero">
-    <span class="kicker">🔍 분실물 매칭 AI 에이전트</span>
-    <h1>잃어버린 물건, AI가 찾아드려요</h1>
-    <p class="sub">경찰청·포털의 <b>습득물 공개데이터</b>를 자연어·사진으로 검색해, 의미 기반으로 매칭하고
-      <b>왜 후보인지 근거</b>까지 보여드려요. 실제 수령은 보관기관 안내로 연결돼요.</p>
-    <p class="stat" id="heroStat">불러오는 중…</p>
-    <button class="cta" onclick="startSearch()">지금 찾아보기 →</button>
+    <span class="kicker" data-i18n="kicker">🔍 분실물 매칭 AI 에이전트</span>
+    <h1 data-i18n="heroTitle">잃어버린 물건, AI가 찾아드려요</h1>
+    <p class="sub" data-i18n="heroSub"></p>
+    <p class="stat" id="heroStat"></p>
+    <button class="cta" onclick="startSearch()" data-i18n="cta">지금 찾아보기 →</button>
 
     <div class="features">
-      <div class="feat"><div class="ic">🗣️ 📷</div><h3>자연어·사진 검색</h3>
-        <p>"어제 2호선에서 검정 지갑 잃어버렸어요"처럼 말하듯, 또는 사진 한 장으로.</p></div>
-      <div class="feat"><div class="ic">🎯</div><h3>의미 기반 매칭 + 근거</h3>
-        <p>키워드가 아니라 뜻으로 찾고(한↔영·오타 커버), 왜 당신 물건일지 근거를 제시.</p></div>
-      <div class="feat"><div class="ic">📍</div><h3>경로 기반 지역</h3>
-        <p>지하철·버스로 이동한 경유 지역까지 넓게 살펴 순위에 반영.</p></div>
-      <div class="feat"><div class="ic">🌐</div><h3>외국인도 OK</h3>
-        <p>여러 언어 화면 + 어떤 언어로 검색해도 결과. 수령 방법·지도까지 안내.</p></div>
+      <div class="feat"><div class="ic">🗣️ 📷</div><h3 data-i18n="f1t"></h3><p data-i18n="f1d"></p></div>
+      <div class="feat"><div class="ic">🎯</div><h3 data-i18n="f2t"></h3><p data-i18n="f2d"></p></div>
+      <div class="feat"><div class="ic">📍</div><h3 data-i18n="f3t"></h3><p data-i18n="f3d"></p></div>
+      <div class="feat"><div class="ic">🌐</div><h3 data-i18n="f4t"></h3><p data-i18n="f4d"></p></div>
     </div>
 
     <div class="steps">
-      <div class="step"><b>1.</b> 말로 설명하거나 사진 올리기</div>
-      <div class="step"><b>2.</b> AI가 후보 + 근거 제시 (확인은 본인이)</div>
-      <div class="step"><b>3.</b> 내 물건이면 보관기관·연락처·지도 안내</div>
+      <div class="step" data-i18n="step1"></div>
+      <div class="step" data-i18n="step2"></div>
+      <div class="step" data-i18n="step3"></div>
     </div>
   </section>
 
@@ -190,7 +192,7 @@
   <div id="viewFind">
   <div class="card">
     <h2 data-i18n="register">분실물 찾기</h2>
-    <p class="lead">무슨 물건을, <b>어디서·언제</b> 잃어버렸는지 자유롭게 적으면 AI가 습득물에서 찾아드려요. 자세할수록 정확해요.</p>
+    <p class="lead" data-i18n="registerLead"></p>
     <textarea id="text" data-i18n-ph="textPh" maxlength="500" oninput="$('textCount').textContent=this.value.length"
       placeholder="예: 어제 2호선 지하철에서 검정색 닥스 지갑을 잃어버렸어요. 안에 신분증이랑 카드가 있었어요."></textarea>
     <div style="text-align:right; font-size:12px; color:var(--sub); margin-top:2px"><span id="textCount">0</span>/500</div>
@@ -205,13 +207,7 @@
       <button id="go" onclick="registerLost()" data-i18n="find">찾기</button>
       <span id="hint" class="muted" style="font-size:13px"></span>
     </div>
-    <div class="examples">
-      <span class="muted" style="font-size:13px">예시로 바로 해보기:</span>
-      <button type="button" class="ex" onclick="tryExample('어제 서울 지하철 2호선에서 검정색 지갑을 잃어버렸어요')">검정 지갑</button>
-      <button type="button" class="ex" onclick="tryExample('강남역 근처에서 흰색 에어팟을 잃어버렸어요')">에어팟</button>
-      <button type="button" class="ex" onclick="tryExample('부산 지하철에서 3단 우산을 두고 내렸어요')">3단 우산</button>
-      <button type="button" class="ex" onclick="tryExample('명동에서 카드지갑을 잃어버렸어요. 신분증이랑 카드가 들어있어요')">카드지갑</button>
-    </div>
+    <div class="examples" id="examples"></div>
     <p class="privacy-note" data-i18n="privacyNote">🔒 이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석되고(사진은 저장 안 함),
       신고는 알림 기간이 끝나고 30일 뒤 자동 삭제돼요. 신고하면 <a href="/privacy" target="_blank">개인정보처리방침</a>·<a href="/terms" target="_blank">이용약관</a>에 동의한 것으로 봐요.</p>
 
@@ -244,7 +240,7 @@
       <h2 style="margin:0" data-i18n="myReports">내 신고 (이 브라우저)</h2>
       <button class="ghost" onclick="loadMine()" data-i18n="refresh">새로고침</button>
     </div>
-    <p class="lead" style="margin:8px 0 0">딱 맞는 게 없어도 신고는 저장돼요. <b>새 습득물이 들어오면 자동으로 다시 찾아</b> 이메일로 알려드려요. 내 신고는 이 브라우저에서만 보여요.</p>
+    <p class="lead" style="margin:8px 0 0" data-i18n="mineLead"></p>
     <div id="mine" style="margin-top:12px"><span class="muted" data-i18n="loading">불러오는 중…</span></div>
   </div>
   </div><!-- /viewFind -->
@@ -287,23 +283,13 @@
     <div id="browsePager" class="row" style="justify-content:center; margin-top:14px"></div>
   </div>
   </div><!-- /viewBrowse -->
-  <footer class="site-foot"><a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a> ·
-    <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">문의</a></footer>
+  <footer class="site-foot" data-i18n="footer"></footer>
 </div>
 
 <div id="lightbox" hidden onclick="closeLightbox()"><img id="lightboxImg" src="" alt="" /></div>
 
-<!-- Google 번역 위젯(경찰민원24식 다국어 드롭다운). 화면 표시만 번역; 검색어는 서버가 번역. -->
-<script>
-function googleTranslateElementInit() {
-  // 위젯 UI는 CSS로 숨기고, 우리 #langPicker가 숨은 .goog-te-combo를 구동.
-  new google.translate.TranslateElement(
-    {pageLanguage: 'ko', includedLanguages: 'en,ja,zh-CN,zh-TW,vi,th,id,ms,hi,fr,es,ru,de',
-     autoDisplay: false},
-    'google_translate_element');
-}
-</script>
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+<!-- Google 번역 위젯: 한국어·영어 외 언어를 고를 때만 비동기로 불러옴(아래 loadTranslate).
+     예전엔 페이지 로딩 때 동기로 불러와, 구글이 막힌 네트워크(예: 중국 로밍)에선 화면 전체가 멈출 수 있었다. -->
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -313,6 +299,25 @@ const gradeColor = (g) => g == null ? 'var(--gray)' : g >= 80 ? 'var(--green)' :
 // ===== 다국어(i18n) — 외국인 접근성. 검색은 언어 무관(LLM이 한국어로 정규화), UI·안내·판정근거만 전환 =====
 const I18N = {
   ko: {
+    kicker:"🔍 분실물 매칭 AI 에이전트", heroTitle:"잃어버린 물건, AI가 찾아드려요",
+    heroSub:"경찰청·포털의 <b>습득물 공개데이터</b>를 자연어·사진으로 검색해, 의미 기반으로 매칭하고 <b>왜 후보인지 근거</b>까지 보여드려요. 실제 수령은 보관기관 안내로 연결돼요.",
+    cta:"지금 찾아보기 →",
+    f1t:"자연어·사진 검색", f1d:"\"어제 2호선에서 검정 지갑 잃어버렸어요\"처럼 말하듯, 또는 사진 한 장으로.",
+    f2t:"의미 기반 매칭 + 근거", f2d:"키워드가 아니라 뜻으로 찾고(한↔영·오타 커버), 왜 당신 물건일지 근거를 제시.",
+    f3t:"경로 기반 지역", f3d:"지하철·버스로 이동한 경유 지역까지 넓게 살펴 순위에 반영.",
+    f4t:"외국인도 OK", f4d:"영어 화면 + 어떤 언어로 검색해도 결과. 수령 방법·지도·통역 안내까지.",
+    step1:"<b>1.</b> 말로 설명하거나 사진 올리기", step2:"<b>2.</b> AI가 후보 + 근거 제시 (확인은 본인이)",
+    step3:"<b>3.</b> 내 물건이면 보관기관·연락처·지도 안내",
+    registerLead:"무슨 물건을, <b>어디서·언제</b> 잃어버렸는지 자유롭게 적으면 AI가 습득물에서 찾아드려요. 자세할수록 정확해요.",
+    exLabel:"예시로 바로 해보기:",
+    mineLead:"딱 맞는 게 없어도 신고는 저장돼요. <b>새 습득물이 들어오면 자동으로 다시 찾아</b> 이메일로 알려드려요. 내 신고는 이 브라우저에서만 보여요.",
+    footer:'<a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a> · <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">문의</a>',
+    heroStat:(n, d)=>`지금 <b>${n}</b>건의 습득물에서 찾는 중 · 최신 습득물 <b>${d}</b> · 매일 <b>00시(KST)</b> 자동 갱신`,
+    catPrefix:"분류:", zoom:"클릭하면 크게 보기", searching:"찾는 중…",
+    naverMap:"🗺 네이버 지도", googleMap:"구글 지도",
+    helpline:"🗣 외국인이라 통화가 어렵다면 <b>1330 관광통역안내전화</b>(24시간)로 전화하면 보관기관과의 통화를 통역해줘요.",
+    lost112:"(경찰청 유실물 통합포털)",
+    xlateFail:"번역 서비스(Google)에 연결하지 못했어요. 영어 화면을 이용해 주세요.",
     subtitle:"잃어버린 물건을 자연어로 적으면, 습득물 공개데이터에서 찾아드려요.",
     tabFind:"🔍 AI로 찾기", tabBrowse:"📋 전체 둘러보기", register:"분실물 찾기",
     textPh:"예: 어제 2호선 지하철에서 검정색 닥스 지갑을 잃어버렸어요. 안에 신분증이랑 카드가 있었어요.",
@@ -364,6 +369,25 @@ const I18N = {
     watchTo:(d)=>`알림 ~${d}`,
   },
   en: {
+    kicker:"🔍 AI lost & found for Korea", heroTitle:"Lost something in Korea? We'll help you find it.",
+    heroSub:"Describe your item in <b>any language</b> or upload a photo. We search <b>Korea's police &amp; public lost-and-found data</b> by meaning — not just keywords — explain <b>why</b> each result may be yours, and show where it's held.",
+    cta:"Start searching →",
+    f1t:"Any language, or a photo", f1d:"Write it the way you'd say it — \"I left my black wallet on the subway near Hongdae\" — or upload one photo.",
+    f2t:"Matched by meaning, with reasons", f2d:"Item names are in Korean; we match across languages and typos and tell you why each one fits.",
+    f3t:"Follows your route", f3d:"Items often travel along a subway or bus line. We also search the districts your route passes through.",
+    f4t:"Help to get it back", f4d:"Where it's held, the phone number, maps, and a free interpreter line for the call.",
+    step1:"<b>1.</b> Describe it or upload a photo", step2:"<b>2.</b> AI shows candidates + reasons (you decide)",
+    step3:"<b>3.</b> Yours? Get the office, phone and map",
+    registerLead:"Tell us <b>what</b> you lost, <b>where</b> and <b>when</b> — in any language. The more detail, the better.",
+    exLabel:"Try an example:",
+    mineLead:"No exact match yet? Your report is saved. <b>We re-check every day as new items arrive</b> and email you. Your reports are visible only in this browser.",
+    footer:'<a href="/en/privacy">Privacy</a> · <a href="/en/terms">Terms</a> · <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">Contact</a> · <a href="/ko">한국어</a>',
+    heroStat:(n, d)=>`Searching <b>${n}</b> found items · newest <b>${d}</b> · updated daily at midnight (KST)`,
+    catPrefix:"Category: ", zoom:"Click to enlarge", searching:"Searching…",
+    naverMap:"🗺 Naver Map", googleMap:"Google Maps",
+    helpline:"🗣 Don't speak Korean? Call <b>1330 (Korea Travel Helpline, 24/7)</b> — they can interpret your call with the holding office. From a foreign phone: +82-2-1330.",
+    lost112:"(Korean National Police lost &amp; found portal, Korean only)",
+    xlateFail:"Couldn't reach the translation service (Google). Please use the English page.",
     subtitle:"Describe your lost item in any language — we search Korea's public found-item data.",
     tabFind:"🔍 AI Search", tabBrowse:"📋 Browse all", register:"Find a lost item",
     textPh:"e.g., I lost a black wallet near Gangnam Station yesterday. — A station, area or landmark is enough; you don't need the subway line number or direction.",
@@ -416,45 +440,110 @@ const I18N = {
     watchTo:(d)=>`alerts until ${d}`,
   },
 };
-// UI 기본 언어는 한국어 고정. 다국어 표시는 Google 번역 위젯(#langPicker)이 담당.
-const LANG = "ko";
-// 서버에 보낼 사용자 언어(판정 근거·알림 메일 언어). 화면 표시는 LANG=ko + 번역 위젯이 담당.
-// 1) 번역 위젯에서 고른 언어  2) 입력에 한글이 있으면 ko  3) 그 외 브라우저 언어
+// 화면 언어: 서버가 정함(/ → 한국어, /en → 영어. 외국어 브라우저는 /에서 /en으로 이동). 그 외 언어는 번역 위젯.
+const LANG = window.FINDIT_LANG === "en" ? "en" : "ko";
+const googTarget = () => { const m = document.cookie.match(/(?:^|;\s*)googtrans=\/[^/;]*\/([^;]+)/);
+  return m && m[1] ? decodeURIComponent(m[1]) : ""; };
+// 서버에 보낼 사용자 언어(판정 근거·알림 메일 언어).
+// 1) 번역 위젯에서 고른 언어  2) 입력에 한글이 있으면 ko  3) 영어 화면이면 브라우저 언어(없으면 en)  4) ko
 function userLang(text) {
-  const m = document.cookie.match(/(?:^|;\s*)googtrans=\/[^/;]*\/([^;]+)/);
-  if (m && m[1] && m[1] !== "ko") return decodeURIComponent(m[1]);
+  const g = googTarget();
+  if (g && g !== "ko") return g;
   if (text && /[가-힣]/.test(text)) return "ko";
+  if (LANG === "en") return (navigator.language || "en").startsWith("ko") ? "en" : (navigator.language || "en");
   return navigator.language || "ko";
 }
 const t = (k, ...a) => { const v = (I18N[LANG] || I18N.ko)[k]; return typeof v === "function" ? v(...a) : (v ?? k); };
-const mapUrl = (m) => "https://www.google.com/maps/search/?api=1&query=" +
-  encodeURIComponent(m.org_name || [m.region, m.dep_place].filter(Boolean).join(" ") || m.dep_place || "");
+const mapQuery = (m) => m.org_name || [m.region, m.dep_place].filter(Boolean).join(" ") || m.dep_place || "";
+// 한국에선 네이버 지도가 길찾기·대중교통까지 정확(영어 화면 지원). 구글 지도는 외국인에게 익숙해서 함께.
+const naverUrl = (m) => "https://map.naver.com/p/search/" + encodeURIComponent(mapQuery(m));
+const mapUrl = (m) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapQuery(m));
+const mapLinks = (m) => (m.org_name || m.region)
+  ? `<a href="${naverUrl(m)}" target="_blank" rel="noopener" class="maplink">${t('naverMap')}</a>
+     <a href="${mapUrl(m)}" target="_blank" rel="noopener" class="maplink">${t('googleMap')}</a>` : "";
 // EN 모드: grade가 함께 만든 영어 물품명·설명 사용(없으면 한국어 원문). 둘러보기 항목은 번역 없음.
 const dispName = (m) => (LANG === "en" && m.name_en) ? m.name_en : m.name;
 const dispDesc = (m) => (LANG === "en" && m.desc_en) ? m.desc_en : cleanDesc(m.description);
 
+const EXAMPLES = {
+  ko: [["검정 지갑", "어제 서울 지하철 2호선에서 검정색 지갑을 잃어버렸어요"],
+       ["에어팟", "강남역 근처에서 흰색 에어팟을 잃어버렸어요"],
+       ["3단 우산", "부산 지하철에서 3단 우산을 두고 내렸어요"],
+       ["카드지갑", "명동에서 카드지갑을 잃어버렸어요. 신분증이랑 카드가 들어있어요"]],
+  en: [["Passport", "I lost my passport in a black cover near Myeongdong yesterday"],
+       ["Wallet", "I left a brown leather wallet on the subway near Hongdae station"],
+       ["AirPods", "I lost white AirPods Pro around Gangnam station"],
+       ["Phone", "I lost my iPhone in a blue case in a taxi from Incheon Airport to Seoul"]],
+};
+
 function applyLang() {
-  document.documentElement.lang = "ko";  // 데이터가 한국어 → Google 위젯 번역 대상
+  document.documentElement.lang = LANG;
   document.querySelectorAll("[data-i18n]").forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  $("examples").innerHTML = `<span class="muted" style="font-size:13px">${t('exLabel')}</span>` +
+    EXAMPLES[LANG].map(([label, q], i) => `<button type="button" class="ex" data-ex="${i}">${esc(label)}</button>`).join("");
+  $("examples").onclick = (e) => { const b = e.target.closest(".ex"); if (b) tryExample(EXAMPLES[LANG][+b.dataset.ex][1]); };
+  const g = googTarget();
+  $("langPicker").value = g && g !== LANG ? g : LANG;
+  if (g && g !== LANG) translateTo(g).catch(() => {});  // 전에 고른 언어(쿠키) → 다시 번역
 }
 
-// 우리 셀렉터 → Google 번역 위젯의 숨은 콤보 구동. 'ko'는 원문 복원(쿠키 삭제 후 새로고침).
+function clearGoogTrans() {
+  const host = location.hostname;
+  for (const d of ["", "; domain=" + host, "; domain=." + host]) {
+    document.cookie = "googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC" + d;
+  }
+}
+
+// 번역 위젯은 한/영 외 언어를 고를 때만 비동기 로딩. 막힌 네트워크면 8초 뒤 안내하고 원래 언어 유지.
+let _xlate = null;
+function loadTranslate() {
+  if (_xlate) return _xlate;
+  _xlate = new Promise((resolve, reject) => {
+    window.googleTranslateElementInit = () => {
+      new google.translate.TranslateElement(
+        { pageLanguage: LANG, includedLanguages: 'en,ko,ja,zh-CN,zh-TW,vi,th,id,ms,hi,fr,es,ru,de', autoDisplay: false },
+        'google_translate_element');
+      resolve();
+    };
+    const sc = document.createElement("script");
+    sc.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+    sc.async = true; sc.onerror = reject;
+    document.head.appendChild(sc);
+    setTimeout(() => reject(new Error("timeout")), 8000);
+  });
+  return _xlate;
+}
+
+// 언어 선택: 한국어·영어는 직접 만든 화면(/ko, /en)으로, 나머지는 번역 위젯.
 function pickLang(code) {
-  if (code === "ko") {
-    const host = location.hostname;
-    for (const d of ["", "; domain=" + host, "; domain=." + host]) {
-      document.cookie = "googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC" + d;
-    }
-    location.reload();
+  if (code === "ko" || code === "en") {
+    clearGoogTrans();
+    location.href = code === "en" ? "/en" : "/ko";
     return;
   }
-  let tries = 0;
-  (function set() {
-    const combo = document.querySelector(".goog-te-combo");
-    if (combo) { combo.value = code; combo.dispatchEvent(new Event("change")); }
-    else if (tries++ < 20) { setTimeout(set, 250); }  // 위젯 로드 대기
-  })();
+  translateTo(code).catch(() => {
+    $("langPicker").value = LANG;
+    alert(t('xlateFail'));
+  });
+}
+
+// 위젯을 불러온 직후엔 언어를 골라도 번역이 안 걸리는 경우가 많음(실측: 첫 선택 무시, 두 번째에 적용.
+// html의 translated-ltr 클래스는 붙어도 글자는 그대로인 경우가 있어 신호로 못 씀)
+// → 제목 글자가 실제로 바뀔 때까지 1.5초마다 다시 선택. 최대 ~20초.
+function translateTo(code) {
+  const h1 = document.querySelector(".hero h1"), orig = h1 ? h1.textContent : "";
+  return loadTranslate().then(() => new Promise(resolve => {
+    let tries = 0;
+    (function set() {
+      const combo = document.querySelector(".goog-te-combo");
+      if (h1 && h1.textContent !== orig) return resolve();
+      if (combo && combo.querySelector(`option[value="${code}"]`) && tries % 3 === 0) {
+        combo.value = code; combo.dispatchEvent(new Event("change"));
+      }
+      if (tries++ < 40) setTimeout(set, 500); else resolve();
+    })();
+  }));
 }
 
 function chips(items, cls="") {
@@ -475,20 +564,20 @@ function matchCard(m, idx, preview = false) {
   const img = validImg(m.image_url);
   const thumb = img
     ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'"
-         title="클릭하면 크게 보기"
+         title="${t('zoom')}"
          style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
     : '';
   const btns = preview ? '' : `<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap">
       <button onclick="confirmMatch(${idx})" style="background:var(--green);padding:5px 12px;border-radius:8px;font-size:13px">${t('mine')}</button>
       <button onclick="dismissMatch(${idx})" class="ghost" style="padding:5px 12px;border-radius:8px;font-size:13px">${t('notMine')}</button>
-      ${(m.org_name||m.region)?`<a href="${mapUrl(m)}" target="_blank" class="maplink">${t('mapLink')}</a>`:''}
+      ${mapLinks(m)}
     </div>`;
   return `<div class="match" data-idx="${idx}">
     <div class="grade" style="background:${gradeColor(g)}">${g==null?'–':g}</div>
     ${thumb}
     <div class="m-body">
       <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-      <div class="m-meta">${esc(m.category)} · ${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
+      <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
       ${(m.org_name||m.tel) ? `<div class="m-meta">🏛 ${esc(m.org_name)||'-'}${m.tel?` · ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>`:''}</div>` : ''}
       ${dispDesc(m) ? `<div class="m-reason">📝 ${esc(dispDesc(m).slice(0,160))}${dispDesc(m).length>160?'…':''}</div>` : ''}
       ${m.reason ? `<div class="m-reason">💬 ${esc(m.reason)}</div>` : ''}
@@ -548,9 +637,11 @@ function claimGuide(m) {
         <ol style="margin:10px 0 0; padding-left:20px; font-size:13px; line-height:1.7">
           <li><b>${t('claimStep1')}</b>${m.tel?` — ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>`:''}</li>
           <li>${t('claimStep2')}</li>
-          <li>${t('claimStep3')} — <a href="${mapUrl(m)}" target="_blank">${t('mapLink')}</a></li>
+          <li>${t('claimStep3')} — <a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> ·
+              <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></li>
         </ol>
-        <div style="margin-top:8px; font-size:13px">🔗 <a href="https://www.lost112.go.kr" target="_blank">lost112.go.kr</a> (National Police lost &amp; found portal)</div>
+        <div class="note" style="margin-top:10px">${t('helpline')}</div>
+        <div style="margin-top:8px; font-size:13px">🔗 <a href="https://www.lost112.go.kr" target="_blank" rel="noopener">lost112.go.kr</a> ${t('lost112')}</div>
       </div>
     </div>
     <p class="muted" style="font-size:13px; margin-top:10px">⏳ ${t('claimTimeline')}</p>
@@ -568,7 +659,7 @@ function renderResult(d, userPhoto, timing = "") {
   _lid = d.id; _token = d.token || ""; _matches = d.matches || [];
   saveMineRef(d.id, d.token);
   const ex = d.extracted || {};
-  const exChips = [ex.item, ex.brand, ex.color, ex.category && ("분류:"+ex.category), ex.place_context, ex.lost_date, ex.features];
+  const exChips = [ex.item, ex.brand, ex.color, ex.category && (t('catPrefix') + ex.category), ex.place_context, ex.lost_date, ex.features];
   const banner = d.status === "candidate"
     ? `<div class="banner candidate">${t('bannerCand')}</div>`
     : `<div class="banner open">${t('bannerOpen')}</div>`;
@@ -687,7 +778,7 @@ function progStart(isImg) {
 function stepSummary(ev, d) {
   if (ev === "extract") {
     const ex = d.extracted || {};
-    return chips([ex.item, ex.brand, ex.color, ex.category && ("분류:" + ex.category), ex.place_context, ex.lost_date, ex.features]);
+    return chips([ex.item, ex.brand, ex.color, ex.category && (t('catPrefix') + ex.category), ex.place_context, ex.lost_date, ex.features]);
   }
   if (ev === "route") {
     const r = d.region_set || [];
@@ -750,7 +841,7 @@ async function registerLost() {
   const text = $("text").value.trim();
   if (!text) { $("hint").textContent = t('needText'); return; }
   const btn = $("go"); btn.disabled = true;
-  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + (LANG === 'en' ? 'Searching…' : '찾는 중…');
+  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + t('searching');
   $("hint").textContent = "";
   try {
     const body = { text, lost_date: $("lostDate").value || null, email: $("email").value.trim() || null,
@@ -800,7 +891,7 @@ function onPhoto(e) {
 async function registerImage() {
   if (!_photoB64) { $("hintImg").textContent = t('needPhoto'); return; }
   const btn = $("goImg"); btn.disabled = true;
-  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + (LANG === 'en' ? 'Searching…' : '찾는 중…');
+  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + t('searching');
   $("hintImg").textContent = "";
   try {
     const body = { image_b64: _photoB64, mime: _photoMime,
@@ -896,10 +987,9 @@ async function fetchHeroStat() {
     const d = await (await fetch("/found-items/browse?size=1")).json();
     const total = (d.total || 0).toLocaleString();
     const latest = d.items?.[0]?.found_at || "-";
-    $("heroStat").innerHTML =
-      `지금 <b>${total}</b>건의 습득물에서 찾는 중 · 최신 습득물 <b>${esc(latest)}</b> · 매일 <b>00시(KST)</b> 자동 갱신`;
+    $("heroStat").innerHTML = t('heroStat', total, esc(latest));
   } catch (e) {
-    $("heroStat").textContent = "습득물 데이터를 불러오는 중…";
+    $("heroStat").textContent = t('loading');
   }
 }
 
@@ -948,8 +1038,9 @@ function renderBrowse(d) {
     sel.value = cur; sel.dataset.filled = "1";
   }
   $("bcount").textContent = t('browseCount', d.total || 0);
-  $("browseList").innerHTML = (d.items || []).map(browseItem).join("")
-    || `<span class="muted">${t('noItems')}</span>`;
+  const xl = t('browseXlate');
+  $("browseList").innerHTML = (xl ? `<div class="note" style="margin-bottom:8px">${xl}</div>` : "") +
+    ((d.items || []).map(browseItem).join("") || `<span class="muted">${t('noItems')}</span>`);
   renderPager(d.page || 1, Math.ceil((d.total || 0) / (d.size || 24)));
 }
 
@@ -957,14 +1048,14 @@ function browseItem(m) {
   const img = validImg(m.image_url);
   const thumb = img
     ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" referrerpolicy="no-referrer" onerror="this.style.display='none'"
-         title="클릭하면 크게 보기"
+         title="${t('zoom')}"
          style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
     : '';
   return `<div class="bitem">${thumb}
     <div class="m-body">
       <div class="m-title">${esc(m.name) || t('noName')} <span class="muted">/ ${esc(m.color) || "-"}</span></div>
       <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(m.region) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}</div>
-      ${(m.org_name || m.tel) ? `<div class="m-meta">🏛 ${esc(m.org_name) || "-"}${m.tel ? ` · ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : ""}${(m.org_name||m.region)?` · <a href="${mapUrl(m)}" target="_blank">${t('mapLink')}</a>`:""}</div>` : ""}
+      ${(m.org_name || m.tel) ? `<div class="m-meta">🏛 ${esc(m.org_name) || "-"}${m.tel ? ` · ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : ""}${(m.org_name||m.region)?` · <a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> · <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a>`:""}</div>` : ""}
       ${cleanDesc(m.description) ? `<div class="m-reason">📝 ${esc(cleanDesc(m.description).slice(0, 120))}${cleanDesc(m.description).length > 120 ? "…" : ""}</div>` : ""}
     </div></div>`;
 }

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         env_file=str(_ROOT / ".env"), extra="ignore", case_sensitive=False
     )
 
+    app_env: str = "dev"              # production이면 앱 오류를 관리자에게 메일(로컬 개발 중 오류 메일 방지)
     gemini_api_key: str
     gemini_embed_model: str = "gemini-embedding-001"
     gemini_embed_dim: int = 768

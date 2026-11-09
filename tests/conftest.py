@@ -13,6 +13,10 @@ import tempfile
 
 os.environ.setdefault("GEMINI_API_KEY", "test-key")
 os.environ.pop("DATABASE_URL", None)  # SQLite 강제
+# 실제 메일 발송 차단 — 로컬 .env에 SMTP가 있어도 테스트가 관리자·사용자에게 메일을 보내지 않게(환경변수가 .env보다 우선)
+os.environ["SMTP_USER"] = ""
+os.environ["SMTP_PASSWORD"] = ""
+os.environ["APP_ENV"] = "test"
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="findit-test-"), "test.db")
 
 
