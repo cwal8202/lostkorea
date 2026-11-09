@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: 메인 화면·검색엔진·DB 응답 확인
         env:
-          BASE: https://findit-lost.duckdns.org
+          BASE: https://lostkorea.com
         run: |
           set -e
           for i in 1 2 3; do   # 일시적 네트워크 흔들림은 무시(3번 연속 실패만 장애로)

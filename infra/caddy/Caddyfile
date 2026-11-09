@@ -31,8 +31,10 @@
 	reverse_proxy backend:8000
 }
 
-# DOMAIN은 쉼표로 여러 주소 가능(예: "lostkorea.duckdns.org, findit-lost.duckdns.org") — 모두 인증서 발급,
-# 옛 주소는 백엔드가 대표 주소로 영구 이동(REDIRECT_HOSTS).
+# DOMAIN은 쉼표로 여러 주소 가능(운영: "lostkorea.com, www.lostkorea.com, findit-lost.duckdns.org") — 모두 인증서 발급,
+# www·옛 주소는 백엔드가 대표 주소로 영구 이동(REDIRECT_HOSTS).
+# 앞단 Cloudflare 프록시(SSL Full (strict)): 인증서 발급·갱신 확인 요청이 HTTP로 오므로 Cloudflare의 'Always Use HTTPS'는
+# 끄고, HTTP → HTTPS 이동은 여기(Caddy 자동)서 한다. 방문자 실제 IP는 apps/api/limits.py가 CF-Connecting-IP로.
 {$DOMAIN} {
 	import site
 	header Strict-Transport-Security "max-age=31536000"

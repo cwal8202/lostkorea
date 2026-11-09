@@ -10,7 +10,7 @@ Hetzner CX33(8GB) 등 VPS 한 대에 **OpenSearch(nori) + PostgreSQL + 백엔드
 
 > 시크릿은 서버의 `.env`(git 미포함). **OpenSearch·PostgreSQL은 외부 포트 노출 안 함** — Caddy(80/443)만 외부에 열림.
 
-라이브: **https://findit-lost.duckdns.org** — lostkorea 주소로 옮길 예정(아래 '주소 바꾸기', LAUNCH.md 2-1)
+라이브: **https://lostkorea.com** (Cloudflare 프록시 경유 — 아래 'Cloudflare 앞단'). www·옛 주소(findit-lost.duckdns.org)는 새 주소로 영구 이동.
 
 ---
 
@@ -201,26 +201,44 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 | `DAILY_AI_BUDGET` | `1500` | 하루 AI 사용 상한(글 신고 1 · 사진 3 · 검색 API 1~2 단위) — 넘으면 429 |
 - 비용 실측·모델 선택 메모는 [LAUNCH.md 4](LAUNCH.md) 참고.
 
-## 주소 바꾸기 (예: findit-lost.duckdns.org → lostkorea.duckdns.org 또는 lostkorea.com)
-1. 새 주소의 DNS A 레코드를 서버 IP로(DuckDNS면 서브도메인 추가 후 IP를 **서버 IP**로 — 기본값은 접속한 PC의 IP).
-2. 서버 `.env`:
+## 주소 바꾸기 (2026-11-09 실제로 한 것: findit-lost.duckdns.org → lostkorea.com)
+1. 새 주소의 DNS A 레코드를 서버 IP로(`@`·`www` 두 줄. DuckDNS면 IP를 **서버 IP**로 — 기본값은 접속한 PC의 IP).
+2. 서버 `.env`(운영 값):
    ```bash
-   DOMAIN=lostkorea.duckdns.org, findit-lost.duckdns.org   # 새 + 옛 주소 모두 인증서 발급
-   PUBLIC_BASE_URL=https://lostkorea.duckdns.org            # 대표 주소
-   REDIRECT_HOSTS=findit-lost.duckdns.org                   # 옛 주소는 대표 주소로 영구 이동(GET 301 / 그 외 308)
+   DOMAIN=lostkorea.com, www.lostkorea.com, findit-lost.duckdns.org   # 모두 인증서 발급
+   PUBLIC_BASE_URL=https://lostkorea.com                              # 대표 주소
+   REDIRECT_HOSTS=www.lostkorea.com,findit-lost.duckdns.org           # 대표 주소로 영구 이동(GET 301 / 그 외 308)
    ```
+   ※ 채팅·문서에서 복사하면 `www.` 주소가 `[www…](https://…)` 링크 모양으로 바뀌어 보일 수 있다 — 붙여 넣은 뒤
+   `grep -E '^(DOMAIN|PUBLIC_BASE_URL|REDIRECT_HOSTS)=' .env`로 실제 값 확인.
 3. `docker compose -f docker-compose.prod.yml up -d backend caddy` → 새 주소 https 확인 → 옛 주소가 새 주소로 넘어가는지 확인.
 4. `.github/workflows/uptime.yml`의 `BASE`를 새 주소로, Search Console·네이버에 새 주소 등록.
 - 서버 안 점검(`curl localhost/...`)·IP 접속은 목록에 없으므로 이동하지 않는다.
 
+## Cloudflare 앞단 (2026-11-09~)
+도메인 `lostkorea.com`은 Cloudflare Registrar에서 구입(원가 연 $11.17, 2027-11-09 만료, 자동 갱신). DNS도 Cloudflare.
+- **DNS**: A `@`·`www` → 서버 IP, **Proxied**(주황 구름). 문제가 생기면 DNS only(회색)로 바꾸면 곧바로 서버 직접 접속.
+- **SSL/TLS 모드: Full (strict)** — Cloudflare↔서버 구간도 암호화 + 서버 인증서 검증(서버는 Caddy가 받은 Let's Encrypt 인증서).
+  Flexible이면 Cloudflare가 서버에 HTTP로 붙고 Caddy가 HTTPS로 돌려보내 무한 이동이 된다.
+- **Always Use HTTPS: 끔** — 인증서 발급·갱신 확인 요청이 HTTP로 오는데 Cloudflare가 이를 HTTPS로 돌리면 갱신이 실패할 수
+  있다(실패하면 90일 뒤 서버 인증서 만료 → strict 모드라 사이트 전체 526). HTTP → HTTPS 이동은 Caddy가 한다(308).
+- **방문자 IP**: 프록시를 켜면 서버에 붙는 건 Cloudflare 서버라, 요청 한도가 방문자 대신 Cloudflare IP 몇 개로 묶인다.
+  `apps/api/limits.py`가 접속 IP가 Cloudflare 대역일 때만 `CF-Connecting-IP`를 쓴다(직접 접속자의 위조는 무시).
+  Cloudflare가 대역을 바꾸면(cloudflare.com/ips) `CLOUDFLARE_NETS`를 갱신.
+- 첫 인증서: 프록시를 켠 상태에서 발급 성공(Caddy 로그 'certificate obtained successfully' — lostkorea.com·www 각 1건).
+- 옛 주소(findit-lost.duckdns.org)는 Cloudflare를 거치지 않고 서버 IP를 그대로 가리킨다 → 공격자가 Cloudflare를 우회할 수 있음.
+  DDoS 방어를 제대로 쓰려면 옛 주소를 정리하고 서버 방화벽을 Cloudflare 대역만 허용으로(이후 강화).
+
 ## 이름 이전 기록 (2026-11-09, findit → lostkorea)
 서비스명 변경(FIND-82)에 이어 내부 이름도 옮겼다(FIND-83). Docker 볼륨은 이름을 바꿀 수 없어 **새 볼륨으로 복사**했다.
+**실행: 2026-11-09 20:31~20:32(약 1분)**, `scripts/migrate_rename.sh` — 신고 38 → 38, 색인 170,581 → 170,581, 볼륨 4개 파일 수·바이트
+일치(검색 색인 193개·3.28GB), `/health/deep` 정상.
 1. DB 백업(`pre-rename_*.sql.gz`) → 백엔드 중지 → 임시 슈퍼유저로 `ALTER DATABASE findit RENAME TO lostkorea`,
    `ALTER ROLE findit RENAME TO lostkorea`(SCRAM 비밀번호는 이름 변경에도 유지) → 임시 사용자 삭제
 2. 옛 스택 `down`(볼륨 유지) → `/root/findit` → `/root/lostkorea`, 백업 폴더도 `/root/lostkorea-backups`로 이동
 3. 새 볼륨 `lostkorea_{os,pg,caddy}-data`·`lostkorea_caddy-config`를 compose 라벨과 함께 만들고 `cp -a`로 복사, 크기 비교
 4. 이미지 태그 `findit/*` → `lostkorea/*`, 새 스택 기동(`name: lostkorea`) → DB·색인 건수·`/health/deep`·인증서 재사용 확인
-5. cron 경로 갱신 + 옛 경로 `/root/findit` → 새 폴더 심볼릭 링크(호환)
+5. 옛 경로 `/root/findit` → 새 폴더 심볼릭 링크 — cron(`/root/findit/scripts/…`)은 이 링크로 그대로 동작(경로 갱신은 선택)
 - **옛 볼륨 `findit_findit-*`는 되돌리기용으로 남겨 둠** — 한동안 문제없으면 삭제:
   `docker volume rm findit_findit-os-data findit_findit-pg-data findit_findit-caddy-data findit_findit-caddy-config`
   (`findit_findit-data`는 현재 구성에서 쓰지 않는 예전 볼륨 — 내용 확인 후 결정)

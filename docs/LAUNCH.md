@@ -1,6 +1,6 @@
 # LostKorea 서비스화 체크리스트 — 운영자가 직접 할 일
 
-> 2026-11-09 작성(같은 날 서비스명 FindIt → LostKorea, GitHub 저장소도 `cwal8202/lostkorea`로 변경 ✅). 코드로 할 수 있는 건 FIND-70~84에서 끝냈다
+> 2026-11-09 작성(같은 날 서비스명 FindIt → LostKorea, GitHub 저장소 `cwal8202/lostkorea`, 주소 **lostkorea.com** ✅). 코드로 할 수 있는 건 FIND-70~85에서 끝냈다
 > (보안·개인정보·관측·영어 화면·검색 노출·AI 비용·웹사이트 개편).
 > 여기 남은 건 **돈·계정·실명·결정**이 필요해서 코드로는 못 하는 일이다. 위에서부터 순서대로.
 
@@ -17,9 +17,9 @@
 공개 레포에 적힌 기본값(`findit_pw`)이던 것을 무작위 값으로 교체(서버 `.env`에만 저장, 옛 값은 접속 거부 확인).
 이제 compose에 기본값이 없어 비밀번호 없이는 뜨지 않는다. 다시 바꾸는 절차는 DEPLOY.md 8-2.
 
-### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **주소를 lostkorea로 옮긴(2-1) 뒤에** 하는 게 효율적
-지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 등록은 주소 단위라, 지금 duckdns 주소로 등록하면
-새 주소로 옮길 때 다시 해야 한다 → 주소를 먼저 옮기고 그 주소로 등록.
+### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **이제 할 차례**(주소 이전 2-1 ✅)
+지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 주소 `https://lostkorea.com`으로 등록.
+소유 확인은 **DNS(TXT 레코드) 방식**이 가장 간단 — 도메인이 Cloudflare에 있으니 Cloudflare DNS에 한 줄 추가.
 - **Google Search Console** (search.google.com/search-console): 속성 추가 → 소유 확인(HTML 태그 방식이면 알려주시면 head에 넣어 드림)
   → `sitemap.xml` 제출. 외국인은 구글로 검색한다.
 - **네이버 서치어드바이저** (searchadvisor.naver.com): 한국어 사용자·국내 노출용. 같은 방식.
@@ -30,35 +30,27 @@
 
 ---
 
-### 1-4. 서버 이름 이전 실행 (5분, FIND-83) — 자동 실행이 안전 검사로 막혀 운영자가 실행
+### 1-4. 서버 이름 이전 실행 — ✅ 완료(2026-11-09 20:31, 신고·색인 건수 그대로, DEPLOY.md '이름 이전 기록')
 ```bash
 curl -fsSL https://raw.githubusercontent.com/cwal8202/lostkorea/main/scripts/migrate_rename.sh -o /root/migrate_rename.sh
 bash /root/migrate_rename.sh </dev/null
 ```
-수집 시간(00:00~01:00)만 피해서. 3~5분 사이트 중단, 점검 실패 시 즉시 중단, 옛 볼륨은 되돌리기용으로 유지(DEPLOY.md '이름 이전 기록').
+실제 중단 약 1분. 옛 볼륨 `findit_findit-*`는 되돌리기용으로 남겨 둠 — 한동안 문제없으면 삭제(DEPLOY.md).
 
 ---
 
 ## 2. 실서비스 신뢰도 (소액·결정 필요)
 
-### 2-1. 주소를 lostkorea로 (가장 먼저)
-지금 주소 `findit-lost.duckdns.org`는 서비스 이름과 다르고, 무료 동적 DNS라 신뢰도·검색 순위·메일 도달률에도 불리하다.
-두 가지 길(둘 다 코드 수정 없음 — 주소 목록·대표 주소·옛 주소 영구 이동을 설정값으로 바꿀 수 있게 해 둠):
-
-| | 무료 임시: `lostkorea.duckdns.org` | 정식: `lostkorea.com` (+`.kr`) |
-|---|---|---|
-| 비용 | 0원 | 연 1~2만 원 |
-| 준비 | DuckDNS(지금 findit-lost를 만든 계정)에서 서브도메인 `lostkorea` 추가, **IP를 서버 IP로**(DuckDNS가 기본으로 넣는 건 지금 PC의 IP라 꼭 바꿀 것) | 가비아·Cloudflare·Namecheap 등에서 구입 → DNS A 레코드를 서버 IP로 |
-| 상태(11/9 조회) | 미사용 | .com·.kr·.app 모두 미등록 — 남이 먼저 살 수 있음 |
-
-주소가 준비되면(서버 이전 FIND-83 이후) 서버 `.env`:
-```bash
-DOMAIN=lostkorea.duckdns.org, findit-lost.duckdns.org      # 새 주소 + 옛 주소(둘 다 인증서 자동 발급)
-PUBLIC_BASE_URL=https://lostkorea.duckdns.org               # 대표 주소(메일 링크·canonical·sitemap)
-REDIRECT_HOSTS=findit-lost.duckdns.org                      # 옛 주소 → 대표 주소 영구 이동(옛 링크·검색 기록 유지)
-```
-→ `docker compose -f docker-compose.prod.yml up -d backend caddy` → `.github/workflows/uptime.yml`의 `BASE` 한 줄 → 1-2 검색엔진 등록.
-정식 도메인을 나중에 사면 같은 방식으로 한 번 더(옛 주소들을 `REDIRECT_HOSTS`에 추가).
+### 2-1. 주소를 lostkorea로 — ✅ 완료(2026-11-09)
+- **lostkorea.com** 구입: Cloudflare Registrar, 연 $11.17(원가, 쿠폰·할인 없음 — 첫해만 싼 곳들은 갱신가가 높아 5년 합계 차이가 ~$9뿐이라
+  매년 같은 가격·관리 편의로 선택). 2027-11-09 만료, **자동 갱신 켬**. 등록자 정보는 공개 WHOIS에서 가려짐.
+- DNS A `@`·`www` → 서버, **Cloudflare 프록시 켬**(SSL Full (strict), Always Use HTTPS 끔 — 이유는 DEPLOY.md 'Cloudflare 앞단').
+- 서버 `.env`에 새 주소(대표)·www·옛 주소. **www와 옛 주소(findit-lost.duckdns.org)는 새 주소로 영구 이동** — 이미 보낸 알림 메일·
+  대회 자료의 옛 링크도 그대로 동작. 가동 감시(`uptime.yml`)도 새 주소로.
+- 확인(11/9): `https://lostkorea.com` 200, `http://` → `https://`(308), `www`·옛 주소 → 새 주소(301), canonical·sitemap·OG 모두 새 주소.
+- **속도(이 PC에서 12회씩, 매번 새 연결)**: 홈 화면 중앙값 프록시 1.09초 vs 서버 직접 1.23초로 비슷하지만, **느린 쪽 10%가 프록시 4.96초
+  vs 직접 1.27초** — 무료 요금제라 한국 접속이 미국 LA의 Cloudflare 서버를 거침. 화면이 자주 느리면 DNS only로 되돌리는 것 검토.
+- `.kr`(선택): Cloudflare는 .kr을 팔지 않음 → 가비아 등 국내 업체(블로그 기준 연 2만 원대). 사칭 방지용, 급하지 않음.
 
 ### 2-2. Gemini API 유료 등급 전환 (사용량 기반, 현재 규모면 월 수천 원 이하 예상)
 신고 문장·사진을 Gemini로 보내는 서비스다. Google의 Gemini API 약관상 **무료 등급은 입력이 Google 제품 개선에 쓰일 수 있고,
@@ -68,11 +60,11 @@ REDIRECT_HOSTS=findit-lost.duckdns.org                      # 옛 주소 → 대
 ### 2-3. 개인정보 보호책임자 명시
 개인정보보호법상 처리방침에는 **개인정보 보호책임자의 성명(또는 담당 부서)·연락처**가 들어가야 한다.
 지금은 "운영자(개인) · GitHub Issues"라 실서비스 기준으로 부족. 이름(또는 직함)과 연락용 이메일을 정해 주시면 반영.
-도메인을 사면 `privacy@도메인` 같은 주소를 만들 수 있다.
+이제 `privacy@lostkorea.com` 같은 주소를 만들 수 있다 — Cloudflare 이메일 라우팅(무료)으로 받은 메일을 Gmail로 전달.
 
 ### 2-4. 알림 메일 발송 방식
 지금은 개인 Gmail SMTP — 하루 발송 한도(약 500통)가 있고, 개인 주소에서 오는 자동 메일은 스팸함에 가기 쉽다.
-도메인을 사면 발송 서비스(Resend·Amazon SES 등, 소량 무료)로 바꾸고 SPF/DKIM을 설정하는 게 정석. 코드는 `EmailNotifier` 한 곳만 바꾸면 됨.
+도메인이 생겼으니 발송 서비스(Resend·Amazon SES 등, 소량 무료)로 바꾸고 SPF/DKIM을 설정하는 게 정석. 코드는 `EmailNotifier` 한 곳만 바꾸면 됨.
 
 ### 2-5. 사업자 등록 — 지금은 불필요
 수익(광고·후원·유료 기능)이 없으면 의무 아님. 다만 **카카오 알림톡**(한국 사용자 알림의 사실상 표준)·기관 제휴 계약·후원을 하려면 필요.

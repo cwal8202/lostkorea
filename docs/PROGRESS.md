@@ -11,8 +11,8 @@
 - **서비스**: **LostKorea**(구 FindIt, 2026-11-09 개명 — 같은 이름의 AI 분실물 앱이 이미 있음). "한국에서 잃어버린 물건 찾기 /
   Lost something in Korea?" — 외국인도 쓸 수 있는 AI 분실물 매칭. 목표는 공모전 데모가 아니라 **실제로 운영하는 서비스**.
 - **현재 국면**: **라이브 운영 중**(수집→색인→검색+지역가점→판정→에이전트→DB→지속 재매칭→이메일 알림→웹사이트).
-  FIND-1~84 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions(테스트 통과 시 자동배포) + 매일 cron 수집으로
-  **https://findit-lost.duckdns.org** 운영(lostkorea 주소로 이전 예정 — [LAUNCH.md](LAUNCH.md) 2-1). 저장소 https://github.com/cwal8202/lostkorea
+  FIND-1~85 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + Cloudflare 프록시 + GitHub Actions(테스트 통과 시 자동배포) + 매일 cron 수집으로
+  **https://lostkorea.com** 운영(2026-11-09 전환, 옛 주소는 자동 이동). 저장소 https://github.com/cwal8202/lostkorea
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112·1330 통역)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
@@ -23,9 +23,9 @@
 - **2026-11-09 실서비스 품질 작업(FIND-74~84)**: 한 달 운영 점검(수집 안정화·색인 185일 상한) / 운영 관측(익명 통계·주간 요약·오류 메일·
   외부 가동 감시·AI 토큰 실측) / 영어 화면·검색엔진·SNS 노출·영어 가이드 / **AI 비용·속도**(숨은 thinking 제거: 신고 1건 ≈$0.014→$0.004,
   AI 구간 16.9초→6.3초, 품질 측정 동일) / 검색 우선 화면 / **서비스명 LostKorea + 실제 웹사이트 전면 개편**(서버 렌더링, 공공서비스 톤) /
-  **DB 비밀번호 교체(운영 반영)** / 내부 이름·저장소 lostkorea 이전 / 주소 이전 준비. 상세는 아래 5절.
-- **운영자 대기 중**: ① 서버 이름 이전 스크립트 실행(`scripts/migrate_rename.sh` — LAUNCH 1-4) ② lostkorea 주소 결정(LAUNCH 2-1)
-  ③ 검색엔진 등록 등 나머지 [LAUNCH.md](LAUNCH.md) 항목.
+  **DB 비밀번호 교체(운영 반영)** / 내부 이름·저장소 lostkorea 이전(서버 이전 완료) / **lostkorea.com 구입·전환 + Cloudflare 프록시**.
+  상세는 아래 5절.
+- **운영자 다음 할 일**: 검색엔진 등록(LAUNCH 1-2) → 개인정보 보호책임자·Gemini 유료 등급 등 나머지 [LAUNCH.md](LAUNCH.md) 항목.
 - **다음 고도화 후보**: 이미지 임베딩(CLIP) 레인 / 카카오 알림톡(사업자 확보 시) / 인증(user_id) / 규모가 커지면 Claude Haiku A/B(비용).
 - **공모전(종료)**: 「2026 한국관광 데이터랩 활용 경진대회」 개인 응모 제출(2026-09-30). 데이터랩 결합 분석은 `eval/datalab/`.
 - **최근 실측**: 운영 신고 1건 = AI 3호출·입력 ~1,670·출력 ~740토큰 ≈ $0.004(≈5.7원), 총 ~9초 / 지역 가점 hard셋 MRR 0.084→0.857 /
@@ -1038,6 +1038,24 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
   이 문서의 과거 기록, 로컬 작업 폴더 이름.
 - 테스트 176 → 177개.
 
+### 서버 이름 이전 실행 + lostkorea.com 전환 + Cloudflare 프록시 (2026-11-09, FIND-85)
+
+- **서버 이름 이전 완료**(운영자가 `scripts/migrate_rename.sh` 실행, 20:31~20:32): 신고 38 → 38, 색인 170,581 → 170,581,
+  볼륨 4개 파일 수·바이트 일치, `/health/deep` 정상. 컨테이너 `lostkorea-*`, DB·사용자 `lostkorea`, 경로 `/root/lostkorea`
+  (+`/root/findit` 링크로 cron 호환). 옛 볼륨은 되돌리기용으로 유지.
+- **도메인**: 가격 비교(TLD-List·각 업체 공식 페이지, 11/9) — Cloudflare는 원가 판매라 쿠폰이 없고($11.17/년), 첫해 쿠폰이 있는 곳
+  (Spaceship `COM67` 첫해 $3.80)도 5년 합계 차이는 ~$9. 운영자가 관리 편의로 **Cloudflare에서 lostkorea.com 구입**(자동 갱신).
+- **전환**: Cloudflare DNS `@`·`www` → 서버(프록시 켬), SSL Full (strict), Always Use HTTPS 끔(인증서 갱신이 HTTP로 오기 때문 —
+  HTTP→HTTPS는 Caddy가). 서버 `.env` DOMAIN·PUBLIC_BASE_URL·REDIRECT_HOSTS 변경(운영자 실행 — 자동 모드 안전 검사가 원격 쓰기를 막음).
+  프록시를 켠 상태로 Let's Encrypt 인증서 발급 성공(lostkorea.com·www). 확인: 새 주소 200, http→https 308, www·옛 주소 → 새 주소 301,
+  canonical·sitemap·OG 새 주소, 정적 파일은 Cloudflare 캐시(HIT).
+- **방문자 IP**: 프록시 뒤에서는 서버에 붙는 IP가 Cloudflare 서버라, IP별 요청 한도(신고 10분 5건 등)를 같은 Cloudflare 서버를 거친
+  방문자 전체가 나눠 쓰게 된다 → 접속 IP가 Cloudflare 공개 대역일 때만 `CF-Connecting-IP` 사용(직접 접속자의 헤더 위조는 무시). 테스트로 고정.
+- **속도 실측**(이 PC, 12회씩, 매번 새 연결): 홈 중앙값 프록시 1.09초 / 직접 1.23초, 느린 10%는 프록시 4.96초 / 직접 1.27초.
+  무료 요금제라 한국 접속이 LA의 Cloudflare 서버를 거침(CF-RAY `…-LAX`). 계속 느리면 DNS only로 되돌리기(스위치 하나).
+- 옛 주소(findit-lost.duckdns.org)는 여전히 서버 IP를 직접 가리킴 → Cloudflare 우회 가능. 옛 링크가 정리되면 방화벽을 Cloudflare 대역만 허용으로.
+- 코드 기본 대표 주소·`.env.example`·가동 감시(`uptime.yml`)·문서를 새 주소로. 테스트 177 → 178개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -1092,7 +1110,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (177개, 외부서비스 목킹)
+├─ tests/                          pytest (178개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · LAUNCH.md(운영자 할 일) · screenshots/
 ├─ .github/workflows/             deploy.yml(테스트 → 서버 SSH 자동배포) · uptime.yml(30분 외부 가동 감시)
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)
@@ -1125,7 +1143,7 @@ find_it/
 | **8+++++. 실서비스 점검** | 한 달 운영 점검 → 수집 안정화·색인 상한, 운영 관측(통계·주간 요약·오류 메일·외부 가동 감시), 영어 화면(/en)·검색·SNS 노출·영어 가이드 | ✅ (남은 것: [LAUNCH.md](LAUNCH.md) — 운영자 결정 사항) |
 | **9. 다음 고도화** | 이미지 임베딩(CLIP) 레인 · 카카오 알림톡 · 인증(user_id) · React/Vercel 프론트 분리 · 브라우저 확장(MV3) · 9월 초 누락분 백필 | ⏳ |
 
-> **현재**: LostKorea 라이브 운영 중(https://findit-lost.duckdns.org, 영어 /en — lostkorea 주소로 이전 예정). 기술 과제보다 **사용자 유입**이 핵심 — 운영자가 할 일은 [LAUNCH.md](LAUNCH.md).
+> **현재**: LostKorea 라이브 운영 중(https://lostkorea.com, 영어 /en). 기술 과제보다 **사용자 유입**이 핵심 — 운영자가 할 일은 [LAUNCH.md](LAUNCH.md).
 
 ---
 

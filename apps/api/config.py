@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     # 알림 채널: console | email  (email은 아래 SMTP 설정 필요, 미설정 시 console 폴백)
     notifier_channel: str = "console"
-    public_base_url: str = "https://findit-lost.duckdns.org"  # 대표 주소 — 메일 링크·canonical·OG·sitemap 기준
+    public_base_url: str = "https://lostkorea.com"  # 대표 주소 — 메일 링크·canonical·OG·sitemap 기준
     # 옛 주소(쉼표 구분) — 이 호스트로 온 요청은 대표 주소로 영구 이동(301/308). 주소를 바꿔도 옛 링크·검색 기록이 이어지게.
     redirect_hosts: str = ""
     brand_name: str = "LostKorea"   # 사용자에게 보이는 서비스 이름(화면·메일·OG)
