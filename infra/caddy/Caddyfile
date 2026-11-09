@@ -5,8 +5,19 @@
 	request_body {
 		max_size 10MB
 	}
-	# 응답 압축(화면 HTML ~50KB → ~12KB). SSE 스트림은 Caddy가 자동으로 즉시 전달.
-	encode zstd gzip
+	# 응답 압축(화면 HTML ~50KB → ~12KB). 대상을 명시해 실시간 진행 스트림(text/event-stream)은 제외 —
+	# 기본 대상(text/*)에 포함되면 압축 버퍼 때문에 단계별 진행이 한꺼번에 늦게 도착할 수 있다.
+	encode zstd gzip {
+		match {
+			header Content-Type text/html*
+			header Content-Type text/plain*
+			header Content-Type text/css*
+			header Content-Type application/json*
+			header Content-Type application/javascript*
+			header Content-Type application/xml*
+			header Content-Type application/manifest+json*
+		}
+	}
 	# 보안 헤더 — 다른 사이트가 iframe으로 감싸기(클릭재킹)·MIME 추측·리퍼러 유출 방지, 서버 정보 숨김.
 	header {
 		X-Content-Type-Options "nosniff"
