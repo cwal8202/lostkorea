@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     gemini_embed_model: str = "gemini-embedding-001"
     gemini_embed_dim: int = 768
     gemini_grade_model: str = "gemini-3.6-flash"  # 2.5-flash는 신규차단(404) → 3.6-flash
+    # 기본 모델이 404(종료·차단)면 이 모델로 자동 전환 + 관리자 메일(2.5-flash 차단 때처럼 서비스가 멈추지 않게). 같은 가격.
+    gemini_fallback_model: str = "gemini-3.8-flash"
+    # 모델의 숨은 '생각(thinking)' 토큰 — 출력 요금으로 청구. 실측(2026-11-09): 신고 1건 출력 토큰의 80%가 thinking인데
+    # 꺼도 추출 20/20·노선 8/10·유력 후보 판정 95/96으로 켠 것과 같음 → minimal. 빈 값이면 모델 기본값(켜짐).
+    gemini_thinking_level: str = "minimal"
     kakao_rest_api_key: str = ""
     data_go_kr_service_key_decoded: str = ""  # 경찰청 습득물 API (디코딩 키)
 

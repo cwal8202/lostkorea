@@ -32,29 +32,107 @@ _GRADE_PROMPT = """당신은 분실물↔습득물 매칭 심판입니다.
 """
 
 
+_ACTIVE: dict[str, str | None] = {"model": None}  # 404로 예비 모델로 바뀌면 기록(프로세스가 살아 있는 동안 유지)
+
+
+def _model() -> str:
+    return _ACTIVE["model"] or settings.gemini_grade_model
+
+
+def _gen_url() -> str:
+    return f"{_BASE}/{_model()}:generateContent"
+
+
+_THINK_LEVELS = ("minimal", "low")  # 낮은 순. 모델마다 받는 수준이 다름(실측: 3.6-flash는 minimal 가능, 3.8-flash는 400)
+_THINK_OK: dict[str, str] = {}      # 모델별로 실제 받아준 수준("" = 설정을 안 보냄) — 거부당하면 기록
+
+
+def _gen_config() -> dict:
+    """생성 호출 공통 설정 — JSON 응답, 결정적(temperature 0), thinking 수준(비용의 대부분 — config 참고)."""
+    cfg: dict = {"responseMimeType": "application/json", "temperature": 0}
+    level = _THINK_OK.get(_model(), settings.gemini_thinking_level)
+    if level:
+        cfg["thinkingConfig"] = {"thinkingLevel": level}
+    return cfg
+
+
+def _step_down_thinking(url: str, body: dict, message: str) -> bool:
+    """모델이 thinking 수준을 거부(400) → 한 단계 위 수준, 그래도 안 되면 설정 생략. 모델별로 기억.
+
+    모델을 바꾸거나 예비 모델로 전환됐을 때 thinking 설정 하나 때문에 모든 AI 호출이 실패하는 것을 막는다.
+    """
+    gc = body.get("generationConfig") or {}
+    tc = gc.get("thinkingConfig")
+    if not tc or "thinking" not in message.lower():
+        return False
+    cur = tc.get("thinkingLevel", "")
+    i = _THINK_LEVELS.index(cur) if cur in _THINK_LEVELS else len(_THINK_LEVELS)
+    nxt = _THINK_LEVELS[i + 1] if i + 1 < len(_THINK_LEVELS) else ""
+    _THINK_OK[url.rsplit("/", 1)[-1].split(":")[0]] = nxt
+    if nxt:
+        gc["thinkingConfig"] = {"thinkingLevel": nxt}
+    else:
+        gc.pop("thinkingConfig", None)
+    return True
+
+
+def _switch_to_fallback() -> bool:
+    """기본 모델이 사라졌을 때(404) 예비 모델로 전환 + 관리자 알림(1회). 이미 예비 모델이면 False."""
+    fb = settings.gemini_fallback_model
+    if not fb or _model() == fb:
+        return False
+    old = _model()
+    _ACTIVE["model"] = fb
+    try:
+        import threading
+
+        from apps import ops
+        threading.Thread(target=ops.alert, daemon=True, args=(
+            f"Gemini 모델 전환 — {old} → {fb}",
+            f"{old} 호출이 404(모델 종료·차단)로 실패해 {fb}로 자동 전환했어요. 서비스는 계속 동작합니다.\n"
+            f".env의 GEMINI_GRADE_MODEL을 {fb}(또는 새 모델)로 바꾸고 재배포하세요. 재시작하면 다시 {old}부터 시도합니다.",
+        )).start()
+    except Exception:  # noqa: BLE001 — 알림 실패가 전환을 막지 않게
+        pass
+    return True
+
+
 def _post(url: str, body: dict, timeout: int = 60, max_retry: int = 3) -> dict:
     """429/5xx는 백오프 재시도. 기본 3회(사용자 대기 중인 요청) — 대량 배치 임베딩만 더 길게.
 
     API 키는 URL 쿼리가 아니라 `x-goog-api-key` 헤더로(오류 로그·추적에 URL이 찍혀도 키가 남지 않게).
     """
-    payload = json.dumps(body).encode("utf-8")
     headers = {"Content-Type": "application/json", "x-goog-api-key": settings.gemini_api_key}
-    for attempt in range(max_retry):
+    attempt = 0  # 일시 오류(429·5xx·네트워크) 재시도 횟수 — 모델 전환·thinking 조정은 세지 않음(각각 유한)
+    while True:
         try:
-            req = urllib.request.Request(url, payload, headers)
+            req = urllib.request.Request(url, json.dumps(body).encode("utf-8"), headers)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 503) and attempt < max_retry - 1:
-                time.sleep(min(30, 5 * (attempt + 1)))  # 5,10,...,30s
+            if e.code == 404 and ":generateContent" in url and _switch_to_fallback():
+                url = _gen_url()  # 모델이 사라짐 → 예비 모델로 즉시 재시도
+                continue
+            if e.code == 400 and _step_down_thinking(url, body, _err_text(e)):
+                continue          # 이 모델이 thinking 수준을 거부 → 조정해 즉시 재시도
+            attempt += 1
+            if e.code in (429, 500, 503) and attempt < max_retry:
+                time.sleep(min(30, 5 * attempt))  # 5,10,...,30s
                 continue
             raise
         except OSError:  # URLError·타임아웃·연결 끊김(HTTPError는 위에서 처리)
-            if attempt < max_retry - 1:
+            attempt += 1
+            if attempt < max_retry:
                 time.sleep(5)
                 continue
             raise
-    raise RuntimeError("Gemini _post: 재시도 소진")
+
+
+def _err_text(e: urllib.error.HTTPError) -> str:
+    try:
+        return e.read().decode("utf-8", "replace")[:2000]
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def embed_query(text: str) -> list[float]:
@@ -74,10 +152,10 @@ def embed_query(text: str) -> list[float]:
 
 def generate_json(prompt: str, timeout: int = 60):
     """gemini-3.6-flash로 JSON 응답 생성(추출·라우팅 등 재사용). 실패 시 None."""
-    url = f"{_BASE}/{settings.gemini_grade_model}:generateContent"
+    url = _gen_url()
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 0},
+        "generationConfig": _gen_config(),
     }
     try:
         text = _post(url, body, timeout)["candidates"][0]["content"]["parts"][0]["text"]
@@ -88,13 +166,13 @@ def generate_json(prompt: str, timeout: int = 60):
 
 def generate_json_image(prompt: str, image_b64: str, mime: str = "image/jpeg", timeout: int = 60):
     """사진 + 프롬프트 → JSON (Vision 추출용). gemini-3.6-flash 멀티모달. 실패 시 None."""
-    url = f"{_BASE}/{settings.gemini_grade_model}:generateContent"
+    url = _gen_url()
     body = {
         "contents": [{"parts": [
             {"inline_data": {"mime_type": mime, "data": image_b64}},
             {"text": prompt},
         ]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 0},
+        "generationConfig": _gen_config(),
     }
     try:
         text = _post(url, body, timeout)["candidates"][0]["content"]["parts"][0]["text"]
@@ -116,14 +194,14 @@ def compare_images(user_b64: str, cand_b64: str, user_mime: str = "image/jpeg",
     prompt = _COMPARE_PROMPT
     if lang != "ko":
         prompt += f"\n중요: 'reason'은 {lang_name(lang)}로 작성하세요."
-    url = f"{_BASE}/{settings.gemini_grade_model}:generateContent"
+    url = _gen_url()
     body = {
         "contents": [{"parts": [
             {"text": prompt},
             {"inline_data": {"mime_type": user_mime, "data": user_b64}},
             {"inline_data": {"mime_type": cand_mime, "data": cand_b64}},
         ]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 0},
+        "generationConfig": _gen_config(),
     }
     try:
         text = _post(url, body, timeout=60)["candidates"][0]["content"]["parts"][0]["text"]
@@ -221,10 +299,10 @@ def grade(query: str, candidates: list[dict], lang: str = "ko") -> list[dict]:
             f'"desc_en"(한 줄 {lname} 설명; 특이사항 있으면 반영). '
             f'즉 각 항목: {{"id":n, "score":0~100, "reason":"..", "name_en":"..", "desc_en":".."}}.'
         )
-    url = f"{_BASE}/{settings.gemini_grade_model}:generateContent"
+    url = _gen_url()
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"responseMimeType": "application/json", "temperature": 0},
+        "generationConfig": _gen_config(),
     }
     try:
         text = _post(url, body)["candidates"][0]["content"]["parts"][0]["text"]
