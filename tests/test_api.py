@@ -134,14 +134,28 @@ def test_browse_translation_cached(monkeypatch):
 
 
 class _Req:
-    def __init__(self, host, xff=""):
+    def __init__(self, host, xff="", cf=""):
         self.client = type("C", (), {"host": host})()
         self.headers = {"x-forwarded-for": xff} if xff else {}
+        if cf:
+            self.headers["cf-connecting-ip"] = cf
 
 
 def test_client_ip_trusts_forwarded_only_from_internal_proxy():
     assert client_ip(_Req("172.18.0.5", "6.6.6.6, 1.2.3.4")) == "1.2.3.4"  # 프록시가 붙인 맨 오른쪽
     assert client_ip(_Req("8.8.8.8", "1.2.3.4")) == "8.8.8.8"              # 외부에서 위조한 헤더 무시
+
+
+def test_client_ip_behind_cloudflare_uses_real_visitor():
+    """Cloudflare 프록시를 켜면 Caddy에 접속하는 건 Cloudflare 서버 — 그때만 CF-Connecting-IP(실제 방문자)를 믿는다.
+    안 그러면 같은 Cloudflare 서버를 거친 모든 방문자가 한 사람으로 묶여 서로의 요청 한도를 나눠 쓴다."""
+    caddy = "172.18.0.5"
+    assert client_ip(_Req(caddy, "162.158.10.20", cf="5.6.7.8")) == "5.6.7.8"          # Cloudflare IPv4 경유
+    assert client_ip(_Req(caddy, "2400:cb00:2049::1", cf="2001:db8::7")) == "2001:db8::7"  # IPv6 경유
+    assert client_ip(_Req(caddy, "1.2.3.4", cf="5.6.7.8")) == "1.2.3.4"    # 직접 접속자가 헤더 위조 → 무시
+    assert client_ip(_Req(caddy, "162.158.10.20", cf="not-an-ip")) == "162.158.10.20"  # 이상한 값이면 접속 IP
+    assert client_ip(_Req(caddy, "162.158.10.20")) == "162.158.10.20"
+    assert client_ip(_Req("8.8.8.8", "162.158.10.20", cf="5.6.7.8")) == "8.8.8.8"     # 내부 프록시가 아니면 그대로
 
 
 def test_valid_email():

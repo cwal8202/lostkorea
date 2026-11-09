@@ -6,6 +6,9 @@
 - hit(key, limit, window): 윈도 안 호출 수가 limit 이상이면 429(Retry-After 포함).
 - spend(units): 하루(KST) AI 사용량 상한 — 초과 시 429. LLM·임베딩을 부르는 요청만 소비.
 - client_ip(request): Caddy(내부망) 뒤에서는 X-Forwarded-For의 맨 오른쪽(프록시가 붙인 실제 IP)만 신뢰.
+  그 IP가 Cloudflare 서버(프록시 켬)면 Cloudflare가 넣은 CF-Connecting-IP(실제 방문자)를 쓴다 — 아니면 모든 방문자가
+  Cloudflare IP 몇 개로 묶여 서로의 한도를 나눠 쓰게 된다. 직접 접속한 사람이 이 헤더를 위조해도 Cloudflare IP가
+  아니므로 무시된다.
 """
 
 from __future__ import annotations
@@ -62,6 +65,24 @@ class Limiter:
 limiter = Limiter()
 
 
+# Cloudflare 서버 IP 대역 — https://www.cloudflare.com/ips-v4 · ips-v6 (2026-11-09 받음, 거의 안 바뀜. 바뀌면 여기 갱신)
+CLOUDFLARE_NETS = tuple(ipaddress.ip_network(n) for n in (
+    "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18",
+    "108.162.192.0/18", "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17",
+    "162.158.0.0/15", "104.16.0.0/13", "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+    "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32",
+    "2a06:98c0::/29", "2c0f:f248::/32",
+))
+
+
+def _is_cloudflare(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(ip in net for net in CLOUDFLARE_NETS)
+
+
 def _is_private(host: str) -> bool:
     try:
         return ipaddress.ip_address(host).is_private or ipaddress.ip_address(host).is_loopback
@@ -72,6 +93,13 @@ def _is_private(host: str) -> bool:
 def client_ip(request: Request) -> str:
     peer = request.client.host if request.client else "unknown"
     xff = request.headers.get("x-forwarded-for", "")
-    if xff and _is_private(peer):  # 내부망 프록시(Caddy)가 붙인 값만 신뢰 — 맨 오른쪽이 실제 접속 IP
-        return xff.split(",")[-1].strip() or peer
-    return peer
+    if not (xff and _is_private(peer)):  # 내부망 프록시(Caddy)가 붙인 값만 신뢰
+        return peer
+    ip = xff.split(",")[-1].strip() or peer  # 맨 오른쪽 = Caddy에 실제로 접속한 IP
+    if _is_cloudflare(ip):  # Cloudflare 프록시를 거쳐 옴 → Cloudflare가 넣은 실제 방문자 IP
+        cf = request.headers.get("cf-connecting-ip", "").strip()
+        try:
+            return str(ipaddress.ip_address(cf))
+        except ValueError:
+            return ip
+    return ip
