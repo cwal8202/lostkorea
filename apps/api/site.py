@@ -275,6 +275,12 @@ def _url(page: str, lang: str) -> str:
     return (meta.get(lang) or meta.get("en") or meta["ko"])["path"]
 
 
+# 검색엔진 소유 확인 태그(공개값 — 페이지 HTML에 그대로 보이는 값이라 비밀 아님). 구글은 DNS TXT로 확인(Cloudflare).
+SITE_VERIFICATION = {
+    "naver-site-verification": "f7d169cd259b6836be1a7075e749a5da8084441c",  # 네이버 서치어드바이저(2026-11-09)
+}
+
+
 def _head(page: str, lang: str) -> str:
     m, base = PAGES[page][lang], settings.public_base_url.rstrip("/")
     e = html.escape
@@ -284,6 +290,7 @@ def _head(page: str, lang: str) -> str:
         f'<meta name="description" content="{e(m["desc"])}" />',
         f'<link rel="canonical" href="{url}" />',
     ]
+    lines += [f'<meta name="{e(k)}" content="{e(v)}" />' for k, v in SITE_VERIFICATION.items()]
     for alt_lang, alt in PAGES[page].items():
         lines.append(f'<link rel="alternate" hreflang="{alt_lang}" href="{base}{alt["path"]}" />')
     if len(PAGES[page]) > 1:

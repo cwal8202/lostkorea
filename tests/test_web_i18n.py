@@ -132,3 +132,11 @@ def test_old_host_redirects_to_canonical_address(monkeypatch):
     r = client.post("/email/verify", json={"token": "t"}, headers={"host": "findit-lost.duckdns.org"})
     assert r.status_code == 308
     assert client.get("/health", headers={"host": "localhost"}).status_code == 200
+
+
+def test_search_engine_verification_tag_on_home():
+    """네이버 서치어드바이저 소유 확인 — 홈(한국어 그대로) head에 확인 태그가 있어야 확인이 유지된다."""
+    from apps.api.site import SITE_VERIFICATION
+    t = client.get("/", headers=KO_BROWSER).text
+    for name, value in SITE_VERIFICATION.items():
+        assert f'<meta name="{name}" content="{value}" />' in t

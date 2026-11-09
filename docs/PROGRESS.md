@@ -1056,6 +1056,12 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
 - 옛 주소(findit-lost.duckdns.org)는 여전히 서버 IP를 직접 가리킴 → Cloudflare 우회 가능. 옛 링크가 정리되면 방화벽을 Cloudflare 대역만 허용으로.
 - 코드 기본 대표 주소·`.env.example`·가동 감시(`uptime.yml`)·문서를 새 주소로. 테스트 177 → 178개.
 
+### 검색엔진 등록 시작 (2026-11-09, FIND-86)
+
+- 지금까지 검색엔진에 사이트를 알린 적이 없었다(구글에서 lostkorea.com 검색 결과 없음).
+- **Google Search Console**: 도메인 속성, DNS TXT 소유 확인(Cloudflare 1회 승인), 사이트맵 제출 성공 — 발견 페이지 9개(한 4 + 영 5).
+- **네이버 서치어드바이저**: HTML 태그 확인 값을 모든 페이지 head에 넣음(`SITE_VERIFICATION`, 공개값). 테스트로 고정. 테스트 178 → 179개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -1110,7 +1116,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (178개, 외부서비스 목킹)
+├─ tests/                          pytest (179개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · LAUNCH.md(운영자 할 일) · screenshots/
 ├─ .github/workflows/             deploy.yml(테스트 → 서버 SSH 자동배포) · uptime.yml(30분 외부 가동 감시)
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)
