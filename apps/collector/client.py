@@ -8,8 +8,8 @@ serviceKey는 .env 의 디코딩 키(urlencode로 인코딩됨).
 
 from __future__ import annotations
 
+import http.client
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -31,14 +31,19 @@ SOURCES = {
 }
 
 
-def _get(url: str, params: dict, max_retry: int = 4) -> ET.Element:
+def _get(url: str, params: dict, max_retry: int = 4, timeout: int = 15) -> ET.Element:
+    """요청 + 재시도. data.go.kr은 밤사이 '연결 끊김'·타임아웃이 잦음(11/08 실측: 상세 수십 건 실패, 수집 8시간).
+
+    OSError(URLError·타임아웃·ConnectionReset·RemoteDisconnected) + HTTP 프로토콜 오류 + XML 깨짐을 모두 재시도.
+    예전엔 RemoteDisconnected(연결 끊김)를 못 잡아 재시도 없이 바로 실패했다.
+    """
     params = {**params, "serviceKey": settings.data_go_kr_service_key_decoded}
     full = f"{url}?{urllib.parse.urlencode(params)}"
     for attempt in range(max_retry):
         try:
-            with urllib.request.urlopen(full, timeout=30) as r:
+            with urllib.request.urlopen(full, timeout=timeout) as r:
                 return ET.fromstring(r.read())
-        except (urllib.error.URLError, ET.ParseError, TimeoutError) as e:
+        except (OSError, http.client.HTTPException, ET.ParseError) as e:
             if attempt < max_retry - 1:
                 time.sleep(2 * (attempt + 1))
                 continue

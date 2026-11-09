@@ -82,3 +82,60 @@ def test_main_indexes_in_batches_so_failure_keeps_earlier_work(monkeypatch):
     with pytest.raises(RuntimeError):
         run.main()
     assert indexed == [500, 500]                     # 앞 두 배치(1,000건)는 이미 저장됨
+
+
+def test_failed_detail_is_not_indexed_so_next_run_retries(monkeypatch):
+    """상세가 끝내 실패한 항목은 이번에 색인하지 않음 → 다음 수집이 '새 항목'으로 재시도(예전엔 빈 상세로 영구 색인)."""
+    monkeypatch.setattr(run.time, "sleep", lambda s: None)
+
+    def detail(s, atc, sn):
+        if atc == "B":
+            raise RuntimeError("data.go.kr 요청 실패: Remote end closed connection without response")
+        return {"fdPlace": "강남역", "uniq": "내용", "orgNm": "강남경찰서", "tel": "02-000-0000"}
+
+    monkeypatch.setattr(run.client, "get_detail", detail)
+    docs = run.enrich_docs("police", [_li("A"), _li("B"), _li("C")], enrich=True)
+    assert [d["atc_id"] for d in docs] == ["A", "C"]          # 순서 유지, 실패한 B 제외
+    assert docs[0]["found_place"] == "강남역" and docs[0]["org_name"] == "강남경찰서"
+
+
+def test_client_retries_remote_disconnected(monkeypatch):
+    """'Remote end closed connection'(RemoteDisconnected)도 재시도 — 예전엔 못 잡아 바로 실패."""
+    import http.client
+
+    from apps.collector import client
+    calls = []
+
+    def flaky(url, timeout=0):
+        calls.append(1)
+        if len(calls) < 3:
+            raise http.client.RemoteDisconnected("Remote end closed connection without response")
+        return io.BytesIO(b"<response><body><items><item><atcId>A</atcId></item></items></body></response>")
+
+    monkeypatch.setattr(client.urllib.request, "urlopen", flaky)
+    monkeypatch.setattr(client.time, "sleep", lambda s: None)
+    assert client.get_detail("police", "A", "1") == {"atcId": "A"}
+    assert len(calls) == 3
+
+
+def test_prune_old_deletes_items_past_holding_period(monkeypatch):
+    from datetime import date
+    seen = {}
+
+    def fake_urlopen(req, timeout=0):
+        seen["url"], seen["body"] = req.full_url, json.loads(req.data)
+        return io.BytesIO(b'{"deleted": 42}')
+
+    monkeypatch.setattr(run.urllib.request, "urlopen", fake_urlopen)
+    assert run.prune_old(days=185, today=date(2026, 11, 9)) == 42
+    assert "_delete_by_query" in seen["url"]
+    assert seen["body"] == {"query": {"range": {"found_at": {"lt": "2026-05-08"}}}}
+
+
+def test_existing_ids_treats_docs_without_detail_as_missing(monkeypatch):
+    """습득장소 없이 색인된 문서(예전 상세 실패분)는 '없는 것'으로 → 다음 수집에서 상세 재조회(자가 복구)."""
+    docs = {"docs": [{"_id": "A_1", "found": True, "_source": {"found_place": "강남역"}},
+                     {"_id": "B_1", "found": True, "_source": {"found_place": ""}},
+                     {"_id": "C_1", "found": False}]}
+    monkeypatch.setattr(run.urllib.request, "urlopen", lambda req, timeout=0: io.BytesIO(json.dumps(docs).encode()))
+    assert run.existing_ids(["A_1", "B_1", "C_1"]) == {"A_1"}

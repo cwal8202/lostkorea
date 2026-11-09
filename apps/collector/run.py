@@ -19,6 +19,8 @@ import argparse
 import json
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 
 from apps.api import gemini
 from apps.api.config import settings
@@ -47,34 +49,69 @@ def list_items(source: str, start: str, end: str, rows: int, max_items: int) -> 
 
 
 def existing_ids(ids: list[str], chunk: int = 1000) -> set[str]:
-    """이미 색인된 문서 id 집합(OpenSearch _mget, 본문 제외)."""
+    """이미 (상세까지) 색인된 문서 id 집합(OpenSearch _mget, found_place만 조회).
+
+    습득장소가 빈 문서는 예전에 상세 조회가 실패한 채 색인된 것 → '없는 것'으로 보고 다시 상세 조회(자가 복구).
+    """
     found: set[str] = set()
     for i in range(0, len(ids), chunk):
         body = json.dumps({"ids": ids[i : i + chunk]}).encode()
         req = urllib.request.Request(
-            f"{settings.opensearch_url}/{settings.opensearch_index}/_mget?_source=false",
+            f"{settings.opensearch_url}/{settings.opensearch_index}/_mget?_source=found_place",
             body, {"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=60) as r:
-            found |= {d["_id"] for d in json.load(r).get("docs", []) if d.get("found")}
+            found |= {d["_id"] for d in json.load(r).get("docs", [])
+                      if d.get("found") and (d.get("_source") or {}).get("found_place")}
     return found
 
 
+def _detail(source: str, li: dict) -> dict | None:
+    """상세 1건. 재시도 후에도 실패하면 None."""
+    try:
+        return client.get_detail(source, li["atcId"], li["fdSn"])
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! 상세 실패 {li.get('atcId')}: {e}")
+        return None
+    finally:
+        time.sleep(0.1)  # 상세는 항목당 1콜 — 예의상 간격(작업자마다)
+
+
 def enrich_docs(source: str, items: list[dict], enrich: bool) -> list[dict]:
-    """목록 항목 → (선택) 상세 조회 → 정규화 문서. 상세는 항목당 1콜이라 새 항목에만 호출."""
-    docs: list[dict] = []
-    for n, li in enumerate(items, 1):
-        detail = {}
-        if enrich:
-            try:
-                detail = client.get_detail(source, li["atcId"], li["fdSn"])
-            except Exception as e:  # noqa: BLE001
-                print(f"  ! 상세 실패 {li.get('atcId')}: {e}")
-            time.sleep(0.1)  # 상세는 항목당 1콜 — 예의상 간격
-        docs.append(normalize(source, li, detail))
-        if enrich and n % 500 == 0:
-            print(f"  {source} 상세 {n}/{len(items)}", flush=True)
+    """목록 항목 → (선택) 상세 조회 → 정규화 문서. 상세는 항목당 1콜이라 새 항목에만 호출.
+
+    - 상세는 collect_workers개 동시 요청(건당 ~1초라 순차로는 하루 3~6천 건에 1~8시간).
+    - 상세가 끝내 실패한 항목은 **이번에 색인하지 않음** → 다음 수집(최근 7일 창 재조회)이 '새 항목'으로 다시 시도.
+      예전엔 습득장소·특이사항·보관기관 없이 색인돼 다음부터 '이미 색인'으로 건너뛰어 영구히 빈 채로 남았다.
+    """
+    if not enrich:
+        return [normalize(source, li, {}) for li in items]
+    with ThreadPoolExecutor(max_workers=max(1, settings.collect_workers)) as ex:
+        details = list(ex.map(lambda li: _detail(source, li), items))
+    docs = [normalize(source, li, d) for li, d in zip(items, details) if d is not None]
+    failed = len(items) - len(docs)
+    print(f"  {source} 상세 {len(items)}건" + (f" (실패 {failed}건은 다음 수집에서 재시도)" if failed else ""),
+          flush=True)
     return docs
+
+
+def prune_old(days: int | None = None, today: date | None = None) -> int:
+    """습득일이 days일보다 오래된 습득물 삭제 — 유실물법상 소유자가 찾아갈 수 있는 기간(6개월)이 지난 것.
+
+    안 지우면 색인이 하루 ~3,700건씩 끝없이 늘어 벡터 검색 메모리·디스크가 서버를 넘어선다(10월 기준 17만 건·3GB).
+    """
+    days = days or settings.found_retention_days
+    cutoff = ((today or date.today()) - timedelta(days=days)).isoformat()
+    body = json.dumps({"query": {"range": {"found_at": {"lt": cutoff}}}}).encode()
+    req = urllib.request.Request(
+        f"{settings.opensearch_url}/{settings.opensearch_index}/_delete_by_query?conflicts=proceed",
+        body, {"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=600) as r:
+        deleted = json.load(r).get("deleted", 0)
+    if deleted:
+        print(f"  보관 기간 경과(습득일 < {cutoff}) {deleted}건 삭제")
+    return deleted
 
 
 BATCH = 500  # 상세 조회 → 임베딩 → 색인을 이 단위로 — 중간에 끊겨도 앞 배치는 남고, 재실행 시 스킵으로 이어감
@@ -171,10 +208,14 @@ def main() -> None:
 
     if indexed:  # 새 항목 0건이면 색인 생략(빈 _bulk는 OpenSearch 400) — 재매칭은 그대로 진행
         print(f"  완료: {indexed}건 색인, 오류 {errors}건")
-        urllib.request.urlopen(urllib.request.Request(  # 색인 즉시 반영
-            f"{settings.opensearch_url}/{settings.opensearch_index}/_refresh", method="POST"), timeout=15)
     else:
         print("새 항목 없음 — 색인 생략")
+    try:
+        prune_old()
+    except Exception as e:  # noqa: BLE001 — 정리 실패가 색인·재매칭을 막지 않게
+        print(f"  ! 오래된 습득물 정리 실패: {e}")
+    urllib.request.urlopen(urllib.request.Request(  # 색인·삭제 즉시 반영
+        f"{settings.opensearch_url}/{settings.opensearch_index}/_refresh", method="POST"), timeout=15)
     cnt = json.load(urllib.request.urlopen(
         f"{settings.opensearch_url}/{settings.opensearch_index}/_count", timeout=15))["count"]
     print(f"  현재 인덱스 총 문서: {cnt}")

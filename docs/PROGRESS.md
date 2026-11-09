@@ -9,7 +9,7 @@
 ## 0. 한눈에 보기
 
 - **현재 국면**: **라이브 서비스 배포 완료**(수집→색인→검색+지역가점→grading→에이전트→DB→지속 재매칭→**이메일 알림**→**웹 UI**).
-  FIND-1~73 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
+  FIND-1~74 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
@@ -850,6 +850,18 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
 - **서버 작업**: DB 백업 cron 등록(매일 04:00) + 첫 백업 실행·검증(DB 37건 = 백업 37건).
 - 테스트 120 → 132개.
 
+### 한 달 운영 점검 → 수집 안정화·색인 상한 (2026-11-09, FIND-74)
+
+**점검 결과(10/13~11/09 실측)**: 배치 색인·백업(매일 04:00, 16개 보관)·재매칭은 정상. 문제 3가지 발견.
+- **11/08 수집이 8시간**(평소 ~1시간): data.go.kr이 밤새 타임아웃·"Remote end closed connection"을 반복.
+  원인 ① `RemoteDisconnected`는 `URLError`가 아니라 **재시도 대상에서 빠져** 바로 실패 ② 상세를 순차로 건당 ~1초+타임아웃 30초.
+  → 재시도를 `OSError`·HTTP 프로토콜 오류 전체로 확대, 타임아웃 15초, **상세 4건 동시 조회**(`COLLECT_WORKERS`).
+- **상세 실패분이 영구히 빈 채로 남음**: 실패해도 습득장소·보관기관 없이 색인 → 다음 날 '이미 색인'으로 건너뜀(31건).
+  → 실패 항목은 색인하지 않고 다음 수집(7일 창 재조회)에서 재시도, 습득장소가 빈 기존 문서도 '없는 것'으로 보고 다시 채움(자가 복구).
+- **색인이 끝없이 커짐**: 17만 건·3GB, 하루 ~3,700건 증가(1년이면 130만 건 — 8GB 서버의 벡터 메모리·디스크 초과).
+  → 습득일 185일(유실물법 6개월 + 여유) 지난 습득물을 매일 삭제(`prune_old`, `FOUND_RETENTION_DAYS`). 첫 삭제는 2027년 2월부터.
+- 테스트 132 → 136개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -903,7 +915,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (핵심 로직 132개, 외부서비스 목킹)
+├─ tests/                          pytest (핵심 로직 136개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · screenshots/
 ├─ .github/workflows/deploy.yml    main push → 서버 SSH 자동배포
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)

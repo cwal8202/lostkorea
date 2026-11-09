@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     weak_grade_threshold: int = 50     # 약한 후보 하한 — 신고자가 옵트인하면 [이 값, 위 임계) 구간도 '참고' 알림
     watch_days_default: int = 30       # 지속 재매칭(알림) 기간 기본값 — 지나면 expired, 재매칭·LLM 비용 중단
     watch_days_max: int = 180          # 선택 상한 = 습득물 최대 보관 기간(~6개월)
+    found_retention_days: int = 185   # 습득일이 이보다 오래된 습득물은 색인에서 삭제(유실물법 6개월 + 여유)
+    collect_workers: int = 4          # 상세 조회 동시 요청 수(공공 API 예의 — 너무 올리지 말 것)
     retention_days: int = 30          # 알림 기간이 끝난 뒤 이 일수가 지나면 신고 자동 삭제(개인정보 보유 기간)
     verify_hours: int = 48             # 이메일 확인 링크 유효 시간
 
