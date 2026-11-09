@@ -99,7 +99,7 @@ KO = {
     "subj_strong": "분실물 매칭 알림", "subj_weak": "비슷한 후보 알림(참고)",
     "item": "물품", "category": "분류", "held": "보관장소", "region": "지역", "found": "습득일",
     "desc": "특이사항", "office": "보관기관", "contact": "연락처", "ask_office": "보관기관 문의",
-    "grade": "신뢰도(grade)", "reason": "판단 근거", "held_short": "보관",
+    "grade": "일치 점수", "score_badge": "일치", "reason": "판단 근거", "held_short": "보관",
     "others_text": "비슷한 후보 {n}건도 확인해보세요:", "others_html": "비슷한 후보 {n}건",
     "claim": "본인 물건이면 위 보관기관 연락처로 수령을 문의하세요.",
     "cta": "{brand}에서 전체 결과 보기 →", "cta_text": "{brand}에서 전체 결과 보기: {url}",
@@ -245,7 +245,7 @@ def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         lines += ["", "■ " + _fill(S["others_text"], n=len(others))]
         for o in others:
             lines.append(
-                f"  - {o.get('name')}/{o.get('color')} (grade {o.get('grade')}) · "
+                f"  - {o.get('name')}/{o.get('color')} ({S['score_badge']} {o.get('grade')}) · "
                 f"{o.get('region') or '-'} · {S['held_short']}:{o.get('dep_place') or '-'}"
             )
     lines += [
@@ -270,7 +270,7 @@ def _card_html(m: dict, primary: bool = False, S: dict = KO) -> str:
     g = m.get("grade")
     badge = (
         f'<span style="background:{_grade_color(g)};color:#fff;border-radius:6px;'
-        f'padding:1px 8px;font-weight:700;font-size:12px">grade {e(str(g))}</span>'
+        f'padding:1px 8px;font-weight:700;font-size:12px">{e(S["score_badge"])} {e(str(g))}</span>'
     )
     reason = (
         f'<div style="font-size:13px;color:#374151;margin-top:4px">💬 {e(str(m.get("reason") or ""))}</div>'

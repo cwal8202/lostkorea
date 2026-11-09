@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 서버 이전: findit → lostkorea (DB·사용자·컨테이너·볼륨·경로). 실패 시 즉시 중단. 옛 볼륨은 지우지 않음(되돌리기용).
 # 1회용(2026-11-09). 서버에서 git pull 하기 **전에** 실행 — 스크립트가 옛 스택을 내린 뒤 직접 pull 한다.
-#   curl -fsSL https://raw.githubusercontent.com/cwal8202/findit/main/scripts/migrate_rename.sh -o /root/migrate_rename.sh
+#   curl -fsSL https://raw.githubusercontent.com/cwal8202/lostkorea/main/scripts/migrate_rename.sh -o /root/migrate_rename.sh
 #   bash /root/migrate_rename.sh </dev/null
 # 순서: 점검 → DB 백업 → DB·사용자 이름 변경 → 옛 스택 down → 폴더 이동(+옛 경로 링크) → git pull →
 #       새 볼륨에 복사(파일 수·바이트 비교) → 이미지 태그 → 새 스택 기동 → 건수 비교.
@@ -46,6 +46,7 @@ mv "$OLD" "$NEW"
 mv /root/findit-backups /root/lostkorea-backups
 ln -s "$NEW" "$OLD"
 cd "$NEW"
+git remote set-url origin https://github.com/cwal8202/lostkorea.git   # GitHub 저장소 이름도 lostkorea로 바뀜
 git pull --ff-only -q
 git log --oneline -1
 NC="docker compose -f docker-compose.prod.yml"

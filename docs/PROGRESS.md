@@ -2,29 +2,34 @@
 
 > 분실물 매칭 AI 에이전트. 자연어로 분실물을 등록하면 경찰청·포털기관 습득물 데이터를
 > 수집해 하이브리드 검색 + LLM grading으로 매칭하고 알림하는 서비스.
-> **문서 갱신일: 2026-09-29**
+> **문서 갱신일: 2026-11-09**
 
 ---
 
 ## 0. 한눈에 보기
 
-- **현재 국면**: **라이브 서비스 배포 완료**(수집→색인→검색+지역가점→grading→에이전트→DB→지속 재매칭→**이메일 알림**→**웹 UI**).
-  FIND-1~83 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
+- **서비스**: **LostKorea**(구 FindIt, 2026-11-09 개명 — 같은 이름의 AI 분실물 앱이 이미 있음). "한국에서 잃어버린 물건 찾기 /
+  Lost something in Korea?" — 외국인도 쓸 수 있는 AI 분실물 매칭. 목표는 공모전 데모가 아니라 **실제로 운영하는 서비스**.
+- **현재 국면**: **라이브 운영 중**(수집→색인→검색+지역가점→판정→에이전트→DB→지속 재매칭→이메일 알림→웹사이트).
+  FIND-1~84 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions(테스트 통과 시 자동배포) + 매일 cron 수집으로
+  **https://findit-lost.duckdns.org** 운영(lostkorea 주소로 이전 예정 — [LAUNCH.md](LAUNCH.md) 2-1). 저장소 https://github.com/cwal8202/lostkorea
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
-  사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112)**.
+  사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112·1330 통역)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
-- **차별점 2가지**: ① 더 똑똑한 검색(자연어·의미 임베딩·사진 특징추출) ② **외국인 접근성**(다국어 UI + 다국어 검색 — 관공서는 한국어 전용).
-- **2026-09-29 운영 점검·개선(FIND-61~66)**: 문서 현행화 / 알림 개선(약한 후보 옵트인·결과창 알림 설정·알림 기간 만료) /
-  공개 목록 이메일·id 노출 차단 / **일일 수집 누락 수정**('어제분'만 조회해 새 데이터 99% 누락 → 최근 7일 창 + 기존 스킵) /
-  실시간 진행 표시(SSE) / **다국어 알림 메일**(09-30) / **데이터랩 × 습득물 결합 분석**(09-30). 상세는 아래 5절 해당 날짜 항목.
-- **공모전**: 「2026 한국관광 데이터랩 활용 경진대회」 개인 응모 **제출 완료(2026-09-30)** — 서면심사 10/1~10/8, 발표심사·시상 10/23
-  → **서버는 최소 10/23까지 유지**.
-- **2026-10-12~13 실서비스 전환(FIND-70~72)**: 외부 리뷰 + 자체 전수 검토로 보안·남용 방지(스팸 릴레이 차단·이메일 이중 확인·신고 토큰·레이트리밋·일일 AI 상한·공개 목록 제거), 정확성(지역 매칭 정밀화·KST·LLM 응답 검증), 운영(CI 테스트 게이트·수집 배치 색인·실패/정체 알림·DB 백업). 남은 것: 서버 작업(백업 cron·DB 비밀번호), 개인정보처리방침·약관, 비동기·이중화.
-- **다음 액션 후보(심사 후 고도화)**: 이미지 임베딩(CLIP) 레인 / 카카오 알림톡(사업자 확보 시) / 인증(user_id) — 공개 목록 범위 축소 포함 /
-  React·Vercel 프론트 분리 / 브라우저 확장(MV3) / 9/1~9/21 누락분 백필(보류 중).
-- **최근 실측**: 지역 가점 hard셋 MRR 0.084→0.857 / gazetteer+지오코딩 95% / grading 근거·신뢰도 /
-  에이전트 "어제 2호선 검정 닥스 지갑"→DAKS 95점 / 습득물 등록 지연: 자정 '어제분' 5건 → 하루 뒤 같은 날짜 ~2,800건 /
-  7일치 목록 ~18,700건 조회 ≈ 1분, 상세 0.16s/건.
+- **차별점 2가지**: ① 더 똑똑한 검색(자연어·의미 임베딩·사진 특징추출) ② **외국인 접근성**(영어 화면·다국어 검색·신고자 언어 메일 — 관공서는 한국어 전용).
+- **2026-10-12~13 실서비스 전환(FIND-70~73)**: 보안·남용 방지(스팸 릴레이 차단·이메일 이중 확인·신고 토큰·레이트리밋·일일 AI 상한·
+  공개 목록 제거), 정확성(지역 매칭 정밀화·KST·LLM 응답 검증), 운영(CI 테스트 게이트·배치 색인·실패/정체 알림·DB 백업),
+  개인정보(처리방침·약관·보유 기간 자동 삭제).
+- **2026-11-09 실서비스 품질 작업(FIND-74~84)**: 한 달 운영 점검(수집 안정화·색인 185일 상한) / 운영 관측(익명 통계·주간 요약·오류 메일·
+  외부 가동 감시·AI 토큰 실측) / 영어 화면·검색엔진·SNS 노출·영어 가이드 / **AI 비용·속도**(숨은 thinking 제거: 신고 1건 ≈$0.014→$0.004,
+  AI 구간 16.9초→6.3초, 품질 측정 동일) / 검색 우선 화면 / **서비스명 LostKorea + 실제 웹사이트 전면 개편**(서버 렌더링, 공공서비스 톤) /
+  **DB 비밀번호 교체(운영 반영)** / 내부 이름·저장소 lostkorea 이전 / 주소 이전 준비. 상세는 아래 5절.
+- **운영자 대기 중**: ① 서버 이름 이전 스크립트 실행(`scripts/migrate_rename.sh` — LAUNCH 1-4) ② lostkorea 주소 결정(LAUNCH 2-1)
+  ③ 검색엔진 등록 등 나머지 [LAUNCH.md](LAUNCH.md) 항목.
+- **다음 고도화 후보**: 이미지 임베딩(CLIP) 레인 / 카카오 알림톡(사업자 확보 시) / 인증(user_id) / 규모가 커지면 Claude Haiku A/B(비용).
+- **공모전(종료)**: 「2026 한국관광 데이터랩 활용 경진대회」 개인 응모 제출(2026-09-30). 데이터랩 결합 분석은 `eval/datalab/`.
+- **최근 실측**: 운영 신고 1건 = AI 3호출·입력 ~1,670·출력 ~740토큰 ≈ $0.004(≈5.7원), 총 ~9초 / 지역 가점 hard셋 MRR 0.084→0.857 /
+  임베딩 검색 MRR 0.633(BM25)→0.960 / 색인 ~17만 건, 수집 하루 ~3,700건.
 - **알림**: 이메일(EmailNotifier, SMTP). 카카오 알림톡은 **사업자등록 필수**라 비사업자 불가 → 이메일 채택.
 
 ---
@@ -38,6 +43,8 @@
 3. **OpenSearch 기동**
    - 이미 만든 적 있으면: `docker compose -f infra/docker-compose.yml start`
    - 처음이면: `docker compose -f infra/docker-compose.yml up -d --build`
+   - ※ 2026-11-09부터 로컬 compose 이름이 `lostkorea-dev`(컨테이너 `lostkorea-dev-opensearch`) — 그 전에 만든 `findit-opensearch`는
+     이어 쓰지 않으므로 '처음이면'대로 띄우고 4번 재색인(임베딩 캐시라 과금 없음). 옛 컨테이너·볼륨은 확인 후 지워도 됨.
 4. **인덱스 없으면 재생성 + 색인** (임베딩은 `eval/data/emb_cache.json` 재사용 → 재임베딩·과금 없음):
    ```bash
    curl -X PUT localhost:9200/found_items -H "Content-Type: application/json" \
@@ -53,9 +60,10 @@
    # eval: python eval/run_os.py / run_boost.py / run_grade.py
    ```
 7. **배포/운영**: 실서비스는 VPS + `docker-compose.prod.yml`(OpenSearch+Postgres+backend+Caddy). 배포·HTTPS·자동배포·cron은 [`DEPLOY.md`](DEPLOY.md) 참고. main push → GitHub Actions 자동배포.
-   - 운영 점검은 서버 `/root/findit/daily_collect.log`(매일 수집·재매칭 결과: 대상 건수·최고 grade·신규 매칭)부터.
+   - 운영 점검은 서버 `/root/lostkorea/daily_collect.log`(이름 이전 전엔 `/root/findit/…`, 매일 수집·재매칭 결과: 대상 건수·최고 grade·신규 매칭)부터.
    - ⚠ 서버에서 파일 권한·내용을 직접 바꾸면 git이 로컬 변경으로 보고 자동배포(`git pull --ff-only`)가 실패한다 → 변경은 레포로.
-8. **다음 작업 후보(심사 후 고도화)**: 이미지 임베딩(CLIP) 레인 / 카카오 알림톡(사업자 확보 시) / 인증(user_id) / React·Vercel 프론트 분리 / 브라우저 확장(MV3) / uniq 포함 임베딩 재색인.
+8. **남은 일**: 운영자 결정·계정이 필요한 것은 [`LAUNCH.md`](LAUNCH.md). 코드 쪽 다음 후보는 이미지 임베딩(CLIP) 레인 / 카카오 알림톡(사업자 확보 시) /
+   인증(user_id) / uniq 포함 임베딩 재색인.
 
 **주의**: `.env`(키)는 git에 없음(같은 컴퓨터엔 로컬에 존재). 다른 컴퓨터면 `.env` 새로 작성 필요.
 결제(Gemini 종량제) 활성화 상태 → rate limit 없음. 임베딩 캐시가 저장소에 포함되어 재임베딩 불필요.
@@ -1013,6 +1021,23 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
   실행되고 멈춤 — 변경 없음 확인. 파일로 올려 `</dev/null`로 실행하도록 바꿈.
 - 테스트 175 → 176개.
 
+### 저장소 lostkorea 이전 + 주소 이전 준비 + 문서·스크린샷 현행화 (2026-11-09, FIND-84)
+
+- **GitHub 저장소 이름 변경**(운영자): `cwal8202/findit` → **`cwal8202/lostkorea`**(옛 주소는 GitHub가 자동 연결). 화면·방침·약관의 문의
+  링크, 문서, 이전 스크립트(서버 `git remote`를 새 주소로 바꾸는 단계 추가)·받는 주소(raw URL)를 새 저장소로.
+- **주소 이전 준비**(코드만, 아직 미사용): `REDIRECT_HOSTS` — 옛 호스트로 들어오면 대표 주소(`PUBLIC_BASE_URL`)로 영구 이동
+  (GET 301, 그 외 308 — 메일 확인 같은 POST도 유지), 서버 안 점검(localhost)은 그대로. Caddy `DOMAIN`에 여러 주소(쉼표)를 넣을 수
+  있게 해 옛·새 주소 모두 HTTPS 유지. 절차는 DEPLOY.md '주소 바꾸기', 선택지(DuckDNS 무료 `lostkorea.duckdns.org` vs `lostkorea.com`)는 LAUNCH 2-1.
+  테스트의 사이트 주소도 설정값 기준으로(주소가 바뀌어도 그대로 통과).
+- **알림 메일 점수 표기**: 한국어 메일에 남아 있던 개발 용어 'grade' → '일치 점수'·배지 '일치 85'(화면과 같은 표현).
+- **README 스크린샷 6장 재촬영**: 새 디자인의 운영 사이트를 실제 브라우저로 캡처(홈·둘러보기·영어 휴대폰·AI 결과·수령 안내·알림 메일).
+  결과 화면은 실제 신고 1건으로 찍고 그 신고는 관리 토큰으로 바로 삭제, 메일은 같은 실제 결과로 만든 메일 HTML.
+- **문서 현행화**: README(이름·저장소·화면 설명·구조), LAUNCH(비밀번호 ✅·이전 명령·주소 선택지), DEPLOY(수집 7일 창·비밀번호 필수·주소 바꾸기),
+  이 문서 0절·인수인계·구조도.
+- 남은 'findit' 표기는 의도적: 현재 운영 주소(`findit-lost.duckdns.org`), 서버 이전 스크립트·옛 볼륨 이름, '내 신고' 옛 보관 키 자동 이전 코드,
+  이 문서의 과거 기록, 로컬 작업 폴더 이름.
+- 테스트 176 → 177개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -1050,32 +1075,33 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
 ```
 find_it/
 ├─ apps/
-│   ├─ api/            FastAPI 앱: config·gemini(LLM 호출 전부)·region·search·models·main (엔드포인트 13개, SSE 2개 포함)
+│   ├─ api/            FastAPI 앱: config·gemini(LLM 호출 전부)·region·search·models·main(API)·site(페이지 서버 렌더링·SEO)·limits
 │   ├─ agent/          매칭 에이전트(LangGraph): extract·route·fanout·graph(단계 스트림)·rematch(알림 등급·기간)
 │   │   └─ prompts/    extract.txt · extract_image.txt · route.txt (프롬프트 파일 분리)
 │   ├─ collector/      수집기: client(data.go.kr XML)·normalize·run(CLI — 기존 항목 스킵, bulk 분할)
-│   ├─ web/            단일 페이지 웹(index.html + static/) — 랜딩·AI검색·둘러보기, 다국어
+│   ├─ web/            웹사이트 템플릿(index·가이드·방침/약관 + partials 머리글·바닥글) + static(css·js·로고·Pretendard 폰트)
 │   ├─ store.py        분실물 저장소 (PostgreSQL/SQLite 이중 백엔드, DATABASE_URL로 선택)
-│   └─ notifier.py     알림 (Notifier 인터페이스 + Console/Email)
+│   ├─ ops.py          운영 점검·알림(오류 메일·색인 신선도·주간 요약·디스크)
+│   └─ notifier.py     알림 (Notifier 인터페이스 + Console/Email, 13개 언어)
 ├─ eval/               골든셋 + 성능 실험(BM25/EMB/HYB/가점 스윕/grading, OpenSearch 색인·검색·데모)
 │   ├─ datalab/        한국관광 데이터랩 × 습득물 결합 분석(수집·결합·차트 코드 + 집계 결과·그림)
 │   └─ data/           corpus.json(2,000건)·emb_cache·grade_cache·gazetteer·geocoded·골든셋 등
-├─ scripts/            backfill_region · geocode_region · daily_collect.sh(cron 수집 — 최근 7일 창, 실행권한 755로 커밋)
+├─ scripts/            daily_collect.sh(cron 수집 — 최근 7일 창)·backup_db.sh(매일 백업)·migrate_rename.sh(1회용 이름 이전) · backfill·geocode
 ├─ infra/
 │   ├─ docker-compose.yml          로컬 OpenSearch(nori)
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (핵심 로직 176개, 외부서비스 목킹)
-├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · screenshots/
-├─ .github/workflows/deploy.yml    main push → 서버 SSH 자동배포
+├─ tests/                          pytest (177개, 외부서비스 목킹)
+├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · LAUNCH.md(운영자 할 일) · screenshots/
+├─ .github/workflows/             deploy.yml(테스트 → 서버 SSH 자동배포) · uptime.yml(30분 외부 가동 감시)
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)
 ├─ Dockerfile · pyproject.toml · uv.lock · README.md
 └─ .env / .env.example             시크릿(.env는 gitignore) · police_lostfound.http도 gitignore
 ```
 
 > ⚠️ **보안**: `serviceKey`·`GEMINI_API_KEY` 등은 `.env`/pydantic-settings로 분리(코드·문서에 값 없음).
-> `.env`·`police_lostfound.http`·`data/findit.db`(개인정보)는 `.gitignore` 대상. 공개 레포: https://github.com/cwal8202/findit
+> `.env`·`police_lostfound.http`·`data/*.db`(개인정보)는 `.gitignore` 대상. 공개 레포: https://github.com/cwal8202/lostkorea
 
 ---
 
@@ -1097,9 +1123,9 @@ find_it/
 | **8+++. 운영** | CI 테스트 게이트·수집 500건 배치 색인·수집 실패/데이터 정체 알림·DB 일일 백업(cron)·로그 상한 | ✅ |
 | **8++++. 개인정보·비용·장애** | 개인정보처리방침·이용약관·보유 기간 자동 삭제·신고 삭제 + 재매칭 판정 생략(새 후보 있을 때만) + Gemini 장애 시 키워드 검색 대체 | ✅ (백업 외부 복제·에러 추적·Redis는 필요 시) |
 | **8+++++. 실서비스 점검** | 한 달 운영 점검 → 수집 안정화·색인 상한, 운영 관측(통계·주간 요약·오류 메일·외부 가동 감시), 영어 화면(/en)·검색·SNS 노출·영어 가이드 | ✅ (남은 것: [LAUNCH.md](LAUNCH.md) — 운영자 결정 사항) |
-| **9. 심사 후 고도화** | 이미지 임베딩(CLIP) 레인 · 카카오 알림톡 · 인증(user_id) · React/Vercel 프론트 분리 · 브라우저 확장(MV3) · 9월 초 누락분 백필 | ⏳ |
+| **9. 다음 고도화** | 이미지 임베딩(CLIP) 레인 · 카카오 알림톡 · 인증(user_id) · React/Vercel 프론트 분리 · 브라우저 확장(MV3) · 9월 초 누락분 백필 | ⏳ |
 
-> **현재**: 전체 파이프라인 라이브 운영 중(https://findit-lost.duckdns.org, 영어 https://findit-lost.duckdns.org/en). 기술 과제보다 **사용자 유입**이 핵심 — 운영자가 할 일은 [LAUNCH.md](LAUNCH.md).
+> **현재**: LostKorea 라이브 운영 중(https://findit-lost.duckdns.org, 영어 /en — lostkorea 주소로 이전 예정). 기술 과제보다 **사용자 유입**이 핵심 — 운영자가 할 일은 [LAUNCH.md](LAUNCH.md).
 
 ---
 

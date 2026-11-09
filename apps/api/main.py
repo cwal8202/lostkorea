@@ -19,6 +19,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
+    RedirectResponse,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +56,20 @@ store.init()  # 분실물 테이블 생성(멱등)
 
 _WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
 _is_bot = site.is_bot
+
+
+_REDIRECT_HOSTS = {h.strip().lower() for h in settings.redirect_hosts.split(",") if h.strip()}
+
+
+@app.middleware("http")
+async def _canonical_host(request: Request, call_next):
+    """옛 주소로 온 요청 → 대표 주소(PUBLIC_BASE_URL)로 영구 이동. GET은 301, 나머지는 308(메서드·본문 유지).
+    서버 안 점검(localhost)·IP 접속은 목록에 없으니 그대로."""
+    host = request.headers.get("host", "").split(":")[0].lower()
+    if host in _REDIRECT_HOSTS:
+        url = settings.public_base_url.rstrip("/") + request.url.path + (f"?{request.url.query}" if request.url.query else "")
+        return RedirectResponse(url, status_code=301 if request.method in ("GET", "HEAD") else 308)
+    return await call_next(request)
 
 
 @app.middleware("http")

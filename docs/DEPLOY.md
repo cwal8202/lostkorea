@@ -6,11 +6,11 @@ Hetzner CX33(8GB) 등 VPS 한 대에 **OpenSearch(nori) + PostgreSQL + 백엔드
 - **HTTPS**: DuckDNS(무료 서브도메인) + **Caddy**(리버스프록시)가 Let's Encrypt 인증서 자동 발급·갱신.
   `https://<도메인>` 접속. http→https 자동 리다이렉트. (도메인 미설정 시 `http://<서버IP>`로도 동작.)
 - **자동배포(CI/CD)**: `main`에 push → GitHub Actions가 서버 SSH → `git pull` + 재빌드. (아래 9절)
-- **최신 데이터**: cron이 매일 어제분 습득물 수집·색인·재매칭. (아래 8절)
+- **최신 데이터**: cron이 매일 00:00 최근 7일 습득물을 다시 조회해 새 항목만 수집·색인·재매칭. (아래 8절)
 
 > 시크릿은 서버의 `.env`(git 미포함). **OpenSearch·PostgreSQL은 외부 포트 노출 안 함** — Caddy(80/443)만 외부에 열림.
 
-라이브: **https://findit-lost.duckdns.org** (정식 도메인 lostkorea 연결 예정)
+라이브: **https://findit-lost.duckdns.org** — lostkorea 주소로 옮길 예정(아래 '주소 바꾸기', LAUNCH.md 2-1)
 
 ---
 
@@ -28,7 +28,7 @@ docker --version && docker compose version
 ## 2. 코드 받기
 ```bash
 apt-get update && apt-get install -y git
-git clone https://github.com/cwal8202/findit.git /root/lostkorea
+git clone https://github.com/cwal8202/lostkorea.git /root/lostkorea
 cd /root/lostkorea
 ```
 > 자동배포 워크플로가 `/root/lostkorea` 경로를 가정하므로 이 위치에 클론한다.
@@ -41,12 +41,13 @@ nano .env      # 아래 키 채우기
 - `GEMINI_API_KEY` (임베딩·grading·Vision)
 - `DATA_GO_KR_SERVICE_KEY_DECODED` (수집기)
 - `KAKAO_REST_API_KEY` (지오코딩, 선택)
-- `POSTGRES_PASSWORD` (배포 DB 비밀번호 — 강한 값 권장)
-- **`DOMAIN`** (HTTPS용 DuckDNS 도메인, 예: `findit-lost.duckdns.org`) — 비우면 http만.
+- **`POSTGRES_PASSWORD`** (필수 — 없으면 뜨지 않음. 생성: `openssl rand -hex 24`)
+- **`DOMAIN`** (HTTPS 주소, 쉼표로 여러 개 가능 — 모두 인증서 자동 발급) — 비우면 http만.
+- **`PUBLIC_BASE_URL`**(대표 주소: 메일 링크·canonical·sitemap) · **`REDIRECT_HOSTS`**(옛 주소 → 대표 주소 영구 이동) — 아래 '주소 바꾸기'.
 - 이메일 알림 쓰면: `NOTIFIER_CHANNEL=email`, `SMTP_USER`, `SMTP_PASSWORD`, `NOTIFY_EMAIL_TO`
 - (`OPENSEARCH_URL`·`DATABASE_URL`은 compose가 자동 주입하므로 건드리지 말 것)
 
-> **DuckDNS 준비**: duckdns.org에서 서브도메인 생성 → 서버 IP로 A레코드(현재 IP) 지정 → 그 도메인을 `.env` `DOMAIN`에.
+> **DuckDNS 준비**: duckdns.org에서 서브도메인 생성 → 서버 IP 지정 → 그 도메인을 `.env` `DOMAIN`에. 운영 중 주소를 바꿀 땐 아래 '주소 바꾸기'.
 
 ## 4. 기동 (빌드 + 실행)
 ```bash
@@ -199,6 +200,18 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 | `AI_PRICE_IN_PER_M` · `AI_PRICE_OUT_PER_M` | `0.75` · `3.75` | 주간 요약의 AI 비용 추정 단가(USD/100만 토큰). 2027-01-01 Gemini 인상 시 갱신 |
 | `DAILY_AI_BUDGET` | `1500` | 하루 AI 사용 상한(글 신고 1 · 사진 3 · 검색 API 1~2 단위) — 넘으면 429 |
 - 비용 실측·모델 선택 메모는 [LAUNCH.md 4](LAUNCH.md) 참고.
+
+## 주소 바꾸기 (예: findit-lost.duckdns.org → lostkorea.duckdns.org 또는 lostkorea.com)
+1. 새 주소의 DNS A 레코드를 서버 IP로(DuckDNS면 서브도메인 추가 후 IP를 **서버 IP**로 — 기본값은 접속한 PC의 IP).
+2. 서버 `.env`:
+   ```bash
+   DOMAIN=lostkorea.duckdns.org, findit-lost.duckdns.org   # 새 + 옛 주소 모두 인증서 발급
+   PUBLIC_BASE_URL=https://lostkorea.duckdns.org            # 대표 주소
+   REDIRECT_HOSTS=findit-lost.duckdns.org                   # 옛 주소는 대표 주소로 영구 이동(GET 301 / 그 외 308)
+   ```
+3. `docker compose -f docker-compose.prod.yml up -d backend caddy` → 새 주소 https 확인 → 옛 주소가 새 주소로 넘어가는지 확인.
+4. `.github/workflows/uptime.yml`의 `BASE`를 새 주소로, Search Console·네이버에 새 주소 등록.
+- 서버 안 점검(`curl localhost/...`)·IP 접속은 목록에 없으므로 이동하지 않는다.
 
 ## 이름 이전 기록 (2026-11-09, findit → lostkorea)
 서비스명 변경(FIND-82)에 이어 내부 이름도 옮겼다(FIND-83). Docker 볼륨은 이름을 바꿀 수 없어 **새 볼륨으로 복사**했다.

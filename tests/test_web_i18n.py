@@ -5,9 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apps import notifier, store
+from apps.api.config import settings
 from apps.api.main import app
 
 client = TestClient(app, follow_redirects=False)
+BASE = settings.public_base_url.rstrip("/")
 EN_BROWSER = {"user-agent": "Mozilla/5.0 (Macintosh) Safari/605", "accept-language": "en-US,en;q=0.9"}
 KO_BROWSER = {"user-agent": "Mozilla/5.0 (Macintosh) Safari/605", "accept-language": "en-US,en;q=0.9,ko;q=0.8"}
 
@@ -39,7 +41,7 @@ def test_english_page_has_english_meta_and_hreflang():
     t = r.text
     assert r.status_code == 200 and '<html lang="en">' in t and 'window.LK_LANG = "en"' in t
     assert "Lost something in Korea?" in t and 'og:image' in t and 'hreflang="ko"' in t
-    assert 'rel="canonical" href="https://findit-lost.duckdns.org/en"' in t
+    assert f'rel="canonical" href="{BASE}/en"' in t
     assert "<!--HEAD-->" not in t
     assert store.metrics_since("2000-01-01").get("view_en") == 1
 
@@ -50,10 +52,10 @@ def test_korean_route_never_redirects():
 
 def test_robots_sitemap_manifest():
     robots = client.get("/robots.txt").text
-    assert "Sitemap: https://findit-lost.duckdns.org/sitemap.xml" in robots and "Disallow: /lost-items" in robots
+    assert f"Sitemap: {BASE}/sitemap.xml" in robots and "Disallow: /lost-items" in robots
     sm = client.get("/sitemap.xml")
     assert sm.headers["content-type"].startswith("application/xml")
-    assert "<loc>https://findit-lost.duckdns.org/en</loc>" in sm.text and 'hreflang="en"' in sm.text
+    assert f"<loc>{BASE}/en</loc>" in sm.text and 'hreflang="en"' in sm.text
     mf = client.get("/manifest.webmanifest")
     assert mf.json()["short_name"] == "LostKorea" and mf.headers["content-type"].startswith("application/manifest+json")
 
@@ -66,14 +68,14 @@ def test_english_policy_pages():
 
 
 def test_email_site_link_follows_reporter_language():
-    assert notifier._site({"lang": "ko"}) == "https://findit-lost.duckdns.org"
-    assert notifier._site({"lang": "ja"}) == "https://findit-lost.duckdns.org/en"
+    assert notifier._site({"lang": "ko"}) == BASE
+    assert notifier._site({"lang": "ja"}) == f"{BASE}/en"
 
 
 def test_english_guide_page_in_sitemap():
     r = client.get("/en/guide", headers=EN_BROWSER)
     assert r.status_code == 200 and "Lost something in Korea?" in r.text and "1330" in r.text
-    assert "<loc>https://findit-lost.duckdns.org/en/guide</loc>" in client.get("/sitemap.xml").text
+    assert f"<loc>{BASE}/en/guide</loc>" in client.get("/sitemap.xml").text
     assert store.metrics_since("2000-01-01").get("view_guide") == 1
 
 
@@ -118,3 +120,15 @@ def test_static_assets_served():
                  "/static/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.0.woff2"):
         assert client.get(path).status_code == 200, path
     assert len(VERSION) == 10
+
+
+def test_old_host_redirects_to_canonical_address(monkeypatch):
+    """주소를 바꿔도 옛 링크가 이어지게 — 옛 호스트는 대표 주소로 영구 이동(GET 301, 그 외 308). 서버 안 점검(localhost)은 그대로."""
+    from apps.api import main
+    monkeypatch.setattr(main, "_REDIRECT_HOSTS", {"findit-lost.duckdns.org"})
+    monkeypatch.setattr(main.settings, "public_base_url", "https://lostkorea.duckdns.org")
+    r = client.get("/en/guide?x=1", headers={"host": "findit-lost.duckdns.org", **EN_BROWSER})
+    assert r.status_code == 301 and r.headers["location"] == "https://lostkorea.duckdns.org/en/guide?x=1"
+    r = client.post("/email/verify", json={"token": "t"}, headers={"host": "findit-lost.duckdns.org"})
+    assert r.status_code == 308
+    assert client.get("/health", headers={"host": "localhost"}).status_code == 200

@@ -25,7 +25,7 @@ from .config import settings
 router = APIRouter()
 WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
 BRAND = settings.brand_name
-REPO_ISSUES = "https://github.com/cwal8202/findit/issues"
+REPO_ISSUES = "https://github.com/cwal8202/lostkorea/issues"
 
 _BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|scan|curl|wget|python|httpx|go-http|java/|headless|"
                      r"facebookexternalhit|kakaotalk-scrap|monitor|uptime", re.I)

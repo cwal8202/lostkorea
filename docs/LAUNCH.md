@@ -1,6 +1,6 @@
 # LostKorea 서비스화 체크리스트 — 운영자가 직접 할 일
 
-> 2026-11-09 작성(같은 날 서비스명 FindIt → LostKorea). 코드로 할 수 있는 건 FIND-70~82에서 끝냈다
+> 2026-11-09 작성(같은 날 서비스명 FindIt → LostKorea, GitHub 저장소도 `cwal8202/lostkorea`로 변경 ✅). 코드로 할 수 있는 건 FIND-70~84에서 끝냈다
 > (보안·개인정보·관측·영어 화면·검색 노출·AI 비용·웹사이트 개편).
 > 여기 남은 건 **돈·계정·실명·결정**이 필요해서 코드로는 못 하는 일이다. 위에서부터 순서대로.
 
@@ -17,9 +17,9 @@
 공개 레포에 적힌 기본값(`findit_pw`)이던 것을 무작위 값으로 교체(서버 `.env`에만 저장, 옛 값은 접속 거부 확인).
 이제 compose에 기본값이 없어 비밀번호 없이는 뜨지 않는다. 다시 바꾸는 절차는 DEPLOY.md 8-2.
 
-### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **도메인(2-1)을 산 뒤에** 하는 게 효율적
+### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **주소를 lostkorea로 옮긴(2-1) 뒤에** 하는 게 효율적
 지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 등록은 주소 단위라, 지금 duckdns 주소로 등록하면
-정식 도메인으로 옮길 때 다시 해야 한다 → 도메인을 먼저 사고 그 주소로 등록.
+새 주소로 옮길 때 다시 해야 한다 → 주소를 먼저 옮기고 그 주소로 등록.
 - **Google Search Console** (search.google.com/search-console): 속성 추가 → 소유 확인(HTML 태그 방식이면 알려주시면 head에 넣어 드림)
   → `sitemap.xml` 제출. 외국인은 구글로 검색한다.
 - **네이버 서치어드바이저** (searchadvisor.naver.com): 한국어 사용자·국내 노출용. 같은 방식.
@@ -30,16 +30,35 @@
 
 ---
 
+### 1-4. 서버 이름 이전 실행 (5분, FIND-83) — 자동 실행이 안전 검사로 막혀 운영자가 실행
+```bash
+curl -fsSL https://raw.githubusercontent.com/cwal8202/lostkorea/main/scripts/migrate_rename.sh -o /root/migrate_rename.sh
+bash /root/migrate_rename.sh </dev/null
+```
+수집 시간(00:00~01:00)만 피해서. 3~5분 사이트 중단, 점검 실패 시 즉시 중단, 옛 볼륨은 되돌리기용으로 유지(DEPLOY.md '이름 이전 기록').
+
+---
+
 ## 2. 실서비스 신뢰도 (소액·결정 필요)
 
-### 2-1. 정식 도메인 (연 1~2만 원) — 강력 추천, 가장 먼저
-`findit-lost.duckdns.org`는 무료 동적 DNS라 ① 신뢰도가 낮아 보이고 ② 검색 순위·메일 도달률에 불리하고 ③ duckdns 장애 시 같이 멈춘다.
-게다가 이제 서비스 이름(LostKorea)과 주소가 다르다.
-- 사기: 가비아·Cloudflare Registrar·Namecheap 등에서 **`lostkorea.com`**(+ 원하면 `lostkorea.kr`).
-  2026-11-09 등록 조회(RDAP) 결과 lostkorea.com·.kr·.app 모두 미등록 — 남이 먼저 살 수 있으니 이름을 정했으면 바로.
-- 바꾸기(코드 수정 없음): DNS A 레코드 → 서버 IP(지금 duckdns가 가리키는 주소) / 서버 `.env`의 `DOMAIN`·`PUBLIC_BASE_URL` 변경 →
-  `docker compose -f docker-compose.prod.yml up -d backend caddy`(인증서 자동 발급) / `.github/workflows/uptime.yml`의 `BASE` 한 줄.
-  옛 주소는 리다이렉트로 유지하면 기존 링크가 안 깨진다(원하시면 설정해 드림).
+### 2-1. 주소를 lostkorea로 (가장 먼저)
+지금 주소 `findit-lost.duckdns.org`는 서비스 이름과 다르고, 무료 동적 DNS라 신뢰도·검색 순위·메일 도달률에도 불리하다.
+두 가지 길(둘 다 코드 수정 없음 — 주소 목록·대표 주소·옛 주소 영구 이동을 설정값으로 바꿀 수 있게 해 둠):
+
+| | 무료 임시: `lostkorea.duckdns.org` | 정식: `lostkorea.com` (+`.kr`) |
+|---|---|---|
+| 비용 | 0원 | 연 1~2만 원 |
+| 준비 | DuckDNS(지금 findit-lost를 만든 계정)에서 서브도메인 `lostkorea` 추가, **IP를 서버 IP로**(DuckDNS가 기본으로 넣는 건 지금 PC의 IP라 꼭 바꿀 것) | 가비아·Cloudflare·Namecheap 등에서 구입 → DNS A 레코드를 서버 IP로 |
+| 상태(11/9 조회) | 미사용 | .com·.kr·.app 모두 미등록 — 남이 먼저 살 수 있음 |
+
+주소가 준비되면(서버 이전 FIND-83 이후) 서버 `.env`:
+```bash
+DOMAIN=lostkorea.duckdns.org, findit-lost.duckdns.org      # 새 주소 + 옛 주소(둘 다 인증서 자동 발급)
+PUBLIC_BASE_URL=https://lostkorea.duckdns.org               # 대표 주소(메일 링크·canonical·sitemap)
+REDIRECT_HOSTS=findit-lost.duckdns.org                      # 옛 주소 → 대표 주소 영구 이동(옛 링크·검색 기록 유지)
+```
+→ `docker compose -f docker-compose.prod.yml up -d backend caddy` → `.github/workflows/uptime.yml`의 `BASE` 한 줄 → 1-2 검색엔진 등록.
+정식 도메인을 나중에 사면 같은 방식으로 한 번 더(옛 주소들을 `REDIRECT_HOSTS`에 추가).
 
 ### 2-2. Gemini API 유료 등급 전환 (사용량 기반, 현재 규모면 월 수천 원 이하 예상)
 신고 문장·사진을 Gemini로 보내는 서비스다. Google의 Gemini API 약관상 **무료 등급은 입력이 Google 제품 개선에 쓰일 수 있고,
