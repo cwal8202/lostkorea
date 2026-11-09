@@ -134,6 +134,17 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 공개 레포라 Actions **무료·무제한**. Docker 레이어 캐시로 재배포 ~십수 초.
 - 수동 트리거도 가능(Actions 탭 > Deploy > Run workflow / `workflow_dispatch`).
 
+## 9-1. 감시·알림 (운영자가 아무것도 안 봐도 문제를 알게)
+| 무엇 | 어떻게 | 어디서 |
+|---|---|---|
+| 서비스 다운(서버·검색엔진·DB) | `.github/workflows/uptime.yml`이 30분마다 `/`·`/health/deep` 확인, 3번 연속 실패 시 워크플로 실패 → **GitHub가 메일** | 바깥(GitHub) |
+| 앱 오류(500·신고 처리 실패) | `ops.report_error` → 관리자 메일(같은 오류 1시간 1통) | 서버 |
+| 수집 실패·데이터 정체 | `daily_collect.sh` → `apps.ops alert`/`freshness` | 서버 cron |
+| 주간 요약(방문·신고·알림·오류·수집) | 월요일 수집 후 `apps.ops weekly` | 서버 cron |
+- 수동 확인: `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.ops weekly --days 30`
+- 통계는 `metrics` 테이블(일·종류별 횟수만, 개인정보 없음). 봇 접속은 방문 수에서 제외.
+- **공개 레포는 60일간 커밋이 없으면 GitHub가 예약 워크플로(uptime)를 멈춘다** → Actions 탭에서 다시 켜기.
+
 > 자동배포는 `backend`·`caddy`만 재빌드(코드/웹 변경분). OpenSearch·Postgres는 데이터 보존 위해 건드리지 않음.
 > DB 스키마 변경(컬럼 추가)은 백엔드 기동 시 `store.init()`이 `ADD COLUMN IF NOT EXISTS`로 자동 적용 — 수동 마이그레이션 불필요.
 

@@ -5,11 +5,22 @@
 	request_body {
 		max_size 10MB
 	}
+	# 응답 압축(화면 HTML ~50KB → ~12KB). SSE 스트림은 Caddy가 자동으로 즉시 전달.
+	encode zstd gzip
+	# 보안 헤더 — 다른 사이트가 iframe으로 감싸기(클릭재킹)·MIME 추측·리퍼러 유출 방지, 서버 정보 숨김.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
 	reverse_proxy backend:8000
 }
 
 {$DOMAIN} {
 	import findit
+	header Strict-Transport-Security "max-age=31536000"
 }
 
 # 도메인 없이 IP(http)로 와도 접속되게 (기존 http://IP 링크 유지). https 없음.

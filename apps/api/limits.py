@@ -39,8 +39,8 @@ class Limiter:
             q = self._hits[key]
             while q and now - q[0] >= window:
                 q.popleft()
-            if len(q) >= limit:
-                retry = int(window - (now - q[0])) + 1
+            if len(q) >= limit:  # limit 0(기능 끄기)이면 q가 비어 있어도 차단
+                retry = int(window - (now - q[0])) + 1 if q else int(window)
                 raise HTTPException(status_code=429, detail=message, headers={"Retry-After": str(retry)})
             q.append(now)
 

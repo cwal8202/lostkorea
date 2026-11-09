@@ -1,0 +1,30 @@
+# 외부 가동 감시 — 30분마다 라이브 서비스를 바깥(GitHub)에서 점검.
+# 서버가 통째로 죽으면 서버 안의 알림(cron 메일)도 같이 죽으므로, 감시는 반드시 바깥에서.
+# 실패하면 이 워크플로가 실패로 표시되고 GitHub가 레포 소유자에게 메일을 보낸다(추가 계정·비용 없음).
+# 참고: 공개 레포는 60일간 커밋이 없으면 GitHub가 예약 워크플로를 자동 중지 → Actions 탭에서 다시 켜기.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 메인 화면·검색엔진·DB 응답 확인
+        env:
+          BASE: https://findit-lost.duckdns.org
+        run: |
+          set -e
+          for i in 1 2 3; do   # 일시적 네트워크 흔들림은 무시(3번 연속 실패만 장애로)
+            if curl -fsS --max-time 20 "$BASE/" -o /dev/null && \
+               curl -fsS --max-time 20 "$BASE/health/deep"; then
+              echo; echo "정상"; exit 0
+            fi
+            echo "실패 $i/3 — 60초 후 재시도"; sleep 60
+          done
+          echo "::error::FindIt 서비스 응답 없음 ($BASE)"
+          exit 1

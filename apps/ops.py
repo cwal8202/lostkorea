@@ -6,6 +6,8 @@
 
 - alert: 관리자 주소(NOTIFY_EMAIL_TO, 없으면 SMTP_USER)로 메일. SMTP 미설정이면 콘솔 출력만.
 - freshness: 색인의 가장 최근 습득일이 N일보다 오래되면(수집이 멈춘 신호) 알림 + 종료코드 1.
+- weekly: 지난 7일 운영 요약(방문·신고·알림·오류·수집) 메일 — daily_collect.sh가 월요일에 호출.
+- report_error: 앱 내부 예외를 관리자에게(같은 종류는 1시간에 1통) — Sentry 대용.
 """
 
 from __future__ import annotations
@@ -13,6 +15,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
+import time
+import traceback
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
@@ -30,6 +35,29 @@ def alert(subject: str, body: str) -> bool:
     html = "<pre style=\"font-family:monospace;white-space:pre-wrap\">" + \
         body.replace("&", "&amp;").replace("<", "&lt;") + "</pre>"
     return EmailNotifier._send(to, f"[FindIt 운영] {subject}", body, html)
+
+
+_ERR_LAST: dict[str, float] = {}
+_ERR_LOCK = threading.Lock()
+ERROR_ALERT_INTERVAL = 3600  # 같은 오류는 1시간에 한 번만 메일
+
+
+def report_error(where: str, exc: BaseException) -> bool:
+    """앱 예외 → 통계(error) + 관리자 메일(종류별 1시간 1통, 백그라운드 발송). 메일을 보냈으면 True."""
+    from apps import store
+
+    store.bump("error")
+    key = f"{where}:{type(exc).__name__}"
+    now = time.monotonic()
+    with _ERR_LOCK:
+        if now - _ERR_LAST.get(key, -ERROR_ALERT_INTERVAL) < ERROR_ALERT_INTERVAL:
+            return False
+        _ERR_LAST[key] = now
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]
+    body = (f"위치: {where}\n시각: {datetime.now(KST):%Y-%m-%d %H:%M} KST\n\n{tb}\n"
+            "(같은 오류는 1시간 동안 다시 보내지 않음)")
+    threading.Thread(target=alert, args=(f"오류 — {where}: {type(exc).__name__}", body), daemon=True).start()
+    return True
 
 
 def index_status() -> dict:
@@ -67,6 +95,39 @@ def freshness(max_age_days: int, status: dict | None = None, today: date | None 
     return ok
 
 
+_KIND_LABELS = [
+    ("view_ko", "방문(한국어)"), ("view_en", "방문(영어)"),
+    ("report_text", "신고(글)"), ("report_image", "신고(사진)"), ("report_invalid", "신고 아님(잡담 등)"),
+    ("email_given", "이메일 입력"), ("email_verified", "이메일 확인"), ("alert_sent", "알림 메일 발송"),
+    ("confirm", "'내 물건이에요'"), ("dismiss", "'아니에요'"), ("delete", "신고 삭제"),
+    ("browse", "둘러보기 조회"), ("search_api", "검색 API"), ("rate_limited", "요청 제한(429)"), ("error", "오류"),
+]
+
+
+def weekly(days: int = 7, today: date | None = None, status: dict | None = None) -> str:
+    """지난 days일 운영 요약 → 관리자 메일. 본문을 반환."""
+    from apps import store
+
+    today = today or datetime.now(KST).date()
+    since = (today - timedelta(days=days)).isoformat()
+    m = store.metrics_since(since)
+    rc = store.report_counts()
+    try:
+        status = status or index_status()
+    except Exception as e:  # noqa: BLE001
+        status = {"count": f"조회 실패({e})", "latest_found_at": "-"}
+    lines = [f"기간: {since} ~ {today} ({days}일)", ""]
+    lines += [f"  {label}: {m.get(kind, 0):,}" for kind, label in _KIND_LABELS]
+    lines += ["", "신고 현황(전체):",
+              f"  찾는 중 {rc.get('open', 0)} · 유력 후보 {rc.get('candidate', 0)} · 확인 {rc.get('confirmed', 0)}"
+              f" · 만료 {rc.get('expired', 0)} · 이메일 확인됨 {rc.get('email_verified', 0)}",
+              "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}"]
+    body = "\n".join(lines)
+    print(body)
+    alert(f"주간 운영 요약 ({since}~{today})", body)
+    return body
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="FindIt 운영 점검·알림")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -75,9 +136,13 @@ def main() -> None:
     a.add_argument("body", nargs="?", default="")
     f = sub.add_parser("freshness")
     f.add_argument("--max-age-days", type=int, default=3)
+    w = sub.add_parser("weekly")
+    w.add_argument("--days", type=int, default=7)
     args = ap.parse_args()
     if args.cmd == "alert":
         alert(args.subject, args.body)
+    elif args.cmd == "weekly":
+        weekly(args.days)
     elif not freshness(args.max_age_days):
         sys.exit(1)
 

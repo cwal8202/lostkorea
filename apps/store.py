@@ -15,7 +15,7 @@ import hmac
 import json
 import os
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 _PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
@@ -29,6 +29,9 @@ else:
     from apps.api.config import settings
 
 _JSON_COLS = ("extracted", "region_set", "queries", "best_match", "dismissed", "weak_notified", "matches", "graded_ids")
+
+
+KST = timezone(timedelta(hours=9))
 
 
 def _now() -> str:
@@ -116,6 +119,15 @@ def init() -> None:
             graded_ids TEXT,
             created_at TEXT,
             matched_at TEXT
+        )
+    """)
+    # 익명 운영 통계(일·종류별 횟수만 — IP·이메일·신고 내용 없음). 방문·신고·알림·오류 추이 확인용.
+    _run("""
+        CREATE TABLE IF NOT EXISTS metrics (
+            day TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            n INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, kind)
         )
     """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
@@ -250,6 +262,31 @@ def update_alerts(lid: str, notify_weak: bool, watch_until: str, status: str | N
     else:
         _run("UPDATE lost_items SET notify_weak=?, watch_until=?, status=?, graded_ids=NULL WHERE id=?",
              (int(notify_weak), watch_until, status, lid))
+
+
+def bump(kind: str, n: int = 1, day: str | None = None) -> None:
+    """익명 통계 +n (KST 일 단위). 통계 실패가 요청을 막지 않게 예외는 삼킴."""
+    day = day or datetime.now(KST).date().isoformat()
+    try:
+        _run("INSERT INTO metrics (day, kind, n) VALUES (?, ?, ?) "
+             "ON CONFLICT (day, kind) DO UPDATE SET n = metrics.n + excluded.n", (day, kind, n))
+    except Exception as e:  # noqa: BLE001
+        print(f"[metrics] {kind} 기록 실패: {e}")
+
+
+def metrics_since(day_from: str) -> dict[str, int]:
+    """day_from(포함) 이후 종류별 합계."""
+    rows = _rows("SELECT kind, SUM(n) AS n FROM metrics WHERE day >= ? GROUP BY kind", (day_from,))
+    return {r["kind"]: int(r["n"]) for r in rows}
+
+
+def report_counts() -> dict[str, int]:
+    """운영 요약용 신고 현황(개수만)."""
+    rows = _rows("SELECT status, COUNT(*) AS n, "
+                 "SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) AS verified FROM lost_items GROUP BY status")
+    out = {r["status"]: int(r["n"]) for r in rows}
+    out["email_verified"] = sum(int(r["verified"] or 0) for r in rows)
+    return out
 
 
 def delete(lid: str) -> None:

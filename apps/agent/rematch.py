@@ -90,11 +90,13 @@ def _rematch_one(row: dict, verbose: bool) -> dict | None:
         store.update_match(row["id"], top, g, "candidate", matches=slim_matches(matches))  # 확정 아닌 '유력 후보'
         if can_email(row):
             notifier.notify(row, matches)  # 채널 독립 알림(최고 후보 + 비슷한 후보 목록)
+            store.bump("alert_sent")
         return {"lost": row, "match": top}
     if level == "weak" and top.get("atc_id") not in (row.get("weak_notified") or []) and can_email(row):
         store.mark_weak_notified(row["id"], top.get("atc_id"))  # 같은 후보로 반복 알림 방지
         store.set_matches(row["id"], slim_matches(matches))
         notifier.notify(row, matches, weak=True)  # open 유지 — 더 나은 후보 계속 탐색
+        store.bump("alert_sent")
         if verbose:
             print(f"  · {row['id']} '{row['text'][:24]}' 약한 후보 grade={g} → 참고 알림(open 유지)")
     elif verbose:

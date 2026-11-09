@@ -33,4 +33,9 @@ fi
 # 수집은 성공했어도 새 데이터가 며칠째 없으면(공공 API 장애·쿼터 등) 알림
 $COMPOSE run --rm -T backend uv run python -m apps.ops freshness --max-age-days 3 || true
 
+# 월요일엔 지난 7일 운영 요약(방문·신고·알림·오류·수집) 메일
+if [ "$(date +%u)" = "1" ]; then
+  $COMPOSE run --rm -T backend uv run python -m apps.ops weekly || true
+fi
+
 echo "==== [$(date '+%F %T')] 수집 완료 ===="

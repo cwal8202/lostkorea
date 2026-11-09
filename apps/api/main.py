@@ -9,14 +9,18 @@ from __future__ import annotations
 import json
 import re
 import traceback
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from apps import store
+from apps import ops, store
 
 from . import search as search_mod
 from .config import settings
@@ -45,14 +49,41 @@ store.init()  # 분실물 테이블 생성(멱등)
 
 
 _WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
+_BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|scan|curl|wget|python|httpx|go-http|java/|headless|"
+                     r"facebookexternalhit|kakaotalk-scrap|monitor|uptime", re.I)
+
+
+def _is_bot(request: Request) -> bool:
+    ua = request.headers.get("user-agent", "")
+    return not ua or bool(_BOT_RE.search(ua))
+
+
+@app.middleware("http")
+async def _report_unhandled(request: Request, call_next):
+    """처리 못 한 예외 → 관리자 메일(종류별 1시간 1통) + 오류 통계. 응답은 기존대로 500."""
+    try:
+        return await call_next(request)
+    except Exception as e:
+        route = request.scope.get("route")
+        await run_in_threadpool(ops.report_error, f"{request.method} {getattr(route, 'path', request.url.path)}", e)
+        raise
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 429:  # 요청 제한에 걸린 횟수(남용·한도 조정 판단용)
+        await run_in_threadpool(store.bump, "rate_limited")
+    return await http_exception_handler(request, exc)
 
 # 정적 자산은 StaticFiles로 마운트(/static/...). 프로덕션에선 nginx/CDN이 대신 서빙.
 app.mount("/static", StaticFiles(directory=_WEB / "static"), name="static")
 
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
+def index(request: Request) -> FileResponse:
     # index.html은 항상 최신으로(배포 후 브라우저 캐시로 옛 화면 붙잡는 문제 방지). 정적 자산은 캐시 허용.
+    if not _is_bot(request):
+        store.bump("view_ko")
     return FileResponse(_WEB / "index.html",
                         headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
 
@@ -72,6 +103,23 @@ def health() -> dict:
     return {"status": "ok", "index": settings.opensearch_index, "os": settings.opensearch_url}
 
 
+@app.get("/health/deep", include_in_schema=False)
+def health_deep() -> JSONResponse:
+    """외부 감시용 — 검색 엔진(OpenSearch)·DB까지 실제로 응답하는지. 하나라도 실패하면 503."""
+    checks = {}
+    try:
+        url = f"{settings.opensearch_url}/{settings.opensearch_index}/_count"
+        checks["search"] = json.load(urllib.request.urlopen(url, timeout=5))["count"] > 0
+    except Exception:  # noqa: BLE001
+        checks["search"] = False
+    try:
+        checks["db"] = bool(store._one("SELECT 1 AS ok"))
+    except Exception:  # noqa: BLE001
+        checks["db"] = False
+    ok = all(checks.values())
+    return JSONResponse({"status": "ok" if ok else "fail", **checks}, status_code=200 if ok else 503)
+
+
 @app.get("/found-items/search", response_model=SearchResponse)
 def search_found_items(
     request: Request,
@@ -86,6 +134,7 @@ def search_found_items(
 ) -> SearchResponse:
     limiter.hit(f"search:{client_ip(request)}", settings.limit_search_hour, _HOUR)
     limiter.spend(2 if grade else 1)  # 임베딩 1 + (판정 LLM 1)
+    store.bump("search_api")
     region_set = [r.strip() for r in region.split(",") if r.strip()] if region else []
     items = search_mod.search(
         q, region_set=region_set, lost_date=lost_date, do_grade=grade,
@@ -130,6 +179,8 @@ def _persist_and_respond(text: str, result: dict, email: str,
     email = (email or "").strip()
     if not _valid_email(email):
         email = ""
+    if email:
+        store.bump("email_given")
     notify_weak = bool(notify_weak and email)
     # strong이면 '유력 후보(candidate)' — 확정 아님, 사용자 확인 필요(HITL).
     status = "candidate" if alert_level(best_grade, False) == "strong" else "open"
@@ -190,12 +241,14 @@ def _stream_match(steps, email: str, notify_weak: bool, text: str | None = None,
         ex = final.get("extracted", {})
         query = text or final.get("text", "사진 신고")
         if not ex.get("is_lost_report", True):  # 분실물 신고 아님 → 저장·검색·알림 없이 종료
+            store.bump("report_invalid")
             resp = MatchResponse(id="", status="invalid", query=query, extracted=ex, matches=[])
         else:
             resp = _persist_and_respond(query, final, email, notify_weak, lang)
         yield _sse("result", resp.model_dump())
-    except Exception:  # noqa: BLE001 — 스트림 도중 실패는 HTTP 상태로 못 알리므로 이벤트로
+    except Exception as e:  # noqa: BLE001 — 스트림 도중 실패는 HTTP 상태로 못 알리므로 이벤트로
         traceback.print_exc()
+        ops.report_error("신고 스트림", e)
         yield _sse("error", {"detail": "처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."})
 
 
@@ -210,6 +263,7 @@ def _guard_report(request: Request, image: bool = False) -> None:
         limiter.hit(f"rep10:{ip}", settings.limit_report_10min, 600)
         limiter.hit(f"repday:{ip}", settings.limit_report_day, _DAY)
         limiter.spend(1)
+    store.bump("report_image" if image else "report_text")
 
 
 @app.post("/lost-items/stream")
@@ -253,6 +307,8 @@ def browse_found_items(
     if search_mod.needs_translation(q):  # 캐시에 없는 외국어 검색어만 LLM 호출 → 한도·예산 소비
         limiter.hit(f"translate:{client_ip(request)}", settings.limit_translate_hour, _HOUR)
         limiter.spend(1)
+    if page == 1 and not _is_bot(request):  # 첫 페이지 조회만(페이지 넘김은 같은 조회)
+        store.bump("browse")
     return search_mod.browse(q=q, region=region, date_from=date_from, date_to=date_to,
                              page=page, size=size)
 
@@ -269,6 +325,7 @@ def register_lost_item(req: LostItemRequest, request: Request) -> MatchResponse:
     lang = normalize_lang(req.lang)
     result = agent_graph.run(req.text, req.lost_date, lang)
     if not result.get("extracted", {}).get("is_lost_report", True):  # 분실물 신고 아님 → 저장·검색·알림 없이 종료
+        store.bump("report_invalid")
         return MatchResponse(id="", status="invalid", query=req.text,
                              extracted=result.get("extracted", {}), matches=[])
     return _persist_and_respond(req.text, result, req.email or "", req.notify_weak, lang)
@@ -396,6 +453,7 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
     row = store.verify_email(req.token)
     if not row:
         raise HTTPException(status_code=400, detail="링크가 만료됐거나 올바르지 않아요. 알림 설정에서 다시 요청해주세요.")
+    store.bump("email_verified")
     matches = row.get("matches") or []
     top = matches[0] if matches else None
     level = alert_level(top.get("grade"), row.get("notify_weak", False)) if top else None
@@ -405,6 +463,7 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
         notifier.notify(row, matches, weak=(level == "weak"))
         if level == "weak":
             store.mark_weak_notified(row["id"], top.get("atc_id"))
+        store.bump("alert_sent")
         sent = True
     return {"ok": True, "sent_results": sent}
 
@@ -418,6 +477,7 @@ def confirm_lost_item(lid: str, req: ConfirmRequest, x_report_token: str | None 
     if not match:
         raise HTTPException(status_code=400, detail="이 신고의 후보가 아니에요")
     store.confirm(lid, match)
+    store.bump("confirm")
     return {"ok": True, "status": "confirmed"}
 
 
@@ -426,6 +486,7 @@ def dismiss_lost_item(lid: str, req: DismissRequest, x_report_token: str | None 
     """'아니에요' → 그 후보 제외하고 계속 탐색(open)."""
     _owned(lid, x_report_token)
     dismissed = store.dismiss(lid, req.atc_id)
+    store.bump("dismiss")
     return {"ok": True, "status": "open", "dismissed": dismissed}
 
 
@@ -434,4 +495,5 @@ def delete_lost_item(lid: str, x_report_token: str | None = Header(None)) -> dic
     """신고 삭제(신고자 요청) — 신고 문장·이메일·후보 기록을 즉시 완전 삭제. 이후 알림도 끝."""
     _owned(lid, x_report_token)
     store.delete(lid)
+    store.bump("delete")
     return {"ok": True, "deleted": lid}

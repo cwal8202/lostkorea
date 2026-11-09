@@ -9,7 +9,7 @@
 ## 0. 한눈에 보기
 
 - **현재 국면**: **라이브 서비스 배포 완료**(수집→색인→검색+지역가점→grading→에이전트→DB→지속 재매칭→**이메일 알림**→**웹 UI**).
-  FIND-1~74 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
+  FIND-1~75 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
@@ -862,6 +862,20 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
   → 습득일 185일(유실물법 6개월 + 여유) 지난 습득물을 매일 삭제(`prune_old`, `FOUND_RETENTION_DAYS`). 첫 삭제는 2027년 2월부터.
 - 테스트 132 → 136개.
 
+### 운영 관측 — 사용량·오류·가동을 운영자가 알 수 있게 (2026-11-09, FIND-75)
+
+**배경**: 한 달 동안 실사용 신고가 1건(10/14)뿐이었는데, 이걸 알아낸 방법이 DB 직접 조회뿐이었다. 백엔드 로그는 대부분
+봇의 취약점 스캔(`/app/credentials`·`/bedrock/credentials`·`/soap` 등). "몇 명이 오는지·어디서 막히는지·죽었는지"를 몰랐다.
+- **익명 통계**(`metrics` 테이블: 날짜·종류·횟수만, IP·이메일·내용 없음): 방문(한/영, 봇 제외)·신고(글/사진/잡담)·이메일 입력·확인·
+  알림 발송·확인/아니에요/삭제·둘러보기·요청 제한(429)·오류. 개인정보처리방침에도 명시.
+- **주간 운영 요약 메일**(월요일 수집 후, `apps.ops weekly`): 위 통계 + 신고 현황 + 색인 상태.
+- **앱 오류 메일**(`ops.report_error`): 처리 못 한 예외·신고 스트림 실패 → 위치·스택트레이스 메일, 같은 오류는 1시간 1통(Sentry 대용).
+- **외부 가동 감시**(`.github/workflows/uptime.yml`): 30분마다 바깥에서 `/`·`/health/deep`(검색엔진·DB 실제 응답) 확인 →
+  3번 연속 실패 시 GitHub가 메일. 서버가 통째로 죽으면 서버 안 알림도 죽으므로 바깥 감시가 필요(추가 계정·비용 없음).
+- **Caddy**: 응답 압축(zstd/gzip), 보안 헤더(HSTS·nosniff·클릭재킹 방지·Referrer-Policy·Permissions-Policy), Server 헤더 제거.
+- **버그 수정**: 레이트리밋 값을 0(기능 끄기)으로 두면 429 대신 500(IndexError)이 나던 문제 — 관측 테스트가 잡음.
+- 테스트 136 → 142개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -915,7 +929,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (핵심 로직 136개, 외부서비스 목킹)
+├─ tests/                          pytest (핵심 로직 142개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · screenshots/
 ├─ .github/workflows/deploy.yml    main push → 서버 SSH 자동배포
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)
