@@ -9,7 +9,7 @@
 ## 0. 한눈에 보기
 
 - **현재 국면**: **라이브 서비스 배포 완료**(수집→색인→검색+지역가점→grading→에이전트→DB→지속 재매칭→**이메일 알림**→**웹 UI**).
-  FIND-1~82 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
+  FIND-1~83 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
@@ -994,6 +994,25 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
 - 공개 레포 문서에 서버 IP가 적혀 있던 것(LAUNCH.md) 제거.
 - 테스트 163 → 175개.
 
+### DB 비밀번호 교체 + 내부 이름 findit → lostkorea (2026-11-09, FIND-83)
+
+- **DB 비밀번호 교체(운영 반영 완료)**: 공개 레포의 compose에 적힌 기본값 `findit_pw`이던 것을 서버에서 무작위 값으로 교체 —
+  값은 서버 `.env`에만(화면·로그에 출력 안 함), 이전 `.env`는 서버에 권한 600으로 백업. 검증: **옛 기본값은 네트워크 접속 거부**,
+  새 값으로 정상 접속(백엔드 컨테이너에서 확인). ※ 컨테이너 안(127.0.0.1)은 공식 이미지가 비밀번호 없이 신뢰하므로 그 경로로는
+  검증이 안 됨 — 처음 확인을 그렇게 했다가 바로잡음.
+- **compose에서 기본 비밀번호 제거**: `${POSTGRES_PASSWORD:?…}` 필수 — 없으면 아예 안 뜸(공개 기본값으로 조용히 뜨는 일 방지). 테스트로 고정.
+- **내부 이름 이전(코드 완료, 서버 이전 대기)**: compose 프로젝트 이름 고정(`name: lostkorea`) → 컨테이너 `lostkorea-*`·볼륨 `lostkorea_*`·
+  이미지 `lostkorea/*`, DB·사용자 `lostkorea`, 서버 경로 `/root/lostkorea`(배포·cron·백업 스크립트·운영 메일), 백업 파일 `lostkorea_*`,
+  화면 식별자 `LK_LANG`·`LK_VIEW`, '내 신고' 보관 키 `lostkorea_mine`(**옛 `findit_mine`에서 자동 이전** — 기존 사용자 토큰 보존),
+  Caddy·Dockerfile·pyproject·eval 문구, 로컬 개발 compose·DB 파일. GitHub 저장소 주소·현재 도메인은 실제 주소라 유지.
+- **서버 이전은 `scripts/migrate_rename.sh`(1회용)**: DB 백업 → 임시 슈퍼유저로 DB·사용자 이름 변경 → 옛 스택 down → 폴더 이동(+옛 경로
+  링크로 cron 호환) → 새 볼륨에 복사(파일 수·바이트 비교, 다르면 중단) → 이미지 태그 → 새 스택 → 건수 비교. 옛 볼륨은 되돌리기용으로 유지.
+  자동 모드 안전 검사가 운영 서버에서 스크립트 실행을 막아 **운영자 실행 대기**. 그동안은 배포가 첫 단계(`cd /root/lostkorea`)에서
+  안전하게 실패(옛 구성 그대로 운영) — 새 compose가 빈 볼륨으로 뜨는 사고를 막는 장치.
+  ※ 첫 시도에서 스크립트를 표준입력으로 보냈더니 `docker compose exec`가 나머지 스크립트를 입력으로 먹어 0단계(읽기 전용 조회)만
+  실행되고 멈춤 — 변경 없음 확인. 파일로 올려 `</dev/null`로 실행하도록 바꿈.
+- 테스트 175 → 176개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -1047,7 +1066,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (핵심 로직 175개, 외부서비스 목킹)
+├─ tests/                          pytest (핵심 로직 176개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · screenshots/
 ├─ .github/workflows/deploy.yml    main push → 서버 SSH 자동배포
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)
