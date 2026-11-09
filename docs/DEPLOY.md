@@ -183,6 +183,13 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - **컨테이너 로그**: backend·caddy·postgres는 10MB × 3개로 회전(`x-logging`). 백엔드 로그엔 내부 프록시 IP만 남는다.
 - **수집 로그**(`daily_collect.log`): 5MB를 넘으면 수집 시작 때 최근 2만 줄만 남김. **디스크 85%↑**(`DISK_ALERT_PERCENT`)면 관리자 메일.
 
+## 웹사이트·브랜드
+- 페이지는 `apps/api/site.py`가 언어별(한/영)로 서버에서 그린다: 템플릿 `apps/web/*.html` + 공통 머리글·바닥글
+  `apps/web/partials/` + 문구 사전(`T`·`FAQ`). 정적 자산은 내용 해시를 `?v=`로 붙여 배포 즉시 새 파일을 받는다.
+- 서비스 이름은 `BRAND_NAME`(기본 `LostKorea`) 하나로 화면·메일·OG에 반영. 로고 글자(Lost**Korea**)는 템플릿에 직접 있음.
+  **컨테이너·DB·볼륨 이름(findit-*)은 바꾸지 말 것** — 운영 데이터 볼륨과 연결이 끊긴다.
+- 폰트: Pretendard(SIL OFL, `static/fonts/pretendard/`)를 자체 호스팅 — 외부 CDN에 방문자 IP를 넘기지 않고, 차단 지역에서도 동작.
+
 ## AI 모델·비용 설정 (.env)
 | 변수 | 기본값 | 뜻 |
 |---|---|---|

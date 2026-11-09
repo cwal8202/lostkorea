@@ -55,7 +55,7 @@ def test_robots_sitemap_manifest():
     assert sm.headers["content-type"].startswith("application/xml")
     assert "<loc>https://findit-lost.duckdns.org/en</loc>" in sm.text and 'hreflang="en"' in sm.text
     mf = client.get("/manifest.webmanifest")
-    assert mf.json()["short_name"] == "FindIt" and mf.headers["content-type"].startswith("application/manifest+json")
+    assert mf.json()["short_name"] == "LostKorea" and mf.headers["content-type"].startswith("application/manifest+json")
 
 
 def test_english_policy_pages():
@@ -80,7 +80,41 @@ def test_english_guide_page_in_sitemap():
 def test_search_box_comes_first_and_form_is_minimal():
     """물건을 막 잃어버린 사람이 바로 입력하게: 검색창이 소개보다 위, 첫 폼엔 이메일 칸 없음(알림은 결과 화면에서)."""
     t = client.get("/ko", headers=KO_BROWSER).text
-    body = t[t.index("<body>"):]
-    assert body.index('id="text"') < body.index('data-i18n="f1t"')
+    body = t[t.index("<body"):]
+    assert body.index('id="text"') < body.index('id="how"')
     assert 'id="email"' not in body and 'id="goImg"' not in body      # 사진 검색도 같은 버튼 하나로
     assert 'aria-live="polite"' in body                                # 진행 상황을 화면낭독기에도
+
+
+@pytest.mark.parametrize("path", ["/ko", "/en", "/browse", "/en/browse", "/en/guide", "/privacy", "/terms",
+                                  "/en/privacy", "/en/terms"])
+def test_every_page_renders_with_shared_header_and_footer(path):
+    """모든 페이지가 같은 머리글·바닥글, 자리표시자가 남지 않고, 제목에 서비스 이름."""
+    r = client.get(path, headers=EN_BROWSER)
+    t = r.text
+    assert r.status_code == 200
+    assert "{{" not in t and "<!--HEAD-->" not in t and "<!--HEADER-->" not in t and "<!--FOOTER-->" not in t
+    assert 'class="site-header"' in t and 'class="site-footer"' in t and "LostKorea" in t.split("</title>")[0]
+    assert '/static/css/site.css?v=' in t and 'rel="canonical"' in t
+
+
+def test_home_is_server_rendered_in_each_language_with_faq_schema():
+    ko, en = client.get("/ko", headers=KO_BROWSER).text, client.get("/en", headers=EN_BROWSER).text
+    assert "AI가 대신 찾아드려요" in ko and "We'll help you find it." not in ko
+    assert "We'll help you find it." in en and "AI가 대신 찾아드려요" not in en
+    assert '"@type": "FAQPage"' in en and "Is it free?" in en
+    assert 'class="page-home"' in ko
+
+
+def test_browse_page_opens_browse_view():
+    t = client.get("/browse", headers=KO_BROWSER).text
+    assert 'class="page-browse"' in t and 'window.FINDIT_VIEW = "browse"' in t and 'id="viewBrowse"' in t
+
+
+def test_static_assets_served():
+    from apps.api.site import VERSION
+    for path in ("/static/css/site.css", "/static/js/app.js", "/static/js/site.js", "/static/logo.svg",
+                 "/static/logo-email.png", "/static/fonts/pretendard/pretendard.css",
+                 "/static/fonts/pretendard/woff2-dynamic-subset/PretendardVariable.subset.0.woff2"):
+        assert client.get(path).status_code == 200, path
+    assert len(VERSION) == 10

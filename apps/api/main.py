@@ -1,4 +1,4 @@
-"""FindIt API — 습득물 검색 엔드포인트.
+"""LostKorea API — 습득물 검색·분실물 신고·알림 엔드포인트(웹 페이지는 site.py).
 
 실행:  uv run uvicorn apps.api.main:app --reload
 문서:  http://localhost:8000/docs
@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import html
 import json
 import re
 import traceback
@@ -18,12 +17,8 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import (
-    FileResponse,
     HTMLResponse,
     JSONResponse,
-    PlainTextResponse,
-    RedirectResponse,
-    Response,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +27,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from apps import ops, store
 
 from . import search as search_mod
+from . import site
 from .config import settings
 from .gemini import normalize_lang
 from .limits import client_ip, limiter
@@ -52,19 +48,13 @@ from .models import (
 _EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 _HOUR, _DAY = 3600, 86400
 
-app = FastAPI(title="FindIt API", version="0.1.0",
+app = FastAPI(title=f"{settings.brand_name} API", version="1.0.0",
               description="분실물 자연어 질의 → 습득물 하이브리드 검색 + 지역 가점 + LLM grading")
 store.init()  # 분실물 테이블 생성(멱등)
 
 
 _WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
-_BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|scan|curl|wget|python|httpx|go-http|java/|headless|"
-                     r"facebookexternalhit|kakaotalk-scrap|monitor|uptime", re.I)
-
-
-def _is_bot(request: Request) -> bool:
-    ua = request.headers.get("user-agent", "")
-    return not ua or bool(_BOT_RE.search(ua))
+_is_bot = site.is_bot
 
 
 @app.middleware("http")
@@ -86,157 +76,7 @@ async def _http_error(request: Request, exc: StarletteHTTPException):
 
 # 정적 자산은 StaticFiles로 마운트(/static/...). 프로덕션에선 nginx/CDN이 대신 서빙.
 app.mount("/static", StaticFiles(directory=_WEB / "static"), name="static")
-
-
-# ── 화면(한/영) + 검색엔진·SNS 노출 ─────────────────────────────────────────────
-# 외국인이 주 대상 → 영어 화면을 번역 위젯이 아니라 직접 제공(/en). 언어별 제목·설명·OG·hreflang을 서버가 넣는다
-# (SNS 미리보기·검색엔진은 JS를 안 돌리거나 늦게 돌리므로 head는 서버에서).
-_META = {
-    "ko": {"path": "/", "locale": "ko_KR",
-           "title": "FindIt — AI 분실물 찾기 | 경찰서·유실물센터 습득물 검색",
-           "desc": "잃어버린 물건을 말로 설명하거나 사진을 올리면, AI가 전국 경찰서·유실물센터 습득물 공개데이터에서 "
-                   "찾아드려요. 보관 장소·연락처 안내, 새 습득물이 들어오면 이메일 알림까지. 무료."},
-    "en": {"path": "/en", "locale": "en_US",
-           "title": "FindIt — Lost something in Korea? AI lost & found search",
-           "desc": "Lost an item in Korea? Describe it in any language or upload a photo. FindIt searches Korea's "
-                   "police and public lost-and-found data with AI, shows where your item is held and how to get it "
-                   "back, and emails you when a match turns up. Free."},
-}
-
-
-def _head(lang: str) -> str:
-    m, base = _META[lang], settings.public_base_url.rstrip("/")
-    e = html.escape
-    url = base + m["path"]
-    ld = {"@context": "https://schema.org", "@type": "WebApplication", "name": "FindIt", "url": url,
-          "inLanguage": lang, "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any",
-          "description": m["desc"], "offers": {"@type": "Offer", "price": "0", "priceCurrency": "KRW"}}
-    other = "en" if lang == "ko" else "ko"
-    return "\n".join([
-        f"<title>{e(m['title'])}</title>",
-        f'<meta name="description" content="{e(m["desc"])}" />',
-        f'<link rel="canonical" href="{url}" />',
-        f'<link rel="alternate" hreflang="ko" href="{base}/" />',
-        f'<link rel="alternate" hreflang="en" href="{base}/en" />',
-        f'<link rel="alternate" hreflang="x-default" href="{base}/en" />',
-        '<meta property="og:type" content="website" />',
-        '<meta property="og:site_name" content="FindIt" />',
-        f'<meta property="og:title" content="{e(m["title"])}" />',
-        f'<meta property="og:description" content="{e(m["desc"])}" />',
-        f'<meta property="og:url" content="{url}" />',
-        f'<meta property="og:image" content="{base}/static/og.png" />',
-        '<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />',
-        f'<meta property="og:locale" content="{m["locale"]}" />',
-        f'<meta property="og:locale:alternate" content="{_META[other]["locale"]}" />',
-        '<meta name="twitter:card" content="summary_large_image" />',
-        f'<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>',
-        f'<script>window.FINDIT_LANG = "{lang}";</script>',
-    ])
-
-
-def _page(lang: str) -> HTMLResponse:
-    src = (_WEB / "index.html").read_text(encoding="utf-8")
-    body = src.replace('<html lang="ko">', f'<html lang="{lang}">', 1).replace("<!--HEAD-->", _head(lang), 1)
-    # index.html은 항상 최신으로(배포 후 브라우저 캐시로 옛 화면 붙잡는 문제 방지). 정적 자산은 캐시 허용.
-    return HTMLResponse(body, headers={"Cache-Control": "no-cache, no-store, must-revalidate",
-                                       "Vary": "Accept-Language"})
-
-
-def _prefers_korean(request: Request) -> bool:
-    """브라우저 언어 목록에 한국어가 있으면(또는 언어 정보가 없으면 — 검색엔진 봇 등) 한국어."""
-    al = request.headers.get("accept-language", "").lower()
-    return not al or any(part.strip().startswith("ko") for part in al.split(","))
-
-
-@app.get("/", include_in_schema=False)
-def index(request: Request):
-    # 외국어 브라우저 → 영어 화면(/en)으로. 봇은 리다이렉트하지 않음(검색엔진은 /와 /en을 hreflang으로 따로 색인).
-    if not _is_bot(request) and not _prefers_korean(request):
-        return RedirectResponse("/en", status_code=302)
-    if not _is_bot(request):
-        store.bump("view_ko")
-    return _page("ko")
-
-
-@app.get("/ko", include_in_schema=False)
-def index_ko(request: Request) -> HTMLResponse:
-    """한국어 고정(영어 화면에서 '한국어'를 고른 경우 — 브라우저 언어와 무관)."""
-    if not _is_bot(request):
-        store.bump("view_ko")
-    return _page("ko")
-
-
-@app.get("/en", include_in_schema=False)
-def index_en(request: Request) -> HTMLResponse:
-    if not _is_bot(request):
-        store.bump("view_en")
-    return _page("en")
-
-
-@app.get("/privacy", include_in_schema=False)
-def privacy() -> FileResponse:
-    return FileResponse(_WEB / "privacy.html", headers={"Cache-Control": "no-cache"})
-
-
-@app.get("/terms", include_in_schema=False)
-def terms() -> FileResponse:
-    return FileResponse(_WEB / "terms.html", headers={"Cache-Control": "no-cache"})
-
-
-@app.get("/en/privacy", include_in_schema=False)
-def privacy_en() -> FileResponse:
-    return FileResponse(_WEB / "privacy_en.html", headers={"Cache-Control": "no-cache"})
-
-
-@app.get("/en/terms", include_in_schema=False)
-def terms_en() -> FileResponse:
-    return FileResponse(_WEB / "terms_en.html", headers={"Cache-Control": "no-cache"})
-
-
-@app.get("/en/guide", include_in_schema=False)
-def guide_en(request: Request) -> FileResponse:
-    """'한국에서 물건을 잃어버렸을 때' 영어 가이드 — 검색 유입용(외국인이 실제로 검색하는 질문에 답하는 페이지)."""
-    if not _is_bot(request):
-        store.bump("view_guide")
-    return FileResponse(_WEB / "guide_en.html", headers={"Cache-Control": "no-cache"})
-
-
-@app.get("/robots.txt", include_in_schema=False)
-def robots() -> PlainTextResponse:
-    base = settings.public_base_url.rstrip("/")
-    return PlainTextResponse("\n".join([
-        "User-agent: *", "Allow: /",
-        "Disallow: /lost-items", "Disallow: /email/", "Disallow: /found-items/", "Disallow: /health",
-        f"Sitemap: {base}/sitemap.xml", "",
-    ]))
-
-
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap() -> Response:
-    base = settings.public_base_url.rstrip("/")
-    pairs = [("/", "/en"), ("/privacy", "/en/privacy"), ("/terms", "/en/terms")]
-    urls = []
-    for ko, en in pairs:
-        alts = (f'<xhtml:link rel="alternate" hreflang="ko" href="{base}{ko}"/>'
-                f'<xhtml:link rel="alternate" hreflang="en" href="{base}{en}"/>')
-        urls += [f"<url><loc>{base}{ko}</loc>{alts}</url>", f"<url><loc>{base}{en}</loc>{alts}</url>"]
-    urls.append(f"<url><loc>{base}/en/guide</loc></url>")
-    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
-           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
-           + "".join(urls) + "</urlset>")
-    return Response(xml, media_type="application/xml")
-
-
-@app.get("/manifest.webmanifest", include_in_schema=False)
-def manifest() -> JSONResponse:
-    """홈 화면에 추가(PWA) — 여행 중 다시 열기 쉽게."""
-    return JSONResponse({
-        "name": "FindIt — Lost & Found Korea", "short_name": "FindIt", "start_url": "/",
-        "display": "standalone", "background_color": "#f5f6f8", "theme_color": "#2563eb",
-        "description": _META["en"]["desc"],
-        "icons": [{"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
-                  {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}],
-    }, media_type="application/manifest+json")
+app.include_router(site.router)  # 웹사이트 페이지(홈·전체 습득물·가이드·방침·약관·robots·sitemap·manifest)
 
 
 @app.get("/health")
@@ -560,23 +400,25 @@ def update_lost_item_alerts(lid: str, req: AlertSettingsRequest, request: Reques
             "status": status or item.get("status")}
 
 
-_VERIFY_PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>FindIt — 이메일 확인 / Confirm email</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;background:#f5f6f8;
-margin:0;padding:40px 16px;color:#1f2430}.c{max-width:460px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;
-border-radius:14px;padding:26px;text-align:center}h1{font-size:20px;color:#2563eb;margin:0 0 12px}p{color:#4b5563}
-button{background:#2563eb;color:#fff;border:0;border-radius:10px;padding:13px 28px;font:inherit;font-weight:700;
-cursor:pointer}button:disabled{opacity:.6}a{color:#2563eb}</style></head><body><div class="c">
-<h1>FindIt</h1><p>분실물 알림을 받으려면 아래 버튼을 눌러 이메일을 확인해주세요.<br>
+_VERIFY_PAGE = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{settings.brand_name} — 이메일 확인 / Confirm email</title>
+<meta name="robots" content="noindex"><link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/fonts/pretendard/pretendard.css?v={site.VERSION}">
+<link rel="stylesheet" href="/static/css/site.css?v={site.VERSION}">
+<style>body{{background:var(--bg-soft)}}.c{{max-width:480px;margin:56px auto;text-align:center}}
+.c .brand{{justify-content:center;margin-bottom:18px}}.c p{{color:#475569;margin:10px 0}}</style></head><body>
+<div class="container"><div class="card c">
+<a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span class="wordmark">Lost<span>Korea</span></span></a>
+<p>분실물 알림을 받으려면 아래 버튼을 눌러 이메일을 확인해주세요.<br>
 Press the button below to confirm your email and turn on lost-item alerts.</p>
-<button id="b" onclick="go()">알림 받기 확인 · Confirm</button><p id="m"></p>
-<p><a href="/">FindIt으로 가기 · Go to FindIt</a></p></div><script>
-async function go(){const b=document.getElementById("b"),m=document.getElementById("m");b.disabled=true;
+<button id="b" class="btn btn-primary btn-lg" onclick="go()">알림 받기 확인 · Confirm</button><p id="m"></p>
+<p class="small"><a href="/">{settings.brand_name} 홈 · Home</a></p></div></div><script>
+async function go(){{const b=document.getElementById("b"),m=document.getElementById("m");b.disabled=true;
 const t=new URLSearchParams(location.search).get("token")||"";
-try{const r=await fetch("/email/verify",{method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({token:t})});const d=await r.json();
-m.textContent=r.ok?"✅ 확인됐어요! 이제 새 습득물이 들어오면 알려드려요. · Confirmed — alerts are on.":"⚠️ "+(d.detail||"오류")}
-catch(e){m.textContent="⚠️ 네트워크 오류 · Network error";b.disabled=false}}</script></body></html>"""
+try{{const r=await fetch("/email/verify",{{method:"POST",headers:{{"Content-Type":"application/json"}},
+body:JSON.stringify({{token:t}})}});const d=await r.json();
+m.textContent=r.ok?"확인됐어요! 이제 새 습득물이 들어오면 알려드려요. · Confirmed — alerts are on.":(d.detail||"오류 · Error")}}
+catch(e){{m.textContent="네트워크 오류 · Network error";b.disabled=false}}}}</script></body></html>"""
 
 
 @app.get("/email/verify", include_in_schema=False)

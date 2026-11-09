@@ -35,7 +35,7 @@ def alert(subject: str, body: str) -> bool:
         return False
     html = "<pre style=\"font-family:monospace;white-space:pre-wrap\">" + \
         body.replace("&", "&amp;").replace("<", "&lt;") + "</pre>"
-    return EmailNotifier._send(to, f"[FindIt 운영] {subject}", body, html)
+    return EmailNotifier._send(to, f"[{settings.brand_name} 운영] {subject}", body, html)
 
 
 _ERR_LAST: dict[str, float] = {}
@@ -143,7 +143,7 @@ def weekly(days: int = 7, today: date | None = None, status: dict | None = None)
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="FindIt 운영 점검·알림")
+    ap = argparse.ArgumentParser(description=f"{settings.brand_name} 운영 점검·알림")
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("alert")
     a.add_argument("subject")

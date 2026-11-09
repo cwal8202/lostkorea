@@ -43,7 +43,7 @@ def fake_translate(prefix):
 def test_korean_email_needs_no_translation(monkeypatch):
     monkeypatch.setattr(gemini, "translate_strings", lambda *a: (_ for _ in ()).throw(AssertionError("호출 금지")))
     subject, text, html = notifier.build_email({"text": "검정 지갑", "lang": "ko"}, [MATCH])
-    assert subject.startswith("[FindIt] 분실물 매칭 알림") and "유력 후보" in text and "보관장소" in text
+    assert subject.startswith("[LostKorea] 분실물 매칭 알림") and "유력 후보" in text and "보관장소" in text
 
 
 def test_foreign_email_translates_ui_items_and_places(monkeypatch):
@@ -66,7 +66,7 @@ def test_translation_failure_falls_back_to_english_then_korean(monkeypatch):
     notifier._UI_CACHE.clear()
     monkeypatch.setattr(gemini, "translate_strings", lambda *a: None)
     subject, text, _ = notifier.build_email({"text": "x", "lang": "vi"}, [MATCH])
-    assert subject.startswith("[FindIt] 분실물 매칭 알림") and "강남경찰서" in text  # 전부 실패 → 한국어
+    assert subject.startswith("[LostKorea] 분실물 매칭 알림") and "강남경찰서" in text  # 전부 실패 → 한국어
 
 
 def test_verify_email_has_only_fixed_text_and_link(monkeypatch):

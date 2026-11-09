@@ -1,0 +1,28 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="{{HOME}}" aria-label="{{BRAND}} — {{brand_tag}}">
+      <img src="/static/logo.svg" alt="" width="34" height="34" />
+      <span class="wordmark">Lost<span>Korea</span></span>
+    </a>
+    <nav class="nav-links" id="siteNav" aria-label="{{nav_menu}}">
+      <a href="{{HOME}}#search">{{nav_find}}</a>
+      <a href="{{BROWSE}}">{{nav_browse}}</a>
+      <a href="{{HOME}}#how">{{nav_how}}</a>
+      <a href="{{HOME}}#faq">{{nav_faq}}</a>
+      {{GUIDE_NAV}}
+    </nav>
+    <div class="nav-right">
+      <div id="google_translate_element"></div>
+      <label class="sr-only" for="langPicker">Language / 언어</label>
+      <span class="lang-wrap">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+        <select id="langPicker" class="lang-select" data-ko="{{ALT_KO}}" data-en="{{ALT_EN}}" translate="no">{{LANG_OPTIONS}}</select>
+      </span>
+      <a class="btn btn-primary btn-sm nav-cta" href="{{HOME}}#search">{{nav_cta}}</a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="siteNav" aria-label="{{nav_menu}}">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>

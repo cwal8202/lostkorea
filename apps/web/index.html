@@ -4,1103 +4,222 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <!--HEAD-->
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
-<link rel="apple-touch-icon" href="/static/icon-192.png" />
-<link rel="manifest" href="/manifest.webmanifest" />
-<meta name="theme-color" content="#2563eb" />
-<style>
-  :root { --bg:#f5f6f8; --card:#fff; --line:#e5e7eb; --ink:#1f2430; --sub:#6b7280;
-          --brand:#2563eb; --brand-d:#1d4ed8; --green:#16a34a; --amber:#d97706; --gray:#9ca3af; }
-  * { box-sizing:border-box; }
-  /* 머리글: 좁은 화면(휴대폰)에선 언어 선택이 다음 줄로 — 부제가 한 글자 폭으로 눌리지 않게 */
-  .alert-panel { margin-top:14px; background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:14px; }
-  .site-head { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; margin-bottom:14px; }
-  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
-  :focus-visible { outline:3px solid #93c5fd; outline-offset:2px; }
-  /* 검색 카드 — 첫 화면에서 바로 입력. 입력 글자 16px: iOS 사파리가 포커스 때 화면을 확대하지 않게 */
-  .search-card textarea, .search-card input, #alertEmail { font-size:16px; }
-  .search-card textarea { min-height:88px; }
-  .search-row { display:flex; gap:8px 10px; align-items:center; flex-wrap:wrap; margin-top:8px; }
-  .search-row .count { margin-left:auto; font-size:12px; color:var(--sub); }
-  .date-lbl { display:flex; align-items:center; gap:6px; }
-  .photo-chip { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:10px; padding:3px; }
-  .photo-chip[hidden] { display:none; }
-  .photo-chip img { width:40px; height:40px; object-fit:cover; border-radius:7px; }
-  .chip-x { background:none; color:var(--sub); padding:4px 8px; font-weight:700; }
-  .chip-x:hover { background:#f3f4f6; }
-  .go { width:100%; margin-top:12px; padding:13px; font-size:16px; border-radius:12px; }
-  .hint { color:#b91c1c; font-size:13px; margin-top:6px; min-height:0; }
-  .hint:empty { display:none; }
-  details.tips { margin-top:10px; font-size:13px; color:var(--sub); }
-  details.tips summary, details.how-searched summary { cursor:pointer; }
-  details.how-searched { margin-top:14px; border-top:1px solid var(--line); padding-top:10px; font-size:13px; }
-  details.how-searched > div { margin-top:8px; }
-  .cand-head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; margin:12px 0 8px; }
-  .legend { font-size:12px; }
-  .how .steps { margin-top:0; }
-  .head-title { flex:1 1 220px; min-width:0; }
-  .head-lang { margin-left:auto; display:flex; align-items:center; gap:8px; }
-  .privacy-note { font-size:12px; color:var(--sub); margin:12px 0 0; line-height:1.5; }
-  .privacy-note a, .site-foot a { color:var(--sub); }
-  .site-foot { text-align:center; font-size:12px; color:var(--sub); margin-top:24px; }
-  .mine-del { background:none; color:var(--sub); border:0; padding:2px 4px; font-size:12px; font-weight:400; text-decoration:underline; }
-  .mine-del:hover { background:none; color:#dc2626; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif; }
-  .wrap { max-width:820px; margin:0 auto; padding:24px 16px 64px; }
-  header h1 { font-size:24px; margin:8px 0 2px; }
-  header p { color:var(--sub); margin:0 0 20px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
-          padding:18px; margin-bottom:16px; }
-  h2 { font-size:15px; margin:0 0 12px; color:var(--sub); font-weight:600;
-       text-transform:uppercase; letter-spacing:.03em; }
-  textarea { width:100%; border:1px solid var(--line); border-radius:10px; padding:12px;
-             font:inherit; resize:vertical; min-height:74px; }
-  .row { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
-  label { color:var(--sub); font-size:13px; }
-  input[type=date] { border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; }
-  button { background:var(--brand); color:#fff; border:0; border-radius:10px;
-           padding:10px 18px; font:inherit; font-weight:600; cursor:pointer; }
-  button:hover { background:var(--brand-d); }
-  button.ghost { background:#eef2ff; color:var(--brand-d); }
-  button:disabled { opacity:.6; cursor:default; }
-  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0; }
-  .chip { background:#eef2f7; border-radius:999px; padding:3px 10px; font-size:13px; color:#374151; }
-  .chip.k { background:#e0e7ff; color:#3730a3; }
-  .banner { border-radius:10px; padding:10px 14px; margin-bottom:12px; font-weight:600; }
-  .banner.matched { background:#dcfce7; color:#166534; }
-  .banner.candidate { background:#dbeafe; color:#1e40af; }
-  .banner.open { background:#fef9c3; color:#854d0e; }
-  .match { border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;
-           display:flex; gap:12px; }
-  .grade { flex:0 0 52px; height:52px; border-radius:10px; display:flex; flex-direction:column; align-items:center;
-           justify-content:center; font-weight:800; font-size:18px; color:#fff; line-height:1.1; }
-  .grade small { font-size:10px; font-weight:600; opacity:.9; }
-  .m-body { flex:1; min-width:0; }
-  .m-title { font-weight:700; }
-  .m-meta { color:var(--sub); font-size:13px; margin-top:2px; }
-  .m-reason { font-size:13px; margin-top:6px; color:#374151; }
-  .muted { color:var(--sub); }
-  .status { font-size:12px; padding:2px 9px; border-radius:999px; font-weight:700; }
-  .status.matched, .status.confirmed { background:#dcfce7; color:#166534; }
-  .status.candidate { background:#dbeafe; color:#1e40af; }
-  .status.expired { background:#f3f4f6; color:#6b7280; }
-  .status.open { background:#fef9c3; color:#854d0e; }
-  .mine-item { border-top:1px solid var(--line); padding:12px 0; }
-  .mine-item:first-child { border-top:0; }
-  .or { text-align:center; color:var(--sub); font-size:12px; margin:16px 0 4px;
-        border-top:1px solid var(--line); padding-top:14px; }
-  .tabs { display:flex; gap:8px; margin-bottom:16px; }
-  .tab { background:#eef2f7; color:#4b5563; font-weight:600; border-radius:10px; padding:9px 16px; }
-  .tab:hover { background:#e2e8f0; }
-  .tab.active { background:var(--brand); color:#fff; }
-  .langsel { border:1px solid #c7d2fe; border-radius:999px; padding:7px 12px; font:inherit;
-             font-size:13px; font-weight:600; color:var(--brand-d); background:#eef2ff; cursor:pointer; }
-  .langsel:hover { background:#e0e7ff; }
-  /* Google 번역 위젯의 기본 UI·상단 배너 숨김(우리 langsel로 구동). 신버전은 클래스가 난독화돼
-     iframe.skiptranslate로 잡음(배너·메뉴 iframe). 번역 자체는 스크립트가 하므로 숨겨도 동작. */
-  #google_translate_element { display:none !important; }
-  iframe.skiptranslate { display:none !important; }
-  .goog-te-gadget-icon, #goog-gt-tt, .goog-te-balloon-frame { display:none !important; }
-  body { top:0 !important; position:static !important; }
-  .goog-text-highlight { background:none !important; box-shadow:none !important; }
-  .note { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px;
-          padding:9px 12px; font-size:12.5px; line-height:1.5; }
-  .hero { background:linear-gradient(135deg,#eff6ff,#eef2ff); border:1px solid #e0e7ff;
-          border-radius:16px; padding:26px 22px; margin-bottom:16px; }
-  .hero .kicker { display:inline-block; background:#dbeafe; color:#1e40af; font-size:12px; font-weight:700;
-          border-radius:999px; padding:4px 12px; margin-bottom:12px; }
-  .hero h1 { font-size:25px; margin:0 0 8px; line-height:1.25; }
-  .hero .sub { color:#374151; margin:0 0 10px; font-size:15px; line-height:1.5; }
-  .hero .stat { color:var(--sub); font-size:14px; margin:0 0 16px; }
-  .hero .stat b { color:var(--brand-d); }
-  .hero .cta { background:var(--brand); color:#fff; border:0; border-radius:10px; padding:11px 22px;
-          font:inherit; font-weight:700; font-size:15px; cursor:pointer; }
-  .hero .cta:hover { background:var(--brand-d); }
-  .features { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:18px 0 4px; }
-  .feat { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; }
-  .feat .ic { font-size:19px; }
-  .feat h3 { font-size:14px; margin:6px 0 4px; }
-  .feat p { font-size:13px; color:var(--sub); margin:0; line-height:1.5; }
-  .steps { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
-  .step { flex:1; min-width:150px; background:var(--card); border:1px solid var(--line); border-radius:12px;
-          padding:12px 14px; font-size:13px; line-height:1.45; }
-  .step b { color:var(--brand-d); }
-  .examples { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .ex { background:#f1f5f9; color:#334155; border:1px solid var(--line); border-radius:999px;
-        padding:5px 12px; font-size:13px; font-weight:500; cursor:pointer; }
-  .ex:hover { background:#e2e8f0; border-color:#cbd5e1; }
-  .lead { color:var(--sub); font-size:13.5px; margin:-4px 0 12px; line-height:1.5; }
-  .bitem { display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
-  .bitem:first-child { border-top:0; }
-  .btag { display:inline-block; background:#eef2f7; color:#374151; border-radius:999px;
-          padding:2px 9px; font-size:12px; margin-right:4px; }
-  .maplink { display:inline-block; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0;
-             border-radius:8px; padding:4px 11px; font-size:13px; font-weight:600; text-decoration:none; }
-  .maplink:hover { background:#d1fae5; }
-  .spin { display:inline-block; width:15px; height:15px; border:2px solid #fff;
-          border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite;
-          vertical-align:-2px; margin-right:6px; }
-  @keyframes s { to { transform:rotate(360deg); } }
-  /* 실시간 진행(추출→지역→검색어→검색→판정) — 단계마다 서버가 SSE로 결과를 흘려보냄 */
-  .prog { border:1px solid var(--line); border-radius:12px; padding:6px 14px; margin-bottom:12px; }
-  .prog-row { display:grid; grid-template-columns:22px 1fr; column-gap:8px; align-items:center;
-              padding:8px 0; border-top:1px solid var(--line); }
-  .prog-row:first-child { border-top:0; }
-  .prog-row.wait { color:var(--gray); }
-  .prog-t { justify-self:end; font-size:12px; }
-  .prog-info { grid-column:2 / -1; font-size:13px; min-width:0; }
-  .prog-info:empty { display:none; }
-  .prog .spin { border-color:var(--brand); border-top-color:transparent; margin:0; }
-  #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.82); display:flex;
-              align-items:center; justify-content:center; z-index:1000; cursor:zoom-out; padding:24px; }
-  #lightbox[hidden] { display:none; }
-  #lightbox img { max-width:92vw; max-height:92vh; border-radius:12px; box-shadow:0 8px 40px rgba(0,0,0,.5); }
-</style>
 </head>
-<body>
-<div class="wrap">
-  <header class="site-head">
-    <img src="/static/logo.jpg" alt="FindIt" width="56" height="56"
-         style="border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,.12);" />
-    <div class="head-title">
-      <h1 style="margin:0;">FindIt</h1>
-    </div>
-    <div class="head-lang">
-      <div id="google_translate_element"></div>
-      <select id="langPicker" class="langsel" onchange="pickLang(this.value)" title="Language / 언어" translate="no">
-        <option value="ko">🌐 한국어</option>
-        <option value="en">English</option>
-        <option value="ja">日本語</option>
-        <option value="zh-CN">中文 (简体)</option>
-        <option value="zh-TW">中文 (繁體)</option>
-        <option value="vi">Tiếng Việt</option>
-        <option value="th">ไทย</option>
-        <option value="id">Bahasa Indonesia</option>
-        <option value="ms">Bahasa Melayu</option>
-        <option value="hi">हिन्दी</option>
-        <option value="fr">Français</option>
-        <option value="es">Español</option>
-        <option value="ru">Русский</option>
-        <option value="de">Deutsch</option>
-      </select>
-    </div>
-  </header>
+<body class="page-{{VIEW}}">
+<!--HEADER-->
+<main id="main">
 
-  <section class="hero">
-    <h1 data-i18n="heroTitle">잃어버린 물건, AI가 찾아드려요</h1>
-    <p class="sub" data-i18n="heroSub"></p>
-    <p class="stat" id="heroStat"></p>
-  </section>
+  <!-- ── 히어로 + 검색 ─────────────────────────────────────────── -->
+  <section class="hero" id="search">
+    <div class="container hero-grid">
+      <div class="hero-main">
+        <p class="eyebrow">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+          {{hero_eyebrow}}
+        </p>
+        <h1 class="hero-title">{{hero_title}}</h1>
+        <p class="lede">{{hero_lede}}</p>
 
-  <div class="tabs" role="tablist">
-    <button id="tabFind" class="tab active" role="tab" onclick="switchTab('find')" data-i18n="tabFind">🔍 AI로 찾기</button>
-    <button id="tabBrowse" class="tab" role="tab" onclick="switchTab('browse')" data-i18n="tabBrowse">📋 전체 둘러보기</button>
-  </div>
+        <div class="search-card">
+          <label for="text" class="search-label">{{search_label}}</label>
+          <textarea id="text" placeholder="{{text_ph}}" maxlength="500" rows="3"
+            oninput="$('textCount').textContent=this.value.length" onkeydown="onTextKey(event)"></textarea>
+          <div class="search-row">
+            <input type="file" id="photo" accept="image/*" onchange="onPhoto(event)" hidden />
+            <button type="button" class="btn btn-outline" id="photoBtn" onclick="$('photo').click()">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+              {{photo_add}}
+            </button>
+            <span id="photoChip" class="photo-chip" hidden>
+              <img id="photoPreview" alt="" />
+              <button type="button" class="chip-x" onclick="clearPhoto()" aria-label="{{photo_remove}}">✕</button>
+            </span>
+            <label class="date-lbl"><span>{{lost_date}}</span><input type="date" id="lostDate" /></label>
+            <span class="count"><span id="textCount">0</span>/500</span>
+          </div>
+          <button id="go" class="btn btn-primary btn-lg go" onclick="search()">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <span class="go-label">{{search_btn}}</span>
+          </button>
+          <div id="hint" class="hint" role="alert"></div>
+          <div class="examples" id="examples"></div>
+          <details class="tips"><summary>{{photo_tip_title}}</summary><p>{{photo_tip}}</p></details>
+          <p class="privacy-note">{{privacy_note}}</p>
+        </div>
 
-  <div id="viewFind">
-  <div class="card search-card">
-    <label for="text" class="sr-only" data-i18n="register">분실물 찾기</label>
-    <textarea id="text" data-i18n-ph="textPh" maxlength="500" rows="3"
-      oninput="$('textCount').textContent=this.value.length" onkeydown="onTextKey(event)"></textarea>
-    <div class="search-row">
-      <input type="file" id="photo" accept="image/*" onchange="onPhoto(event)" hidden />
-      <button type="button" class="ghost" id="photoBtn" onclick="$('photo').click()" data-i18n="pickPhoto">📷 사진 추가</button>
-      <span id="photoChip" class="photo-chip" hidden>
-        <img id="photoPreview" alt="" />
-        <button type="button" class="chip-x" onclick="clearPhoto()" data-i18n-aria="photoRemove">✕</button>
-      </span>
-      <label class="date-lbl"><span data-i18n="lostDate">분실일(선택)</span> <input type="date" id="lostDate" /></label>
-      <span class="count"><span id="textCount">0</span>/500</span>
-    </div>
-    <button id="go" class="go" onclick="search()" data-i18n="find">찾기</button>
-    <div id="hint" class="hint" role="alert"></div>
-    <div class="examples" id="examples"></div>
-    <details class="tips"><summary data-i18n="photoTipTitle"></summary><p data-i18n="photoNote2"></p></details>
-    <p class="privacy-note" data-i18n="privacyNote"></p>
-  </div>
+        <ul class="trust-row">
+          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>{{trust1}}</li>
+          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{trust2}}</li>
+          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>{{trust3}}</li>
+        </ul>
+      </div>
 
-  <div class="card" id="resultCard" hidden>
-    <h2 data-i18n="matchResult">매칭 결과</h2>
-    <div id="result"></div>
-    <div id="srStatus" class="sr-only" aria-live="polite"></div>
-  </div>
-
-  <div class="card" id="mineCard" hidden>
-    <div style="display:flex; justify-content:space-between; align-items:center">
-      <h2 style="margin:0" data-i18n="myReports">내 신고 (이 브라우저)</h2>
-      <button class="ghost" onclick="loadMine()" data-i18n="refresh">새로고침</button>
-    </div>
-    <p class="lead" style="margin:8px 0 0" data-i18n="mineLead"></p>
-    <div id="mine" style="margin-top:12px"></div>
-  </div>
-
-  <section class="card how">
-    <h2 data-i18n="howItWorks">이렇게 동작해요</h2>
-    <div class="steps">
-      <div class="step" data-i18n="step1"></div>
-      <div class="step" data-i18n="step2"></div>
-      <div class="step" data-i18n="step3"></div>
-    </div>
-    <div class="features">
-      <div class="feat"><div class="ic">🗣️ 📷</div><h3 data-i18n="f1t"></h3><p data-i18n="f1d"></p></div>
-      <div class="feat"><div class="ic">🎯</div><h3 data-i18n="f2t"></h3><p data-i18n="f2d"></p></div>
-      <div class="feat"><div class="ic">📍</div><h3 data-i18n="f3t"></h3><p data-i18n="f3d"></p></div>
-      <div class="feat"><div class="ic">🌐</div><h3 data-i18n="f4t"></h3><p data-i18n="f4d"></p></div>
+      <aside class="hero-visual" aria-hidden="true">
+        <div class="sample">
+          <div class="sample-head"><span class="badge">{{sample_badge}}</span><span class="sample-dots"><i></i><i></i><i></i></span></div>
+          <div class="match sample-match">
+            <div class="grade" style="background:var(--green)">88<small>{{sample_score}}</small></div>
+            <div class="m-body">
+              <div class="m-title">{{sample_item}} <span class="muted">/ {{sample_color}}</span></div>
+              <div class="m-meta">{{sample_meta}}</div>
+              <div class="m-reason"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>{{sample_reason}}</div>
+              <div class="m-actions"><span class="btn btn-success btn-xs">{{sample_mine}}</span><span class="btn btn-outline btn-xs">{{sample_map}}</span></div>
+            </div>
+          </div>
+          <div class="sample-rows">
+            <div class="sample-row"><span class="grade grade-sm" style="background:var(--amber)">62</span><span class="bar"></span></div>
+            <div class="sample-row"><span class="grade grade-sm" style="background:var(--gray)">20</span><span class="bar short"></span></div>
+          </div>
+        </div>
+      </aside>
     </div>
   </section>
-  </div><!-- /viewFind -->
 
-  <div id="viewBrowse" hidden>
-  <div class="card">
-    <h2 data-i18n="browseTitle">전체 습득물 둘러보기</h2>
-    <p class="muted" style="margin:-4px 0 12px; font-size:13px" data-i18n="browseDesc">
-      공개데이터로 수집된 습득물을 키워드·지역·날짜로 필터링해 살펴보세요. (AI 판정 없이 즉시 조회)
-    </p>
-    <div class="row">
-      <input id="bq" data-i18n-ph="kwPh" placeholder="키워드 (예: 지갑, 에어팟, 카드)" onkeydown="if(event.key==='Enter')doBrowse(1)"
-             style="flex:1; min-width:160px; border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit" />
-      <select id="bregion" onchange="doBrowse(1)"
-              style="border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit">
-        <option value="" data-i18n="allRegions">전체 지역</option>
-      </select>
+  <!-- ── 검색 결과 · 내 신고(검색 후에만 보임) ─────────────────────── -->
+  <div class="container app-area">
+    <div class="card" id="resultCard" hidden>
+      <h2 class="card-title">{{result_title}}</h2>
+      <div id="result"></div>
+      <div id="srStatus" class="sr-only" aria-live="polite"></div>
     </div>
-    <div class="row">
-      <label><span data-i18n="foundDate">습득일</span> <input type="date" id="bfrom" onchange="doBrowse(1)" /></label>
-      <label>~ <input type="date" id="bto" onchange="doBrowse(1)" /></label>
-      <button onclick="doBrowse(1)" data-i18n="searchBtn">검색</button>
-      <button class="ghost" onclick="resetBrowse()" data-i18n="reset">초기화</button>
-      <label style="font-size:13px; color:var(--sub); margin-left:auto">
-        <select id="bsize" onchange="doBrowse(1)"
-                style="border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit">
-          <option value="5">5</option>
-          <option value="10" selected>10</option>
-          <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="25">25</option>
-        </select> <span data-i18n="perPage">개씩</span>
-      </label>
-      <span id="bcount" class="muted" style="font-size:13px"></span>
+    <div class="card" id="mineCard" hidden>
+      <div class="card-head">
+        <h2 class="card-title">{{mine_title}}</h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadMine()">{{refresh}}</button>
+      </div>
+      <p class="muted small">{{mine_lead}}</p>
+      <div id="mine"></div>
     </div>
   </div>
 
-  <div class="card">
-    <div id="browseList"><span class="muted" data-i18n="loading">불러오는 중…</span></div>
-    <div id="browsePager" class="row" style="justify-content:center; margin-top:14px"></div>
-  </div>
-  </div><!-- /viewBrowse -->
-  <footer class="site-foot" data-i18n="footer"></footer>
-</div>
+  <!-- ── 전체 습득물(/browse에서만 보임) ─────────────────────────── -->
+  <section class="container browse-view" id="viewBrowse">
+    <div class="page-head">
+      <h1>{{browse_title}}</h1>
+      <p class="lede">{{browse_lede}}</p>
+    </div>
+    <div class="card filters">
+      <div class="filter-row">
+        <input id="bq" class="input grow" placeholder="{{kw_ph}}" onkeydown="if(event.key==='Enter')doBrowse(1)" />
+        <select id="bregion" class="input" onchange="doBrowse(1)"><option value="">{{all_regions}}</option></select>
+      </div>
+      <div class="filter-row">
+        <label class="date-lbl"><span>{{found_date}}</span><input type="date" id="bfrom" onchange="doBrowse(1)" /></label>
+        <label class="date-lbl"><span>~</span><input type="date" id="bto" onchange="doBrowse(1)" /></label>
+        <button class="btn btn-primary" onclick="doBrowse(1)">{{search_short}}</button>
+        <button class="btn btn-ghost" onclick="resetBrowse()">{{reset}}</button>
+        <label class="per-page"><select id="bsize" class="input" onchange="doBrowse(1)">
+          <option value="10" selected>10</option><option value="20">20</option><option value="30">30</option>
+        </select> {{per_page}}</label>
+        <span id="bcount" class="muted small"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div id="browseList"><span class="muted">{{loading}}</span></div>
+      <div id="browsePager" class="pager"></div>
+    </div>
+  </section>
+
+  <!-- ── 데이터 규모 ─────────────────────────────────────────── -->
+  <section class="stats-band">
+    <div class="container stats">
+      <div class="stat"><b id="statTotal">—</b><span>{{stat_items}}</span></div>
+      <div class="stat"><b id="statLatest">—</b><span>{{stat_latest}}</span></div>
+      <div class="stat"><b>{{stat_update_v}}</b><span>{{stat_update}}</span></div>
+      <div class="stat"><b>{{stat_cost_v}}</b><span>{{stat_cost}}</span></div>
+    </div>
+  </section>
+
+  <!-- ── 이용 방법 ──────────────────────────────────────────── -->
+  <section class="section" id="how">
+    <div class="container">
+      <div class="section-head"><h2>{{how_title}}</h2><p>{{how_lede}}</p></div>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-num">1</span>
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>
+          <h3>{{how1_t}}</h3><p>{{how1_d}}</p>
+        </li>
+        <li class="step">
+          <span class="step-num">2</span>
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></svg></span>
+          <h3>{{how2_t}}</h3><p>{{how2_d}}</p>
+        </li>
+        <li class="step">
+          <span class="step-num">3</span>
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
+          <h3>{{how3_t}}</h3><p>{{how3_d}}</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ── 특징 ──────────────────────────────────────────────── -->
+  <section class="section alt">
+    <div class="container">
+      <div class="section-head"><h2>{{feat_title}}</h2></div>
+      <div class="features">
+        <div class="feature">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+          <h3>{{feat1_t}}</h3><p>{{feat1_d}}</p>
+        </div>
+        <div class="feature">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></svg></span>
+          <h3>{{feat2_t}}</h3><p>{{feat2_d}}</p>
+        </div>
+        <div class="feature">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg></span>
+          <h3>{{feat3_t}}</h3><p>{{feat3_d}}</p>
+        </div>
+        <div class="feature">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></span>
+          <h3>{{feat4_t}}</h3><p>{{feat4_d}}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 신뢰 ──────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><h2>{{trust_title}}</h2></div>
+      <div class="trust-grid">
+        <div class="trust-item">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+          <div><h3>{{trust_a_t}}</h3><p>{{trust_a_d}}</p></div>
+        </div>
+        <div class="trust-item">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+          <div><h3>{{trust_b_t}}</h3><p>{{trust_b_d}}</p></div>
+        </div>
+        <div class="trust-item">
+          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M3 21c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/></svg></span>
+          <div><h3>{{trust_c_t}}</h3><p>{{trust_c_d}}</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 자주 묻는 질문 ───────────────────────────────────────── -->
+  <section class="section alt" id="faq">
+    <div class="container faq">
+      <div class="section-head"><h2>{{faq_title}}</h2></div>
+      {{FAQ_ITEMS}}
+    </div>
+  </section>
+
+  <!-- ── 마지막 행동 유도 ─────────────────────────────────────── -->
+  <section class="cta-band">
+    <div class="container">
+      <h2>{{cta_title}}</h2>
+      <p>{{cta_lede}}</p>
+      <a class="btn btn-white btn-lg" href="#search" onclick="startSearch(); return false;">{{cta_btn}}</a>
+    </div>
+  </section>
+</main>
+<!--FOOTER-->
 
 <div id="lightbox" hidden onclick="closeLightbox()"><img id="lightboxImg" src="" alt="" /></div>
-
-<!-- Google 번역 위젯: 한국어·영어 외 언어를 고를 때만 비동기로 불러옴(아래 loadTranslate).
-     예전엔 페이지 로딩 때 동기로 불러와, 구글이 막힌 네트워크(예: 중국 로밍)에선 화면 전체가 멈출 수 있었다. -->
-
-<script>
-const $ = (id) => document.getElementById(id);
-const esc = (s) => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-const gradeColor = (g) => g == null ? 'var(--gray)' : g >= 80 ? 'var(--green)' : g >= 50 ? 'var(--amber)' : 'var(--gray)';
-
-// ===== 다국어(i18n) — 외국인 접근성. 검색은 언어 무관(LLM이 한국어로 정규화), UI·안내·판정근거만 전환 =====
-const I18N = {
-  ko: {
-    heroSub:"전국 경찰서·유실물센터에 들어온 습득물을 <b>말이나 사진으로</b> 찾아요. 어떤 언어로 써도 돼요.",
-    pickPhoto:"📷 사진 추가", photoRemove:"사진 빼기", photoTipTitle:"📷 사진으로 찾을 때 알아두세요",
-    scoreLabel:"일치", scoreLegend:"점수 = AI가 추정한 같은 물건일 가능성 (80↑ 유력 · 50~79 비슷함)",
-    howSearched:"🔎 AI가 이렇게 찾았어요", howItWorks:"이렇게 동작해요",
-    step_extract:"설명 이해하기", step_extractImg:"사진 살펴보기", step_route:"잃어버린 지역 넓히기",
-    step_fanout:"검색어 만들기", step_search:"습득물 검색", step_grade:"후보 하나씩 비교", step_visual:"사진 대조",
-    kicker:"🔍 분실물 매칭 AI 에이전트", heroTitle:"잃어버린 물건, AI가 찾아드려요",
-    cta:"지금 찾아보기 →",
-    f1t:"자연어·사진 검색", f1d:"\"어제 2호선에서 검정 지갑 잃어버렸어요\"처럼 말하듯, 또는 사진 한 장으로.",
-    f2t:"의미 기반 매칭 + 근거", f2d:"키워드가 아니라 뜻으로 찾고(한↔영·오타 커버), 왜 당신 물건일지 근거를 제시.",
-    f3t:"경로 기반 지역", f3d:"지하철·버스로 이동한 경유 지역까지 넓게 살펴 순위에 반영.",
-    f4t:"외국인도 OK", f4d:"영어 화면 + 어떤 언어로 검색해도 결과. 수령 방법·지도·통역 안내까지.",
-    step1:"<b>1.</b> 말로 설명하거나 사진 올리기", step2:"<b>2.</b> AI가 후보 + 근거 제시 (확인은 본인이)",
-    step3:"<b>3.</b> 내 물건이면 보관기관·연락처·지도 안내",
-    registerLead:"무슨 물건을, <b>어디서·언제</b> 잃어버렸는지 자유롭게 적으면 AI가 습득물에서 찾아드려요. 자세할수록 정확해요.",
-    exLabel:"예시로 바로 해보기:",
-    mineLead:"딱 맞는 게 없어도 신고는 저장돼요. <b>새 습득물이 들어오면 자동으로 다시 찾아</b> 이메일로 알려드려요. 내 신고는 이 브라우저에서만 보여요.",
-    footer:'<a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a> · <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">문의</a>',
-    heroStat:(n, d)=>`지금 <b>${n}</b>건의 습득물에서 찾는 중 · 최신 습득물 <b>${d}</b> · 매일 <b>00시(KST)</b> 자동 갱신`,
-    catPrefix:"분류:", zoom:"클릭하면 크게 보기", searching:"찾는 중…",
-    naverMap:"🗺 네이버 지도", googleMap:"구글 지도",
-    helpline:"🗣 외국인이라 통화가 어렵다면 <b>1330 관광통역안내전화</b>(24시간)로 전화하면 보관기관과의 통화를 통역해줘요.",
-    lost112:"(경찰청 유실물 통합포털)",
-    xlateFail:"번역 서비스(Google)에 연결하지 못했어요. 영어 화면을 이용해 주세요.",
-    subtitle:"잃어버린 물건을 자연어로 적으면, 습득물 공개데이터에서 찾아드려요.",
-    tabFind:"🔍 AI로 찾기", tabBrowse:"📋 전체 둘러보기", register:"분실물 찾기",
-    textPh:"예: 어제 2호선 지하철에서 검정색 닥스 지갑을 잃어버렸어요. 안에 신분증이랑 카드가 있었어요.",
-    emailPh:"알림 받을 이메일 (선택) — 나중에 매칭되면 여기로 보내드려요",
-    notifyWeak:"정확도가 낮은 <b>비슷한 후보</b>도 참고로 알림 받기 (이메일 입력 시)",
-    lostDate:"분실일(선택)", find:"찾기", orPhoto:"— 또는 사진으로 찾기 —",
-    searchPhoto:"사진으로 찾기",
-    photoNote1:"잃어버린 물건이 찍힌(또는 비슷한) 사진이면 돼요. 사진엔 없는 <b>장소·날짜</b>는 위 설명/분실일에 적으면 함께 반영돼요.",
-    photoNote2:"⚠️ 습득물은 <b>사진이 없는 경우가 많아요(약 22%만 보유).</b> 그래서 기본은 사진 속 <b>특징(종류·색상)을 읽어 텍스트로 검색</b>하고, 후보 중 <b>사진이 있는 건 당신 사진과 직접 비교</b>해 '📷 사진도 유사'로 표시해요. 설명·색상·장소를 함께 적을수록 정확해집니다.",
-    matchResult:"매칭 결과", myReports:"내 신고 (이 브라우저)", refresh:"새로고침", loading:"불러오는 중…",
-    browseTitle:"전체 습득물 둘러보기", browseDesc:"공개데이터로 수집된 습득물을 키워드·지역·날짜로 필터링해 살펴보세요. (AI 판정 없이 즉시 조회)",
-    kwPh:"키워드 (예: 지갑, 에어팟, 카드)", allRegions:"전체 지역", foundDate:"습득일", searchBtn:"검색", reset:"초기화",
-    stepWorking:"진행 중…", total:"전체",
-    regionCount:(n)=>`${n}개 지역까지 넓혀 가점`, noRegion:"장소 정보 없음 — 전국에서 검색",
-    searchCount:(n)=>`후보 ${n}건 — 아래 목록에 AI가 점수·근거를 채워요`,
-    gradeDone:(g)=>`채점 완료 — 최고 ${g}점`, visualDone:(n)=>`사진 있는 후보 ${n}건과 직접 비교`,
-    streamFail:"연결이 끊겼어요. 다시 시도해주세요.",
-    visualSim:"사진도 유사",
-    needText:"분실물 설명을 입력하세요.", needPhoto:"먼저 사진을 선택하세요.", errPrefix:"오류: ", serverErr:"서버 오류 ",
-    invalidInput:"🔎 분실물 설명이 아닌 것 같아요. <b>무슨 물건을, 어디서·언제</b> 잃어버렸는지 적어주세요. (예: 어제 서울 2호선에서 검정 지갑 잃어버렸어요)",
-    bannerCand:"🔔 유력 후보를 찾았어요. 아래에서 <b>맞는지 확인</b>해주세요. (확정은 본인이!)",
-    bannerOpen:"🕓 지금은 딱 맞는 게 없어요. 접수해두고 새 습득물이 들어오면 자동으로 다시 찾아 알려드려요. (아래에 비슷한 후보가 있으면 확인해보세요)",
-    extracted:"추출", fromPhoto:"사진에서 읽음", searchRegion:"검색 지역", candQueries:"후보 쿼리",
-    candCount:(n)=>`후보 ${n}건 — 본인 물건이 있나요?`, noCand:"후보 없음",
-    photoRead:"올려주신 사진에서 아래 정보를 읽어 검색했어요 👇",
-    mine:"내 물건이에요", notMine:"아니에요", lblHeld:"보관", lblRegion:"지역", lblFound:"습득일", mapLink:"🗺 지도",
-    claimDone:"✅ 확인 완료! 아래 보관기관으로 수령을 문의하세요.", claimHeldAt:"보관장소",
-    claimNoOrg:"보관기관 정보 없음", claimTelFallback:"· 연락처는 아래 포털에서 조회",
-    claimHow:"수령 방법", claimStep1:"보관기관에 전화로 문의", claimStep2:"여권·신분증 지참해 직접 방문(본인 확인)",
-    claimStep3:"지도로 위치 확인", claimTimeline:"습득물은 보통 일정 기간(최대 6개월) 보관 후 처리될 수 있어요 — 되도록 빨리 문의하세요.",
-    claimNote:"※ 신분 확인 등 기관 절차에 따라 본인이 수령하세요. FindIt은 안내만 제공합니다.",
-    alertTitle:"🔔 알림 설정",
-    alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
-    alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
-    verifySent:(e)=>`✉️ <b>${e}</b>로 확인 메일을 보냈어요. 메일의 <b>[알림 받기 확인]</b>을 눌러야 알림이 켜져요.`,
-    tooMany:"요청이 너무 많아요. 잠시 후 다시 시도해주세요.",
-    privacyNote:'🔒 이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석되고(사진은 저장 안 함), 신고는 알림 기간이 끝나고 30일 뒤 자동 삭제돼요. 신고하면 <a href="/privacy" target="_blank">개인정보처리방침</a>·<a href="/terms" target="_blank">이용약관</a>에 동의한 것으로 봐요.',
-    del:"삭제", delConfirm:"이 신고를 삭제할까요? 신고 내용·이메일이 바로 지워지고 알림도 끝나요.", delFail:"삭제하지 못했어요. 잠시 후 다시 시도해주세요.",
-    alertUntil:(d, e)=> e ? `📅 <b>${d}</b>까지 매일 비교해 <b>${e}</b>로 알려드려요.`
-                          : `📅 <b>${d}</b>까지 매일 다시 찾아요. <b>이메일을 남기면</b> 알림을 보내드려요.`,
-    resultsSent:(x)=>`지금 결과도 ${x}로 보냈어요.`,
-    emailPh2:"이메일 주소", emailInvalid:"유효한 이메일을 입력하세요.",
-    browseXlate:"", perPage:"개씩", browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
-    prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
-    mineLoadFail:"목록을 불러오지 못했어요.", bestMatch:"최고 매칭",
-    showMore:(n)=>`더 보기 (전체 ${n}건)`, collapse:"접기",
-    stConfirmed:"확인됨", stCandidate:"유력 후보", stOpen:"찾는중", stExpired:"기간 만료",
-    watchTo:(d)=>`알림 ~${d}`,
-  },
-  en: {
-    heroSub:"Describe it <b>in any language</b> or add a photo — we search items handed in to police and lost-and-found offices across Korea.",
-    pickPhoto:"📷 Add photo", photoRemove:"Remove photo", photoTipTitle:"📷 Searching with a photo — good to know",
-    scoreLabel:"match", scoreLegend:"Score = AI's estimate that it's your item (80+ strong · 50–79 similar)",
-    howSearched:"🔎 How we searched", howItWorks:"How it works",
-    step_extract:"Understanding your description", step_extractImg:"Reading your photo", step_route:"Mapping where it may have gone",
-    step_fanout:"Preparing searches", step_search:"Searching found items", step_grade:"Checking each candidate", step_visual:"Comparing photos",
-    kicker:"🔍 AI lost & found for Korea", heroTitle:"Lost something in Korea? We'll help you find it.",
-    cta:"Start searching →",
-    f1t:"Any language, or a photo", f1d:"Write it the way you'd say it — \"I left my black wallet on the subway near Hongdae\" — or upload one photo.",
-    f2t:"Matched by meaning, with reasons", f2d:"Item names are in Korean; we match across languages and typos and tell you why each one fits.",
-    f3t:"Follows your route", f3d:"Items often travel along a subway or bus line. We also search the districts your route passes through.",
-    f4t:"Help to get it back", f4d:"Where it's held, the phone number, maps, and a free interpreter line for the call.",
-    step1:"<b>1.</b> Describe it or upload a photo", step2:"<b>2.</b> AI shows candidates + reasons (you decide)",
-    step3:"<b>3.</b> Yours? Get the office, phone and map",
-    registerLead:"Tell us <b>what</b> you lost, <b>where</b> and <b>when</b> — in any language. The more detail, the better.",
-    exLabel:"Try an example:",
-    mineLead:"No exact match yet? Your report is saved. <b>We re-check every day as new items arrive</b> and email you. Your reports are visible only in this browser.",
-    footer:'<a href="/en/guide">Lost something in Korea? Guide</a> · <a href="/en/privacy">Privacy</a> · <a href="/en/terms">Terms</a> · <a href="https://github.com/cwal8202/findit/issues" target="_blank" rel="noopener">Contact</a> · <a href="/ko">한국어</a>',
-    heroStat:(n, d)=>`Searching <b>${n}</b> found items · newest <b>${d}</b> · updated daily at midnight (KST)`,
-    catPrefix:"Category: ", zoom:"Click to enlarge", searching:"Searching…",
-    naverMap:"🗺 Naver Map", googleMap:"Google Maps",
-    helpline:"🗣 Don't speak Korean? Call <b>1330 (Korea Travel Helpline, 24/7)</b> — they can interpret your call with the holding office. From a foreign phone: +82-2-1330.",
-    lost112:"(Korean National Police lost &amp; found portal, Korean only)",
-    xlateFail:"Couldn't reach the translation service (Google). Please use the English page.",
-    subtitle:"Describe your lost item in any language — we search Korea's public found-item data.",
-    tabFind:"🔍 AI Search", tabBrowse:"📋 Browse all", register:"Find a lost item",
-    textPh:"e.g., I lost a black wallet near Gangnam Station yesterday. — A station, area or landmark is enough; you don't need the subway line number or direction.",
-    emailPh:"Email for alerts (optional) — we'll notify you when it matches",
-    notifyWeak:"Also alert me about <b>weaker, similar candidates</b> (for reference; needs email)",
-    lostDate:"Date lost (optional)", find:"Search", orPhoto:"— or search by photo —",
-    searchPhoto:"Search by photo",
-    photoNote1:"A photo of your item (or a similar one) works. A photo can't show <b>place/date</b>, so add them above.",
-    photoNote2:"⚠️ Many found items have <b>no photo (only ~22% do).</b> So we read your photo's <b>features (type, color) and search by text</b>, and for candidates that <b>do have a photo we compare it directly with yours</b> ('📷 Photo match'). Adding a description, color and place improves accuracy.",
-    matchResult:"Match results", myReports:"My reports (this browser)", refresh:"Refresh", loading:"Loading…",
-    browseTitle:"Browse all found items", browseDesc:"Browse collected found items by keyword, region and date. (Instant — no AI grading.)",
-    kwPh:"Keyword (e.g., wallet, AirPods, card)", allRegions:"All regions", foundDate:"Found date", searchBtn:"Search", reset:"Reset",
-    stepWorking:"Working…", total:"Total",
-    regionCount:(n)=>`Boosting ${n} districts along the route`, noRegion:"No place given — searching nationwide",
-    searchCount:(n)=>`${n} candidates — AI is scoring them below`,
-    gradeDone:(g)=>`Scored — best ${g}`, visualDone:(n)=>`Compared with ${n} candidate photo(s)`,
-    streamFail:"Connection lost. Please try again.",
-    visualSim:"Photo match",
-    needText:"Please describe your lost item.", needPhoto:"Please choose a photo first.", errPrefix:"Error: ", serverErr:"Server error ",
-    invalidInput:"🔎 This doesn't look like a lost-item description. Tell us <b>what you lost, where and when</b>. (e.g., I lost a black wallet on Seoul subway line 2 yesterday)",
-    bannerCand:"🔔 We found strong candidates. <b>Check below</b> if any is yours. (You confirm — we never auto-claim.)",
-    bannerOpen:"🕓 No exact match yet. We saved your report and will re-check automatically as new items arrive. (See similar candidates below.)",
-    extracted:"Extracted", fromPhoto:"Read from photo", searchRegion:"Search area", candQueries:"Search queries",
-    candCount:(n)=>`${n} candidate(s) — is any of these yours?`, noCand:"No candidates",
-    photoRead:"We read these details from your photo and searched 👇",
-    mine:"This is mine", notMine:"Not mine", lblHeld:"Held at", lblRegion:"Region", lblFound:"Found", mapLink:"🗺 Map",
-    claimDone:"✅ Confirmed! Contact the holding office below to retrieve it.", claimHeldAt:"Held at",
-    claimNoOrg:"No office info", claimTelFallback:"· find the contact via the portal below",
-    claimHow:"How to retrieve", claimStep1:"Call the holding office", claimStep2:"Visit in person with your passport/ID (identity check)",
-    claimStep3:"Check the location on the map", claimTimeline:"Found items are usually held for a limited time (up to ~6 months) before disposal — contact them soon.",
-    claimNote:"※ Retrieval follows the office's own identity-check procedure. FindIt only provides guidance.",
-    alertTitle:"🔔 Alert settings",
-    alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
-    alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
-    verifySent:(e)=>`✉️ We sent a confirmation email to <b>${e}</b>. Press <b>Confirm</b> in that email to turn on alerts.`,
-    tooMany:"Too many requests. Please try again shortly.",
-    privacyNote:'🔒 Please do not include names or phone numbers. Your text/photo is analyzed by Google Gemini for matching (photos are not stored), and reports are deleted automatically 30 days after the alert period ends. By submitting you agree to the <a href="/privacy" target="_blank">Privacy Policy</a> and <a href="/terms" target="_blank">Terms</a>.',
-    del:"Delete", delConfirm:"Delete this report? Its text and email are removed immediately and alerts stop.", delFail:"Couldn't delete. Please try again shortly.",
-    alertUntil:(d, e)=> e ? `📅 We'll check daily until <b>${d}</b> and alert <b>${e}</b>.`
-                          : `📅 We'll re-check daily until <b>${d}</b>. <b>Leave an email</b> to get alerts.`,
-    resultsSent:(x)=>`Current results sent to ${x}.`,
-    emailPh2:"Email address", emailInvalid:"Enter a valid email.",
-    browseXlate:"💡 Item names &amp; descriptions here are in Korean. To read them in your language, use your browser's <b>“Translate page”</b> (right-click → Translate, or the translate icon in the address bar).",
-    perPage:"per page", browseCount:(n)=>`${n.toLocaleString()} total`, noItems:"No found items match.", noName:"(no name)",
-    prev:"‹ Prev", next:"Next ›", loadFail:"Couldn't load.", mineEmpty:"No reports from this browser yet.",
-    mineLoadFail:"Couldn't load the list.", bestMatch:"Best match",
-    showMore:(n)=>`Show all (${n})`, collapse:"Collapse",
-    stConfirmed:"Confirmed", stCandidate:"Strong match", stOpen:"Searching", stExpired:"Expired",
-    watchTo:(d)=>`alerts until ${d}`,
-  },
-};
-// 화면 언어: 서버가 정함(/ → 한국어, /en → 영어. 외국어 브라우저는 /에서 /en으로 이동). 그 외 언어는 번역 위젯.
-const LANG = window.FINDIT_LANG === "en" ? "en" : "ko";
-const googTarget = () => { const m = document.cookie.match(/(?:^|;\s*)googtrans=\/[^/;]*\/([^;]+)/);
-  return m && m[1] ? decodeURIComponent(m[1]) : ""; };
-// 서버에 보낼 사용자 언어(판정 근거·알림 메일 언어).
-// 1) 번역 위젯에서 고른 언어  2) 입력에 한글이 있으면 ko  3) 영어 화면이면 브라우저 언어(없으면 en)  4) ko
-function userLang(text) {
-  const g = googTarget();
-  if (g && g !== "ko") return g;
-  if (text && /[가-힣]/.test(text)) return "ko";
-  if (LANG === "en") return (navigator.language || "en").startsWith("ko") ? "en" : (navigator.language || "en");
-  return navigator.language || "ko";
-}
-const t = (k, ...a) => { const v = (I18N[LANG] || I18N.ko)[k]; return typeof v === "function" ? v(...a) : (v ?? k); };
-const mapQuery = (m) => m.org_name || [m.region, m.dep_place].filter(Boolean).join(" ") || m.dep_place || "";
-// 한국에선 네이버 지도가 길찾기·대중교통까지 정확(영어 화면 지원). 구글 지도는 외국인에게 익숙해서 함께.
-const naverUrl = (m) => "https://map.naver.com/p/search/" + encodeURIComponent(mapQuery(m));
-const mapUrl = (m) => "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(mapQuery(m));
-const mapLinks = (m) => (m.org_name || m.region)
-  ? `<a href="${naverUrl(m)}" target="_blank" rel="noopener" class="maplink">${t('naverMap')}</a>
-     <a href="${mapUrl(m)}" target="_blank" rel="noopener" class="maplink">${t('googleMap')}</a>` : "";
-// EN 모드: grade가 함께 만든 영어 물품명·설명 사용(없으면 한국어 원문). 둘러보기 항목은 번역 없음.
-const dispName = (m) => (LANG === "en" && m.name_en) ? m.name_en : m.name;
-const dispDesc = (m) => (LANG === "en" && m.desc_en) ? m.desc_en : cleanDesc(m.description);
-
-const EXAMPLES = {
-  ko: [["검정 지갑", "어제 서울 지하철 2호선에서 검정색 지갑을 잃어버렸어요"],
-       ["에어팟", "강남역 근처에서 흰색 에어팟을 잃어버렸어요"],
-       ["3단 우산", "부산 지하철에서 3단 우산을 두고 내렸어요"],
-       ["카드지갑", "명동에서 카드지갑을 잃어버렸어요. 신분증이랑 카드가 들어있어요"]],
-  en: [["Passport", "I lost my passport in a black cover near Myeongdong yesterday"],
-       ["Wallet", "I left a brown leather wallet on the subway near Hongdae station"],
-       ["AirPods", "I lost white AirPods Pro around Gangnam station"],
-       ["Phone", "I lost my iPhone in a blue case in a taxi from Incheon Airport to Seoul"]],
-};
-
-function applyLang() {
-  document.documentElement.lang = LANG;
-  document.querySelectorAll("[data-i18n]").forEach(el => { el.innerHTML = t(el.dataset.i18n); });
-  document.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
-  document.querySelectorAll("[data-i18n-aria]").forEach(el => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
-  $("examples").innerHTML = `<span class="muted" style="font-size:13px">${t('exLabel')}</span>` +
-    EXAMPLES[LANG].map(([label, q], i) => `<button type="button" class="ex" data-ex="${i}">${esc(label)}</button>`).join("");
-  $("examples").onclick = (e) => { const b = e.target.closest(".ex"); if (b) tryExample(EXAMPLES[LANG][+b.dataset.ex][1]); };
-  const g = googTarget();
-  $("langPicker").value = g && g !== LANG ? g : LANG;
-  if (g && g !== LANG) translateTo(g).catch(() => {});  // 전에 고른 언어(쿠키) → 다시 번역
-}
-
-function clearGoogTrans() {
-  const host = location.hostname;
-  for (const d of ["", "; domain=" + host, "; domain=." + host]) {
-    document.cookie = "googtrans=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC" + d;
-  }
-}
-
-// 번역 위젯은 한/영 외 언어를 고를 때만 비동기 로딩. 막힌 네트워크면 8초 뒤 안내하고 원래 언어 유지.
-let _xlate = null;
-function loadTranslate() {
-  if (_xlate) return _xlate;
-  _xlate = new Promise((resolve, reject) => {
-    window.googleTranslateElementInit = () => {
-      new google.translate.TranslateElement(
-        { pageLanguage: LANG, includedLanguages: 'en,ko,ja,zh-CN,zh-TW,vi,th,id,ms,hi,fr,es,ru,de', autoDisplay: false },
-        'google_translate_element');
-      resolve();
-    };
-    const sc = document.createElement("script");
-    sc.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-    sc.async = true; sc.onerror = reject;
-    document.head.appendChild(sc);
-    setTimeout(() => reject(new Error("timeout")), 8000);
-  });
-  return _xlate;
-}
-
-// 언어 선택: 한국어·영어는 직접 만든 화면(/ko, /en)으로, 나머지는 번역 위젯.
-function pickLang(code) {
-  if (code === "ko" || code === "en") {
-    clearGoogTrans();
-    location.href = code === "en" ? "/en" : "/ko";
-    return;
-  }
-  translateTo(code).catch(() => {
-    $("langPicker").value = LANG;
-    alert(t('xlateFail'));
-  });
-}
-
-// 위젯을 불러온 직후엔 언어를 골라도 번역이 안 걸리는 경우가 많음(실측: 첫 선택 무시, 두 번째에 적용.
-// html의 translated-ltr 클래스는 붙어도 글자는 그대로인 경우가 있어 신호로 못 씀)
-// → 제목 글자가 실제로 바뀔 때까지 1.5초마다 다시 선택. 최대 ~20초.
-function translateTo(code) {
-  const h1 = document.querySelector(".hero h1"), orig = h1 ? h1.textContent : "";
-  return loadTranslate().then(() => new Promise(resolve => {
-    let tries = 0;
-    (function set() {
-      const combo = document.querySelector(".goog-te-combo");
-      if (h1 && h1.textContent !== orig) return resolve();
-      if (combo && combo.querySelector(`option[value="${code}"]`) && tries % 3 === 0) {
-        combo.value = code; combo.dispatchEvent(new Event("change"));
-      }
-      if (tries++ < 40) setTimeout(set, 500); else resolve();
-    })();
-  }));
-}
-
-function chips(items, cls="") {
-  return `<div class="chips">${items.filter(Boolean).map(x=>`<span class="chip ${cls}">${esc(x)}</span>`).join("")}</div>`;
-}
-
-const validImg = (u) => (u && u.startsWith('http') && !u.includes('no_img')) ? u : '';
-const cleanDesc = (s) => (s||'').replace(/^\s*내용\s*/,'').replace(/\s+/g,' ').trim();
-
-function openLightbox(url){ $("lightboxImg").src = url; $("lightbox").hidden = false; }
-function closeLightbox(){ $("lightbox").hidden = true; $("lightboxImg").src = ""; }
-document.addEventListener('click', e => { const t = e.target.closest('.thumb'); if (t && t.dataset.full) openLightbox(t.dataset.full); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
-
-// preview=true: 진행 중(아직 저장 전 — 신고 id 없음) 후보 미리보기 → 확인/아니에요 버튼 숨김
-function matchCard(m, idx, preview = false) {
-  const g = m.grade;
-  const img = validImg(m.image_url);
-  const thumb = img
-    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'"
-         title="${t('zoom')}"
-         style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
-    : '';
-  const btns = preview ? '' : `<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap">
-      <button onclick="confirmMatch(${idx})" style="background:var(--green);padding:5px 12px;border-radius:8px;font-size:13px">${t('mine')}</button>
-      <button onclick="dismissMatch(${idx})" class="ghost" style="padding:5px 12px;border-radius:8px;font-size:13px">${t('notMine')}</button>
-      ${mapLinks(m)}
-    </div>`;
-  return `<div class="match" data-idx="${idx}">
-    <div class="grade" style="background:${gradeColor(g)}" title="${esc(t('scoreLegend'))}">${g==null?'–':g}<small>${t('scoreLabel')}</small></div>
-    ${thumb}
-    <div class="m-body">
-      <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-      <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
-      ${(m.org_name||m.tel) ? `<div class="m-meta">🏛 ${esc(m.org_name)||'-'}${m.tel?` · ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>`:''}</div>` : ''}
-      ${dispDesc(m) ? `<div class="m-reason">📝 ${esc(dispDesc(m).slice(0,160))}${dispDesc(m).length>160?'…':''}</div>` : ''}
-      ${m.reason ? `<div class="m-reason">💬 ${esc(m.reason)}</div>` : ''}
-      ${m.visual_score != null ? `<div class="m-reason" style="color:${gradeColor(m.visual_score)}"><b>📷 ${t('visualSim')} ${m.visual_score}</b>${m.visual_reason ? ` <span class="muted">— ${esc(m.visual_reason)}</span>` : ''}</div>` : ''}
-      ${btns}
-    </div>
-  </div>`;
-}
-
-let _lid = null, _token = "", _matches = [];
-
-// 등록 응답의 (id, 관리 토큰)을 이 브라우저에 보관 → '내 신고'·확인·제외·알림 설정에 사용(서버엔 해시만 있음)
-const MINE_KEY = "findit_mine";
-function mineRefs() { try { return JSON.parse(localStorage.getItem(MINE_KEY) || "[]"); } catch (e) { return []; } }
-function saveMineRef(id, token) {
-  if (!id || !token) return;
-  try { localStorage.setItem(MINE_KEY, JSON.stringify([{ id, token }, ...mineRefs().filter(r => r.id !== id)].slice(0, 50))); } catch (e) {}
-}
-const authHeaders = () => ({ "Content-Type": "application/json", "X-Report-Token": _token });
-async function errText(res) {  // 서버 오류 → 사람이 읽을 문구(429는 이용량 안내)
-  try { const d = await res.json(); if (d && typeof d.detail === "string") return d.detail; } catch (e) {}
-  return res.status === 429 ? t('tooMany') : t('serverErr') + res.status;
-}
-
-async function confirmMatch(idx) {
-  const m = _matches[idx];
-  try {
-    await fetch(`/lost-items/${_lid}/confirm`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ atc_id: m.atc_id }) });
-  } catch (e) {}
-  $("result").innerHTML = claimGuide(m);
-  loadMine();
-}
-
-async function dismissMatch(idx) {
-  const m = _matches[idx];
-  try {
-    await fetch(`/lost-items/${_lid}/dismiss`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ atc_id: m.atc_id }) });
-  } catch (e) {}
-  const card = document.querySelector(`#result .match[data-idx="${idx}"]`);
-  if (card) card.remove();
-  loadMine();
-}
-
-function claimGuide(m) {
-  const img = validImg(m.image_url);
-  const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
-  return `<div class="banner matched">${t('claimDone')}</div>
-    <div class="match">
-      ${thumb}
-      <div class="m-body">
-        <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-        <div class="m-meta">${t('claimHeldAt')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
-        <div style="margin-top:8px; font-size:14px">
-          🏛 <b>${esc(m.org_name)||t('claimNoOrg')}</b>
-          ${m.tel ? `· ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : '· '+t('claimTelFallback').replace(/^· /,'')}
-        </div>
-        <ol style="margin:10px 0 0; padding-left:20px; font-size:13px; line-height:1.7">
-          <li><b>${t('claimStep1')}</b>${m.tel?` — ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>`:''}</li>
-          <li>${t('claimStep2')}</li>
-          <li>${t('claimStep3')} — <a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> ·
-              <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></li>
-        </ol>
-        <div class="note" style="margin-top:10px">${t('helpline')}</div>
-        <div style="margin-top:8px; font-size:13px">🔗 <a href="https://www.lost112.go.kr" target="_blank" rel="noopener">lost112.go.kr</a> ${t('lost112')}</div>
-      </div>
-    </div>
-    <p class="muted" style="font-size:13px; margin-top:10px">⏳ ${t('claimTimeline')}</p>
-    <p class="muted" style="font-size:13px">${t('claimNote')}</p>`;
-}
-
-function renderResult(d, userPhoto, timing = "") {
-  if (d.status === "invalid") {  // 분실물 설명이 아님 → 검색 안 함
-    _lid = null; _matches = [];
-    $("result").innerHTML = `<div class="banner open">${t('invalidInput')}</div>`;
-    $("resultCard").hidden = false;
-    $("resultCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    return;
-  }
-  _lid = d.id; _token = d.token || ""; _matches = d.matches || [];
-  saveMineRef(d.id, d.token);
-  const ex = d.extracted || {};
-  const exChips = [ex.item, ex.brand, ex.color, ex.category && (t('catPrefix') + ex.category), ex.place_context, ex.lost_date, ex.features];
-  const banner = d.status === "candidate"
-    ? `<div class="banner candidate">${t('bannerCand')}</div>`
-    : `<div class="banner open">${t('bannerOpen')}</div>`;
-  const photoBlock = userPhoto
-    ? `<div style="margin-bottom:10px; display:flex; gap:10px; align-items:center">
-         <img src="${userPhoto}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />
-         <div class="muted" style="font-size:12px">${t('photoRead')}</div>
-       </div>` : "";
-  const cards = (d.matches||[]).slice(0,6).map((m,i)=>matchCard(m,i)).join("");
-  $("result").innerHTML =
-    `${banner}${photoBlock}
-     <div class="cand-head"><b>${t('candCount', d.count)}</b>${cards ? `<span class="muted legend">${t('scoreLegend')}</span>` : ""}</div>
-     ${cards || `<span class="muted">${t('noCand')}</span>`}
-     ${alertPanel(d)}
-     <details class="how-searched"><summary>${t('howSearched')}</summary>
-       <div><b>${userPhoto ? t('fromPhoto') : t('extracted')}</b> ${chips(exChips)}</div>
-       ${d.region_set?.length ? `<div>${regionExplain(ex)}<b>${t('searchRegion')}</b> ${chips(d.region_set, "k")}</div>` : ""}
-       <div><b>${t('candQueries')}</b> ${chips(d.queries)}</div>
-       ${timing}
-     </details>`;
-  $("resultCard").hidden = false;
-  $("resultCard").scrollIntoView({ behavior:"smooth", block:"nearest" });
-  loadMine();
-}
-
-function regionExplain(ex) {
-  const place = (ex && ex.place_context || "").trim();
-  let msg;
-  if (LANG === "en") {
-    const where = place ? `You lost it around <b>${esc(place)}</b>. ` : "";
-    msg = `📍 ${where}In Korea, lost items often <b>travel along the route</b> (a subway or bus line) and turn up in other districts.
-      <b>You don't need to know the line number or direction</b> — a station, area or landmark is enough. We searched
-      <b>every district the route passes through</b> (below) and <b>boosted</b> them in ranking (we don't filter — nothing gets excluded).`;
-  } else {
-    const where = place ? `<b>${esc(place)}</b>에서 잃어버리셨네요. ` : "";
-    msg = `📍 ${where}분실물은 <b>이동 경로(노선·교통편)를 따라</b> 다른 지역에서 발견되기도 해요.
-      그래서 아래 지역들까지 <b>넓게</b> 살펴 순위에 반영했어요. (좁히지 않고 가점만 — 놓치지 않으려고요)`;
-  }
-  return `<div class="note" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af; margin-bottom:8px">${msg}</div>`;
-}
-
-const WATCH_DAYS = [7, 30, 90, 180];  // 알림 기간 선택지(180 = 습득물 최대 보관 ~6개월)
-
-// 결과창 '알림 설정' — 등록 때 이메일을 넣었든 안 넣었든 항상 표시. 이메일·약한 후보·기간을 여기서 변경.
-function alertPanel(d) {
-  const email = "";
-  const opts = WATCH_DAYS.map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${t('days', n)}</option>`).join("");
-  return `<div id="alertPanel" class="alert-panel">
-      <div style="font-weight:700; margin-bottom:4px">${t('alertTitle')}</div>
-      <div class="muted" style="font-size:13px; margin-bottom:8px">${t('alertDesc')}</div>
-      <div class="row" style="margin-top:0">
-        <input id="alertEmail" type="email" value="${esc(email)}" placeholder="${t('emailPh2')}"
-               style="flex:1; min-width:160px; border:1px solid var(--line); border-radius:10px; padding:10px; font:inherit" />
-        <label style="font-size:13px">${t('alertPeriod')} <select id="alertDays">${opts}</select></label>
-        <button onclick="saveAlerts()">${t('save')}</button>
-      </div>
-      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; color:var(--sub); cursor:pointer">
-        <input type="checkbox" id="alertWeak" />
-        <span>${t('notifyWeak')}</span>
-      </label>
-      <div id="alertMsg" style="font-size:13px; margin-top:8px">${d.email_pending ? t('verifySent', esc(email)) : (d.watch_until ? t('alertUntil', d.watch_until.slice(0, 10), "") : "")}</div>
-    </div>`;
-}
-
-async function saveAlerts() {
-  const email = ($("alertEmail").value || "").trim();
-  if (email && !email.includes("@")) { $("alertMsg").textContent = t('emailInvalid'); return; }
-  $("alertMsg").textContent = t('saving');
-  try {
-    const res = await fetch(`/lost-items/${_lid}/alerts`, {
-      method:"POST", headers: authHeaders(),
-      body: JSON.stringify({ email, notify_weak: $("alertWeak").checked, watch_days: +$("alertDays").value }) });
-    if (!res.ok) throw new Error(await errText(res));
-    const r = await res.json();
-    $("alertWeak").checked = r.notify_weak;  // 이메일 없으면 서버가 옵트인 무효화 → 화면도 맞춤
-    $("alertMsg").innerHTML = `✅ ${t('alertSaved')} ` + (r.verification_sent ? t('verifySent', esc(r.email))
-      : t('alertUntil', r.watch_until.slice(0, 10), r.email_verified ? esc(r.email) : ""));
-    loadMine();
-  } catch (e) {
-    $("alertMsg").textContent = t('errPrefix') + e.message;
-  }
-}
-
-// ── 실시간 진행: 서버가 단계마다 보내는 SSE(event: 단계명, data: JSON)를 읽어 패널을 갱신 ──
-async function streamPost(url, body, onEvent) {
-  const res = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-  if (!res.ok || !res.body) throw new Error(await errText(res));
-  const reader = res.body.getReader(), dec = new TextDecoder();
-  let buf = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-    let i;
-    while ((i = buf.indexOf("\n\n")) >= 0) {           // 이벤트 경계 = 빈 줄
-      const block = buf.slice(0, i); buf = buf.slice(i + 2);
-      let ev = "message", data = "";
-      for (const line of block.split("\n")) {
-        if (line.startsWith("event:")) ev = line.slice(6).trim();
-        else if (line.startsWith("data:")) data += line.slice(5).trim();
-      }
-      if (data) onEvent(ev, JSON.parse(data));
-    }
-  }
-}
-
-let _prog = null;
-const stepLabel = (s) => t(s === "extract" && _prog?.isImg ? "step_extractImg" : "step_" + s);
-
-function progStart(isImg) {
-  const steps = ["extract", "route", "fanout", "search", "grade"].concat(isImg ? ["visual"] : []);
-  const now = performance.now();
-  _prog = { isImg, steps, done: {}, info: {}, times: {}, cands: [], t0: now, last: now };
-  renderProgress();
-  $("resultCard").hidden = false;
-  $("resultCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-function stepSummary(ev, d) {
-  if (ev === "extract") {
-    const ex = d.extracted || {};
-    return chips([ex.item, ex.brand, ex.color, ex.category && (t('catPrefix') + ex.category), ex.place_context, ex.lost_date, ex.features]);
-  }
-  if (ev === "route") {
-    const r = d.region_set || [];
-    return r.length ? `${esc(t('regionCount', r.length))}${chips(r.slice(0, 10).concat(r.length > 10 ? ["…"] : []), "k")}`
-                    : `<span class="muted">${t('noRegion')}</span>`;
-  }
-  if (ev === "fanout") return chips(d.queries || []);
-  if (ev === "search") return esc(t('searchCount', (d.candidates || []).length));
-  if (ev === "grade") return esc(t('gradeDone', (d.matches || [])[0]?.grade ?? "-"));
-  if (ev === "visual") return esc(t('visualDone', (d.matches || []).filter(m => m.visual_score != null).length));
-  return "";
-}
-
-function progStep(ev, d) {
-  if (!_prog || !_prog.steps.includes(ev)) return;
-  const now = performance.now();
-  _prog.times[ev] = (now - _prog.last) / 1000; _prog.last = now;
-  _prog.done[ev] = true;
-  _prog.info[ev] = stepSummary(ev, d);
-  $("srStatus").textContent = `${stepLabel(ev)} ✓`;
-  if (ev === "search") _prog.cands = d.candidates || [];          // 판정 전 후보 먼저 표시
-  if (ev === "grade" || ev === "visual") _prog.cands = d.matches || [];
-  renderProgress();
-}
-
-function renderProgress() {
-  const p = _prog, cur = p.steps.find(s => !p.done[s]);
-  const rows = p.steps.map(s => {
-    const st = p.done[s] ? "done" : s === cur ? "run" : "wait";
-    const icon = st === "done" ? "✅" : st === "run" ? '<span class="spin"></span>' : "○";
-    const info = p.done[s] ? p.info[s] : st === "run" ? `<span class="muted">${t('stepWorking')}</span>` : "";
-    return `<div class="prog-row ${st}"><span>${icon}</span><b>${stepLabel(s)}</b>
-      <div class="prog-info">${info}</div></div>`;
-  }).join("");
-  const cards = p.cands.slice(0, 6).map((m, i) => matchCard(m, i, true)).join("");
-  $("result").innerHTML = `<div class="prog">${rows}</div>${cards}`;
-}
-
-function progTiming() {
-  const p = _prog; if (!p) return "";
-  const parts = p.steps.filter(s => p.times[s] != null).map(s => `${stepLabel(s)} ${p.times[s].toFixed(1)}s`);
-  const total = ((performance.now() - p.t0) / 1000).toFixed(1);
-  return `<div class="muted">⏱ ${t('total')} ${total}s (${esc(parts.join(" · "))})</div>`;
-}
-
-// 단계 스트림 실행 → 진행 패널 갱신 → 최종 결과(result 이벤트)로 기존 결과 화면 렌더
-async function runMatchStream(url, body, userPhoto) {
-  progStart(!!userPhoto);
-  let final = null;
-  await streamPost(url, body, (ev, d) => {
-    if (ev === "result") final = d;
-    else if (ev === "error") throw new Error(d.detail);
-    else progStep(ev, d);
-  });
-  if (!final) throw new Error(t('streamFail'));
-  renderResult(final, userPhoto, final.status === "invalid" ? "" : progTiming());
-}
-
-// Enter = 검색, Shift+Enter = 줄바꿈. 한글 조합 중 Enter(isComposing)는 무시 — 안 그러면 마지막 글자가 깨지거나 두 번 검색
-function onTextKey(e) {
-  if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); search(); }
-}
-
-function search() {
-  if ($("go").disabled) return;
-  return _photoB64 ? registerImage() : registerLost();
-}
-
-async function registerLost() {
-  const text = $("text").value.trim();
-  if (!text) { $("hint").textContent = t('needText'); $("text").focus(); return; }
-  const btn = $("go"); btn.disabled = true;
-  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + t('searching');
-  $("hint").textContent = "";
-  try {
-    const body = { text, lost_date: $("lostDate").value || null, lang: userLang(text) };
-    await runMatchStream("/lost-items/stream", body);
-  } catch (e) {
-    $("hint").textContent = t('errPrefix') + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
-}
-
-let _photoB64 = null, _photoMime = null, _photoDataUrl = null;
-
-const PHOTO_MAX_PX = 1600;
-// 업로드 전 축소(긴 변 1600px JPEG) — Vision 비용·전송량·서버 메모리 절감. 못 그리는 형식(HEIC 등)은 원본.
-function shrinkPhoto(dataUrl) {
-  return new Promise(resolve => {
-    const im = new Image();
-    im.onload = () => {
-      const k = Math.min(1, PHOTO_MAX_PX / Math.max(im.width, im.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
-      c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      resolve(c.toDataURL("image/jpeg", 0.85));
-    };
-    im.onerror = () => resolve(null);
-    im.src = dataUrl;
-  });
-}
-
-function onPhoto(e) {
-  const f = e.target.files[0]; if (!f) return;
-  const rd = new FileReader();
-  rd.onload = async () => {
-    const small = await shrinkPhoto(rd.result);
-    _photoDataUrl = small || rd.result;
-    _photoMime = small ? "image/jpeg" : (f.type || "image/jpeg");
-    _photoB64 = _photoDataUrl.split(",")[1];
-    $("photoPreview").src = _photoDataUrl;
-    $("photoChip").hidden = false;
-    $("hint").textContent = "";
-  };
-  rd.readAsDataURL(f);
-}
-
-function clearPhoto() {
-  _photoB64 = _photoMime = _photoDataUrl = null;
-  $("photo").value = ""; $("photoChip").hidden = true; $("photoPreview").src = "";
-}
-
-async function registerImage() {
-  if (!_photoB64) { $("hint").textContent = t('needPhoto'); return; }
-  const btn = $("go"); btn.disabled = true;
-  const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + t('searching');
-  $("hint").textContent = "";
-  try {
-    const body = { image_b64: _photoB64, mime: _photoMime,
-                   note: $("text").value.trim(), lost_date: $("lostDate").value || null,
-                   lang: userLang($("text").value.trim()) };
-    await runMatchStream("/lost-items/image/stream", body, _photoDataUrl);
-  } catch (e) {
-    $("hint").textContent = t('errPrefix') + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = orig;
-  }
-}
-
-const MINE_LIMIT = 5;                 // 최근 N개만 기본 표시(길어지지 않게)
-let _mineItems = [], _mineExpanded = false;
-
-async function loadMine() {
-  const refs = mineRefs();
-  if (!refs.length) { _mineItems = []; renderMine(); return; }   // 이 브라우저에 신고가 없으면 서버 호출도 생략
-  $("mine").innerHTML = `<span class="muted">${t('loading')}</span>`;  // 새로고침 피드백
-  try {
-    _mineItems = await (await fetch("/lost-items/mine", { method: "POST",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: refs }) })).json();
-    renderMine();
-  } catch (e) {
-    $("mine").innerHTML = `<span class="muted">${t('mineLoadFail')}</span>`;
-  }
-}
-
-function mineItem(it) {
-  const bm = it.best_match;
-  const when = (it.created_at || "").slice(0, 10);
-  const stLabel = it.status === "confirmed" ? t("stConfirmed")
-    : (it.status === "candidate" || it.status === "matched") ? t("stCandidate")
-    : it.status === "expired" ? t("stExpired") : t("stOpen");
-  const watch = it.status === "open" && it.watch_until ? " · " + t("watchTo", it.watch_until.slice(0, 10)) : "";
-  return `<div class="mine-item">
-    <div style="display:flex; justify-content:space-between; gap:10px">
-      <div style="min-width:0">
-        <div>${esc(it.text)}</div>
-        <div class="m-meta">${when}${bm ? " · " + t("bestMatch") + ": " + esc(bm.name) + " (grade " + (it.best_grade ?? "-") + ")" : ""}${watch}</div>
-      </div>
-      <div style="text-align:right; flex:0 0 auto">
-        <span class="status ${it.status === "matched" ? "candidate" : it.status}">${stLabel}</span>
-        <div><button class="mine-del" onclick="deleteMine('${esc(it.id)}')">${t('del')}</button></div>
-      </div>
-    </div>
-  </div>`;
-}
-
-// 신고 삭제(신고자 요청 → 서버에서 즉시 완전 삭제) + 이 브라우저의 보관 토큰도 제거
-async function deleteMine(id) {
-  if (!confirm(t('delConfirm'))) return;
-  const ref = mineRefs().find(r => r.id === id);
-  try {
-    const res = await fetch(`/lost-items/${id}`, { method: "DELETE",
-      headers: { "X-Report-Token": ref ? ref.token : "" } });
-    if (!res.ok && res.status !== 404) { alert(await errText(res)); return; }
-  } catch (e) { alert(t('delFail')); return; }
-  try { localStorage.setItem(MINE_KEY, JSON.stringify(mineRefs().filter(r => r.id !== id))); } catch (e) {}
-  if (_lid === id) $("result").innerHTML = "";
-  loadMine();
-}
-
-function renderMine() {
-  const items = _mineItems;
-  $("mineCard").hidden = !items.length;
-  if (!items.length) { $("mine").innerHTML = `<span class="muted">${t('mineEmpty')}</span>`; return; }
-  const shown = _mineExpanded ? items : items.slice(0, MINE_LIMIT);
-  let html = shown.map(mineItem).join("");
-  if (items.length > MINE_LIMIT) {
-    html += `<button class="ghost" onclick="toggleMine()" style="width:100%; margin-top:10px">
-      ${_mineExpanded ? t('collapse') : t('showMore', items.length)}</button>`;
-  }
-  $("mine").innerHTML = html;
-}
-
-function toggleMine() { _mineExpanded = !_mineExpanded; renderMine(); }
-function startSearch() {
-  switchTab("find");
-  const el = $("text");
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  setTimeout(() => el.focus(), 300);
-}
-
-function tryExample(text) {
-  switchTab("find");
-  clearPhoto();
-  $("text").value = text; $("textCount").textContent = text.length;
-  registerLost();  // 바로 검색
-}
-
-async function fetchHeroStat() {
-  try {
-    const d = await (await fetch("/found-items/browse?size=1")).json();
-    const total = (d.total || 0).toLocaleString();
-    const latest = d.items?.[0]?.found_at || "-";
-    $("heroStat").innerHTML = t('heroStat', total, esc(latest));
-  } catch (e) {
-    $("heroStat").textContent = t('loading');
-  }
-}
-
-applyLang();
-loadMine();
-fetchHeroStat();
-
-// ===== 탭 + 전체 둘러보기 =====
-let _browseLoaded = false;
-
-function switchTab(name) {
-  const find = name === "find";
-  $("viewFind").hidden = !find;
-  $("viewBrowse").hidden = find;
-  $("tabFind").classList.toggle("active", find);
-  $("tabBrowse").classList.toggle("active", !find);
-  if (!find && !_browseLoaded) { _browseLoaded = true; doBrowse(1); }
-}
-
-async function doBrowse(page) {
-  const p = new URLSearchParams({
-    q: $("bq").value.trim(), region: $("bregion").value,
-    date_from: $("bfrom").value, date_to: $("bto").value, page, size: $("bsize").value || 10,
-  });
-  $("browseList").innerHTML = `<span class="muted">${t('loading')}</span>`;
-  try {
-    const d = await (await fetch("/found-items/browse?" + p)).json();
-    renderBrowse(d);
-  } catch (e) {
-    $("browseList").innerHTML = `<span class="muted">${t('loadFail')}</span>`;
-  }
-}
-
-function resetBrowse() {
-  $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
-  doBrowse(1);
-}
-
-function renderBrowse(d) {
-  const sel = $("bregion");
-  if (d.regions?.length && sel.dataset.filled !== "1") {  // 지역 드롭다운 최초 1회 채움
-    const cur = sel.value;
-    sel.innerHTML = `<option value="">${t('allRegions')}</option>` +
-      d.regions.slice().sort((a, b) => b.count - a.count)
-        .map(r => `<option value="${esc(r.name)}">${esc(r.name)} (${r.count})</option>`).join("");
-    sel.value = cur; sel.dataset.filled = "1";
-  }
-  $("bcount").textContent = t('browseCount', d.total || 0);
-  const xl = t('browseXlate');
-  $("browseList").innerHTML = (xl ? `<div class="note" style="margin-bottom:8px">${xl}</div>` : "") +
-    ((d.items || []).map(browseItem).join("") || `<span class="muted">${t('noItems')}</span>`);
-  renderPager(d.page || 1, Math.ceil((d.total || 0) / (d.size || 24)));
-}
-
-function browseItem(m) {
-  const img = validImg(m.image_url);
-  const thumb = img
-    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" referrerpolicy="no-referrer" onerror="this.style.display='none'"
-         title="${t('zoom')}"
-         style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
-    : '';
-  return `<div class="bitem">${thumb}
-    <div class="m-body">
-      <div class="m-title">${esc(m.name) || t('noName')} <span class="muted">/ ${esc(m.color) || "-"}</span></div>
-      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(m.region) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}</div>
-      ${(m.org_name || m.tel) ? `<div class="m-meta">🏛 ${esc(m.org_name) || "-"}${m.tel ? ` · ☎ <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : ""}${(m.org_name||m.region)?` · <a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> · <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a>`:""}</div>` : ""}
-      ${cleanDesc(m.description) ? `<div class="m-reason">📝 ${esc(cleanDesc(m.description).slice(0, 120))}${cleanDesc(m.description).length > 120 ? "…" : ""}</div>` : ""}
-    </div></div>`;
-}
-
-function renderPager(page, pages) {
-  if (!pages || pages <= 1) { $("browsePager").innerHTML = ""; return; }
-  const btn = (p, label, dis) => `<button class="ghost" ${dis ? "disabled" : ""} onclick="doBrowse(${p})" style="padding:6px 12px">${label}</button>`;
-  $("browsePager").innerHTML = btn(page - 1, t('prev'), page <= 1)
-    + `<span class="muted" style="align-self:center; font-size:13px; margin:0 4px">${page} / ${pages}</span>`
-    + btn(page + 1, t('next'), page >= pages);
-}
-</script>
+<script src="/static/js/app.js?v={{V}}"></script>
 </body>
 </html>

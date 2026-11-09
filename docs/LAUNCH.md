@@ -1,6 +1,7 @@
-# FindIt 서비스화 체크리스트 — 운영자가 직접 할 일
+# LostKorea 서비스화 체크리스트 — 운영자가 직접 할 일
 
-> 2026-11-09 작성. 코드로 할 수 있는 건 FIND-70~77에서 끝냈다(보안·개인정보·관측·영어 화면·검색 노출).
+> 2026-11-09 작성(같은 날 서비스명 FindIt → LostKorea). 코드로 할 수 있는 건 FIND-70~82에서 끝냈다
+> (보안·개인정보·관측·영어 화면·검색 노출·AI 비용·웹사이트 개편).
 > 여기 남은 건 **돈·계정·실명·결정**이 필요해서 코드로는 못 하는 일이다. 위에서부터 순서대로.
 
 ## 지금 상태 (한 달 운영 실측, 10/13~11/09)
@@ -19,8 +20,9 @@ P=$(openssl rand -hex 24) && docker compose -f docker-compose.prod.yml exec -T p
 docker compose -f docker-compose.prod.yml up -d postgres backend && sleep 8 && curl -s localhost/health
 ```
 
-### 1-2. 검색엔진 등록 (30분) — 노출의 시작
-지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 FIND-76에서 준비됨.
+### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **도메인(2-1)을 산 뒤에** 하는 게 효율적
+지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 등록은 주소 단위라, 지금 duckdns 주소로 등록하면
+정식 도메인으로 옮길 때 다시 해야 한다 → 도메인을 먼저 사고 그 주소로 등록.
 - **Google Search Console** (search.google.com/search-console): 속성 추가 → 소유 확인(HTML 태그 방식이면 알려주시면 head에 넣어 드림)
   → `sitemap.xml` 제출. 외국인은 구글로 검색한다.
 - **네이버 서치어드바이저** (searchadvisor.naver.com): 한국어 사용자·국내 노출용. 같은 방식.
@@ -33,10 +35,12 @@ docker compose -f docker-compose.prod.yml up -d postgres backend && sleep 8 && c
 
 ## 2. 실서비스 신뢰도 (소액·결정 필요)
 
-### 2-1. 정식 도메인 (연 1~2만 원) — 강력 추천
+### 2-1. 정식 도메인 (연 1~2만 원) — 강력 추천, 가장 먼저
 `findit-lost.duckdns.org`는 무료 동적 DNS라 ① 신뢰도가 낮아 보이고 ② 검색 순위·메일 도달률에 불리하고 ③ duckdns 장애 시 같이 멈춘다.
-- 사기: 가비아·Cloudflare Registrar·Namecheap 등에서 원하는 이름(예: `findit` 계열 .com/.kr/.app).
-- 바꾸기(코드 수정 없음): DNS A 레코드 → 서버 IP `2.29.33.168` / 서버 `.env`의 `DOMAIN`·`PUBLIC_BASE_URL` 변경 →
+게다가 이제 서비스 이름(LostKorea)과 주소가 다르다.
+- 사기: 가비아·Cloudflare Registrar·Namecheap 등에서 **`lostkorea.com`**(+ 원하면 `lostkorea.kr`).
+  2026-11-09 등록 조회(RDAP) 결과 lostkorea.com·.kr·.app 모두 미등록 — 남이 먼저 살 수 있으니 이름을 정했으면 바로.
+- 바꾸기(코드 수정 없음): DNS A 레코드 → 서버 IP(지금 duckdns가 가리키는 주소) / 서버 `.env`의 `DOMAIN`·`PUBLIC_BASE_URL` 변경 →
   `docker compose -f docker-compose.prod.yml up -d backend caddy`(인증서 자동 발급) / `.github/workflows/uptime.yml`의 `BASE` 한 줄.
   옛 주소는 리다이렉트로 유지하면 기존 링크가 안 깨진다(원하시면 설정해 드림).
 

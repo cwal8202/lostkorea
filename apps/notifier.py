@@ -19,7 +19,7 @@ from apps.api import gemini
 from apps.api.config import settings
 
 TOP_OTHERS = 5  # 상위 매칭 외에 함께 보여줄 "비슷한 후보" 수
-_LOGO = Path(__file__).resolve().parent / "web" / "static" / "logo.jpg"  # 메일 인라인 로고(CID)
+_LOGO = Path(__file__).resolve().parent / "web" / "static" / "logo-email.png"  # 메일 인라인 로고(CID, PNG)
 
 
 def _emit(msg: str) -> None:
@@ -102,10 +102,10 @@ KO = {
     "grade": "신뢰도(grade)", "reason": "판단 근거", "held_short": "보관",
     "others_text": "비슷한 후보 {n}건도 확인해보세요:", "others_html": "비슷한 후보 {n}건",
     "claim": "본인 물건이면 위 보관기관 연락처로 수령을 문의하세요.",
-    "cta": "FindIt에서 전체 결과 보기 →", "cta_text": "FindIt에서 전체 결과 보기: {url}",
+    "cta": "{brand}에서 전체 결과 보기 →", "cta_text": "{brand}에서 전체 결과 보기: {url}",
     "or_type": "또는 주소창에 {url} 입력",
     "official": "공식 조회: {lost112} (경찰청 유실물 통합포털)",
-    "footer": "최종 확인·수령은 본인이 진행하세요. 본 메일은 FindIt 자동 알림입니다.",
+    "footer": "최종 확인·수령은 본인이 진행하세요. 본 메일은 {brand} 자동 알림입니다.",
 }
 _PH = re.compile(r"\{(\w+)\}")
 _UI_CACHE: dict[str, dict] = {}
@@ -116,18 +116,23 @@ def _fill(s: str, **kw) -> str:
     return _PH.sub(lambda m: str(kw.get(m.group(1), m.group(0))), s)
 
 
+def _brand(table: dict) -> dict:
+    """문구 속 {brand} → 서비스 이름(번역 때는 자리표시자로 두어 이름이 번역되지 않게)."""
+    return {k: (v.replace("{brand}", settings.brand_name) if isinstance(v, str) else v) for k, v in table.items()}
+
+
 def _table(name: str, base: dict, lang: str) -> dict:
     """고정 문구 표를 사용자 언어로. 실패하면 영어, 그것도 실패하면 한국어. 성공만 캐시(표·언어별)."""
     if lang == "ko":
-        return base
+        return _brand(base)
     key = f"{name}:{lang}"
     if key in _UI_CACHE:
-        return _UI_CACHE[key]
+        return _brand(_UI_CACHE[key])
     tr = gemini.translate_strings(base, lang)
     if tr and all(set(_PH.findall(tr[k])) >= set(_PH.findall(v)) for k, v in base.items()):
         _UI_CACHE[key] = tr
-        return tr
-    return _table(name, base, "en") if lang != "en" else base
+        return _brand(tr)
+    return _table(name, base, "en") if lang != "en" else _brand(base)
 
 
 def _ui(lang: str) -> dict:
@@ -138,7 +143,7 @@ def _ui(lang: str) -> dict:
 KO_VERIFY = {
     "subject": "이메일 확인 — 분실물 알림 받기",
     "head": "알림 받을 이메일을 확인해주세요",
-    "desc": "FindIt에서 이 주소로 분실물 알림을 받겠다는 요청이 있었어요. 본인이 요청했다면 아래 버튼을 눌러주세요. "
+    "desc": "{brand}에서 이 주소로 분실물 알림을 받겠다는 요청이 있었어요. 본인이 요청했다면 아래 버튼을 눌러주세요. "
             "요청하지 않았다면 이 메일은 무시하면 돼요 — 확인하지 않으면 알림이 가지 않아요.",
     "button": "알림 받기 확인",
     "or_link": "버튼이 동작하지 않으면 이 주소를 열어주세요: {url}",
@@ -156,7 +161,7 @@ def build_verify_email(lang: str, link: str) -> tuple[str, str, str]:
         '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Malgun Gothic\',sans-serif;'
         'max-width:520px;color:#1f2430">'
         '<div style="font-size:20px;font-weight:800;color:#2563eb;padding-bottom:12px;'
-        'border-bottom:1px solid #eee;margin-bottom:16px">FindIt</div>'
+        f'border-bottom:1px solid #eee;margin-bottom:16px">{e(settings.brand_name)}</div>'
         f'<h2 style="font-size:18px;margin:0 0 8px">{e(S["head"])}</h2>'
         f'<p style="margin:0 0 18px">{e(S["desc"])}</p>'
         f'<div style="text-align:center;margin:20px 0"><a href="{e(link)}" style="display:inline-block;'
@@ -165,7 +170,7 @@ def build_verify_email(lang: str, link: str) -> tuple[str, str, str]:
         f'<p style="font-size:12px;color:#6b7280">{_fill(e(S["or_link"]), url=e(link))}<br>'
         f'{e(_fill(S["expires"], h=h))}</p></div>'
     )
-    return f"[FindIt] {S['subject']}", text, html
+    return f"[{settings.brand_name}] {S['subject']}", text, html
 
 
 def _localize(matches: list[dict], lang: str) -> list[dict]:
@@ -302,7 +307,7 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
             f'<h3 style="font-size:14px;color:#374151;margin:16px 0 4px">{e(_fill(S["others_html"], n=len(others)))}</h3>'
             + "".join(_card_html(o, S=S) for o in others)
         )
-    logo = ('<img src="cid:findit-logo" width="40" height="40" alt="FindIt" '
+    logo = (f'<img src="cid:lk-logo" width="40" height="40" alt="{e(settings.brand_name)}" '
             'style="border-radius:9px;display:block" />') if _LOGO.exists() else ""
     site_link = f'<a href="{e(site)}" style="color:#2563eb">{e(site)}</a>'
     lost112 = '<a href="https://www.lost112.go.kr">lost112.go.kr</a>'
@@ -312,7 +317,7 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         # 브랜드 헤더 (로고 + 이름)
         '<div style="display:flex;align-items:center;gap:10px;padding-bottom:14px;'
         'border-bottom:1px solid #eee;margin-bottom:16px">'
-        f'{logo}<span style="font-size:20px;font-weight:800;color:#2563eb">FindIt</span>'
+        f'{logo}<span style="font-size:20px;font-weight:800;color:#1d4ed8">{e(settings.brand_name)}</span>'
         f'<span style="font-size:12px;color:#6b7280">{e(S["tagline"])}</span></div>'
         f'<h2 style="font-size:18px;margin:0 0 8px">{e(head)}</h2>'
         f'<p style="margin:0 0 12px">{e(desc)}</p>'
@@ -335,7 +340,7 @@ def build_email(lost: dict, matches: list[dict], weak: bool = False) -> tuple[st
     S = _ui(lang)
     ms = _localize(matches, lang)
     kind = "weak" if weak else "strong"
-    subject = f"[FindIt] {S[f'subj_{kind}']} — {_top(ms).get('name')}"
+    subject = f"[{settings.brand_name}] {S[f'subj_{kind}']} — {_top(ms).get('name')}"
     return subject, _text_body(lost, ms, weak, S), _html_body(lost, ms, weak, S)
 
 
@@ -365,14 +370,14 @@ class EmailNotifier:
     def _send(to: str, subject: str, text: str, html: str, logo: bool = False) -> bool:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = formataddr(("FindIt", settings.smtp_user))
+        msg["From"] = formataddr((settings.brand_name, settings.smtp_user))
         msg["To"] = to
         msg.set_content(text)
         msg.add_alternative(html, subtype="html")
-        if logo and _LOGO.exists():  # HTML 파트에 로고 인라인 첨부(cid:findit-logo)
+        if logo and _LOGO.exists():  # HTML 파트에 로고 인라인 첨부(cid:lk-logo)
             try:
                 html_part = msg.get_payload()[-1]
-                html_part.add_related(_LOGO.read_bytes(), "image", "jpeg", cid="findit-logo")
+                html_part.add_related(_LOGO.read_bytes(), "image", "png", cid="lk-logo")
             except Exception:  # noqa: BLE001
                 pass
         try:

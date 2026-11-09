@@ -39,7 +39,7 @@ def test_health_ok():
 
 def test_index_served():
     r = client.get("/")
-    assert r.status_code == 200 and "FindIt" in r.text
+    assert r.status_code == 200 and "LostKorea" in r.text
     assert "no-store" in r.headers.get("cache-control", "")  # 배포 즉시 반영
 
 

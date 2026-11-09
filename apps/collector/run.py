@@ -162,7 +162,7 @@ def bulk_index(docs: list[dict], chunk: int = 500) -> dict:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="FindIt 습득물 수집기")
+    ap = argparse.ArgumentParser(description="LostKorea 습득물 수집기")
     ap.add_argument("--source", choices=["police", "portal", "both"], default="both")
     ap.add_argument("--start", required=True, help="START_YMD (YYYYMMDD)")
     ap.add_argument("--end", required=True, help="END_YMD (YYYYMMDD)")
