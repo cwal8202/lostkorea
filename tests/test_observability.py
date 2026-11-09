@@ -77,6 +77,12 @@ def test_weekly_summary(mails):
     body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 170581, "latest_found_at": "2026-11-08"})
     assert "방문(영어): 12" in body and "신고(글): 3" in body and "찾는 중 1" in body and "170581" in body
     assert "디스크:" in body
+
+
+def test_weekly_summary_reports_measured_ai_cost(mails):
+    store.bump_many({"ai_calls": 10, "ai_in": 1_000_000, "ai_out": 200_000}, day="2026-11-08")
+    body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 1, "latest_found_at": "2026-11-08"})
+    assert "호출 10회" in body and "추정 $1.50" in body            # 1M×$0.75 + 0.2M×$3.75
     assert len(mails) == 1 and "주간 운영 요약" in mails[0][0]
 
 

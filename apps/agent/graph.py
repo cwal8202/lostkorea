@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -161,21 +162,26 @@ def _visual_compare(user_b64: str, user_mime: str, matches: list[dict],
     """사진 있는 상위 후보를 사용자 사진과 직접 대조(VISUAL 레인). matches를 제자리 주석.
 
     사진 없는 습득물이 많으므로(≈78%) 사진 있는 후보만, 지연·비용 위해 top개로 제한. 실패는 조용히 스킵.
+    사진 받기·대조를 **동시에** 실행(예전엔 순차라 대조 3번 ≈ 6초 추가) — 받기 실패 대비 2배수를 받아 순위 순서로 처음 성공한 top장만 대조.
     """
-    checked = 0
-    for m in matches:
-        if checked >= top:
-            break
-        if not _valid_img(m.get("image_url", "")):
-            continue
-        cand_b64, cand_mime = _fetch_image_b64(m["image_url"])
-        if not cand_b64:
-            continue
-        checked += 1
+    picks = [m for m in matches if _valid_img(m.get("image_url", ""))][: top * 2]
+    if not picks:
+        return
+    with ThreadPoolExecutor(max_workers=len(picks)) as ex:
+        fetched = list(ex.map(lambda m: _fetch_image_b64(m["image_url"]), picks))
+    ok = [(m, b64, mime) for m, (b64, mime) in zip(picks, fetched) if b64][:top]
+    if not ok:
+        return
+
+    def compare(item):
+        m, cand_b64, cand_mime = item
         res = gemini.compare_images(user_b64, cand_b64, user_mime, cand_mime or "image/jpeg", lang)
         if res:
             m["visual_score"] = res.get("score")
             m["visual_reason"] = res.get("reason")
+
+    with ThreadPoolExecutor(max_workers=len(ok)) as ex:
+        list(ex.map(compare, ok))
 
 
 def stream_image(image_b64: str, mime: str = "image/jpeg",

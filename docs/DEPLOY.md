@@ -189,6 +189,7 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 | `GEMINI_GRADE_MODEL` | `gemini-3.6-flash` | 추출·노선·판정·사진에 쓰는 모델 |
 | `GEMINI_FALLBACK_MODEL` | `gemini-3.8-flash` | 기본 모델이 404(종료·차단)면 자동 전환 + 관리자 메일. 재시작하면 기본 모델부터 다시 시도 |
 | `GEMINI_THINKING_LEVEL` | `minimal` | 숨은 thinking 토큰(출력 요금). 실측상 꺼도 품질 동일·응답 16.9→6.3초. 모델이 거부하면 low→생략 자동 조정 |
+| `AI_PRICE_IN_PER_M` · `AI_PRICE_OUT_PER_M` | `0.75` · `3.75` | 주간 요약의 AI 비용 추정 단가(USD/100만 토큰). 2027-01-01 Gemini 인상 시 갱신 |
 | `DAILY_AI_BUDGET` | `1500` | 하루 AI 사용 상한(글 신고 1 · 사진 3 · 검색 API 1~2 단위) — 넘으면 429 |
 - 비용 실측·모델 선택 메모는 [LAUNCH.md 4](LAUNCH.md) 참고.
 

@@ -274,6 +274,24 @@ def bump(kind: str, n: int = 1, day: str | None = None) -> None:
         print(f"[metrics] {kind} 기록 실패: {e}")
 
 
+def bump_many(counts: dict[str, int], day: str | None = None) -> None:
+    """여러 통계를 한 번의 DB 연결로 +n(AI 토큰처럼 호출마다 여러 값을 쌓을 때)."""
+    day = day or datetime.now(KST).date().isoformat()
+    sql = _q("INSERT INTO metrics (day, kind, n) VALUES (?, ?, ?) "
+             "ON CONFLICT (day, kind) DO UPDATE SET n = metrics.n + excluded.n")
+    try:
+        conn = _conn()
+        try:
+            for kind, n in counts.items():
+                if n:
+                    conn.execute(sql, (day, kind, int(n)))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        print(f"[metrics] {list(counts)} 기록 실패: {e}")
+
+
 def metrics_since(day_from: str) -> dict[str, int]:
     """day_from(포함) 이후 종류별 합계."""
     rows = _rows("SELECT kind, SUM(n) AS n FROM metrics WHERE day >= ? GROUP BY kind", (day_from,))

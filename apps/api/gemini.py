@@ -108,7 +108,9 @@ def _post(url: str, body: dict, timeout: int = 60, max_retry: int = 3) -> dict:
         try:
             req = urllib.request.Request(url, json.dumps(body).encode("utf-8"), headers)
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return json.load(r)
+                res = json.load(r)
+            _meter(res)
+            return res
         except urllib.error.HTTPError as e:
             if e.code == 404 and ":generateContent" in url and _switch_to_fallback():
                 url = _gen_url()  # 모델이 사라짐 → 예비 모델로 즉시 재시도
@@ -126,6 +128,19 @@ def _post(url: str, body: dict, timeout: int = 60, max_retry: int = 3) -> dict:
                 time.sleep(5)
                 continue
             raise
+
+
+def _meter(res: dict) -> None:
+    """생성 호출의 실제 토큰(usageMetadata)을 일별 통계에 — 주간 요약에서 실사용·비용 확인. 실패해도 응답엔 영향 없음."""
+    u = res.get("usageMetadata") if isinstance(res, dict) else None
+    if not u:
+        return
+    try:
+        from apps import store
+        store.bump_many({"ai_calls": 1, "ai_in": u.get("promptTokenCount", 0),
+                         "ai_out": u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _err_text(e: urllib.error.HTTPError) -> str:

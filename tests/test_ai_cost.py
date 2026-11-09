@@ -123,3 +123,35 @@ def test_other_400_errors_are_not_retried(monkeypatch):
 
     monkeypatch.setattr(gemini.urllib.request, "urlopen", fake_urlopen)
     assert gemini.generate_json("x") is None and calls == [1]
+
+
+def test_visual_compare_runs_in_parallel_and_keeps_rank_order(monkeypatch):
+    """사진 대조 3장을 동시에(순차면 3배 시간). 받기 실패한 후보는 건너뛰고 순위 순서로 처음 성공한 3장만 대조."""
+    import time
+
+    from apps.agent import graph
+    ms = [{"atc_id": str(i), "image_url": f"https://img/{i}.jpg"} for i in range(6)]
+    monkeypatch.setattr(graph, "_valid_img", lambda u: True)
+    monkeypatch.setattr(graph, "_fetch_image_b64", lambda u: (None, "") if u.endswith("/1.jpg") else ("b64", "image/jpeg"))
+
+    def slow_compare(*a, **k):
+        time.sleep(0.3)
+        return {"score": 77, "reason": "비슷"}
+
+    monkeypatch.setattr(graph.gemini, "compare_images", slow_compare)
+    t0 = time.time()
+    graph._visual_compare("u", "image/jpeg", ms, top=3)
+    assert time.time() - t0 < 0.8                                  # 순차였다면 0.9초 이상
+    assert [m["atc_id"] for m in ms if "visual_score" in m] == ["0", "2", "3"]
+
+
+def test_generation_tokens_are_metered(monkeypatch):
+    from apps import store
+    store.init()
+    store._run("DELETE FROM metrics")
+    res = _gen_response({"ok": True})
+    res["usageMetadata"] = {"promptTokenCount": 1200, "candidatesTokenCount": 500, "thoughtsTokenCount": 30}
+    monkeypatch.setattr(gemini.urllib.request, "urlopen", lambda req, timeout=0: _ok(res))
+    gemini.generate_json("x")
+    gemini.generate_json("y")
+    assert store.metrics_since("2000-01-01") == {"ai_calls": 2, "ai_in": 2400, "ai_out": 1060}

@@ -9,7 +9,7 @@
 ## 0. 한눈에 보기
 
 - **현재 국면**: **라이브 서비스 배포 완료**(수집→색인→검색+지역가점→grading→에이전트→DB→지속 재매칭→**이메일 알림**→**웹 UI**).
-  FIND-1~80 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
+  FIND-1~81 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + GitHub Actions 자동배포 + 매일 cron 수집으로 **https://findit-lost.duckdns.org** 운영 중(심사 기간 한시). 검색 품질은 eval로 검증 완료.
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·lost112)**.
   신고는 **알림 기간(기본 30일) 동안 매일 재매칭**, 유력 후보(≥80) 또는 옵트인 시 약한 후보(50~79)가 나오면 이메일 알림.
@@ -959,6 +959,17 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
   (토큰 단가는 Haiku가 ~1/7.5이지만 임베딩 API 없음·한국어 판정 미검증 → 규모가 커지거나 2027 가격 인상 때 A/B 후 결정).
 - DEPLOY.md에 AI 모델·비용 설정(.env) 표.
 
+### 운영 실검증 + AI 실사용 계량·사진 대조 병렬화 (2026-11-09, FIND-81)
+
+- **운영 사이트 실검증**(FIND-78~80 배포 직후, 실제 신고 1건 → 즉시 삭제): 단계별 실시간 도착(추출 4.1s → 노선 5.5s → 검색 6.8s →
+  판정 9.5s), **총 9.8초**, 유력 후보(검정색 지갑 80점, 근거 "홍대입구역(마포구)과 일치"). 오류 로그 없음, 운영 설정 확인.
+- **AI 토큰 실사용 계량**: 생성 호출의 `usageMetadata`(입력·출력+thinking)를 일별 `metrics`(ai_calls·ai_in·ai_out)에 —
+  주간 요약에 "AI 사용(실측): 호출·토큰 → 추정 $"(단가는 `AI_PRICE_IN_PER_M`·`AI_PRICE_OUT_PER_M`, 2027 인상 시 .env로 갱신).
+  운영비를 추정이 아니라 실제 사용량으로 본다.
+- **사진 대조 병렬화**: 사진 있는 상위 후보 3장을 순차 대조(≈2초×3)하던 것을 받기·대조 모두 동시에. 받기 실패 대비 2배수를 받아
+  순위 순서로 처음 성공한 3장만 대조(기존 의미 유지).
+- 테스트 160 → 163개.
+
 ### ⚠ 운영 사고: 새벽 배포가 진행 중인 수집을 중단 → 일회성 컨테이너로 분리 (2026-09-30)
 
 - 01:24 배포(FIND-68)가 백엔드 컨테이너를 재생성하면서, 그 안에서 `exec`로 돌던 00:00 수집(경찰 상세 5,500/6,371)이 중단.
@@ -1012,7 +1023,7 @@ find_it/
 │   ├─ opensearch/                 Dockerfile + mappings/found_items.json
 │   └─ caddy/Caddyfile             프로덕션 리버스프록시(자동 HTTPS)
 ├─ fixtures/responses/             실 API 응답 샘플(진실의 원천, XML 4종)
-├─ tests/                          pytest (핵심 로직 160개, 외부서비스 목킹)
+├─ tests/                          pytest (핵심 로직 163개, 외부서비스 목킹)
 ├─ docs/                           PROGRESS.md(이 문서) · DEPLOY.md · screenshots/
 ├─ .github/workflows/deploy.yml    main push → 서버 SSH 자동배포
 ├─ docker-compose.prod.yml         프로덕션(OpenSearch+Postgres+backend+Caddy)

@@ -132,6 +132,10 @@ def weekly(days: int = 7, today: date | None = None, status: dict | None = None)
               f" · 만료 {rc.get('expired', 0)} · 이메일 확인됨 {rc.get('email_verified', 0)}",
               "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}",
               f"디스크: {_disk_percent()}% 사용"]
+    calls, tin, tout = m.get("ai_calls", 0), m.get("ai_in", 0), m.get("ai_out", 0)
+    usd = (tin * settings.ai_price_in_per_m + tout * settings.ai_price_out_per_m) / 1_000_000
+    lines += [f"AI 사용(실측): 호출 {calls:,}회 · 입력 {tin:,} · 출력 {tout:,} 토큰 → 추정 ${usd:.2f}"
+              f" (≈{usd * 1400:,.0f}원, 단가 ${settings.ai_price_in_per_m}/${settings.ai_price_out_per_m} per 1M)"]
     body = "\n".join(lines)
     print(body)
     alert(f"주간 운영 요약 ({since}~{today})", body)

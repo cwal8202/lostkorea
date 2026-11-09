@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # 모델의 숨은 '생각(thinking)' 토큰 — 출력 요금으로 청구. 실측(2026-11-09): 신고 1건 출력 토큰의 80%가 thinking인데
     # 꺼도 추출 20/20·노선 8/10·유력 후보 판정 95/96으로 켠 것과 같음 → minimal. 빈 값이면 모델 기본값(켜짐).
     gemini_thinking_level: str = "minimal"
+    # 주간 요약의 AI 비용 추정용 단가(USD / 100만 토큰, 출력은 thinking 포함). Gemini 3.6 Flash 유료 등급 2026년 가격 —
+    # 2027-01-01부터 2배 예정(가격표 확인 후 .env로 갱신).
+    ai_price_in_per_m: float = 0.75
+    ai_price_out_per_m: float = 3.75
     kakao_rest_api_key: str = ""
     data_go_kr_service_key_decoded: str = ""  # 경찰청 습득물 API (디코딩 키)
 
