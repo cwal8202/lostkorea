@@ -51,7 +51,7 @@ VERSION = _asset_version()
 PAGES: dict[str, dict[str, dict[str, str]]] = {
     "home": {
         "ko": {"path": "/", "title": f"{BRAND} — 한국 분실물 AI 찾기 | 경찰서·유실물센터 습득물 검색",
-               "desc": "잃어버린 물건을 말로 설명하거나 사진을 올리면, AI가 전국 경찰서·유실물센터 습득물 공개데이터에서 찾아드려요. "
+               "desc": "잃어버린 물건을 말로 설명하거나 사진을 올리면 AI가 전국 경찰서·유실물센터 습득물 공개데이터에서 찾아드려요. "
                        "보관 장소·연락처 안내, 새 습득물이 들어오면 이메일 알림까지. 무료·회원가입 없음."},
         "en": {"path": "/en", "title": f"{BRAND} — Lost something in Korea? AI lost & found search",
                "desc": f"Lost an item in Korea? Describe it in any language or upload a photo. {BRAND} searches Korea's "
@@ -94,20 +94,20 @@ T: dict[str, dict[str, str]] = {
         "hero_eyebrow": "경찰청·공공데이터 기반 · 무료 · 회원가입 없음",
         "hero_title": "잃어버린 물건,<br>AI가 대신 찾아드려요",
         "hero_lede": "전국 경찰서·유실물센터에 들어온 습득물을 <b>말이나 사진으로</b> 찾아요. "
-                     "어떤 언어로 써도 되고, 찾으면 보관 장소와 연락처까지 안내해요.",
+                     "어떤 언어로 써도 되고 찾으면 보관 장소와 연락처까지 안내해요.",
         "search_label": "무엇을, 어디서, 언제 잃어버렸나요?",
         "text_ph": "예: 어제 2호선 홍대입구역 근처에서 검정 가죽 지갑을 잃어버렸어요. 안에 신분증이랑 카드가 있었어요.",
         "photo_add": "사진 추가", "photo_remove": "사진 빼기", "lost_date": "분실일(선택)", "search_btn": "찾기",
         "photo_tip_title": "사진으로 찾을 때 알아두세요",
-        "photo_tip": "습득물은 사진이 없는 경우가 많아요(약 22%만 보유). 그래서 사진 속 <b>종류·색상을 읽어 글로 검색</b>하고, "
-                     "후보 중 <b>사진이 있는 건 당신 사진과 직접 비교</b>해요. 설명·장소를 함께 적을수록 정확해져요.",
-        "privacy_note": "이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석되고(사진은 저장 안 함), "
+        "photo_tip": "습득물은 사진이 없는 경우가 많아요(약 22%만 보유). 그래서 사진 속 <b>종류·색상을 읽어 글로 검색</b>하고 "
+                     "후보 중 <b>사진이 있는 건 올린 사진과 직접 비교</b>해요. 설명·장소를 함께 적을수록 정확해져요.",
+        "privacy_note": "이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석돼요(사진은 저장 안 함). "
                         "신고는 알림 기간이 끝나고 30일 뒤 자동 삭제돼요. 검색하면 <a href=\"/privacy\">개인정보처리방침</a>·"
                         "<a href=\"/terms\">이용약관</a>에 동의한 것으로 봐요.",
         "trust1": "경찰청·공공데이터포털 공식 데이터", "trust2": "매일 자정 갱신", "trust3": "영어 화면 · 13개 언어 알림",
         "sample_badge": "예시 결과", "sample_item": "검정 가죽 지갑", "sample_color": "검정", "sample_score": "일치",
         "sample_meta": "보관: 마포경찰서 · 습득일 11월 8일",
-        "sample_reason": "색·종류가 같고, 잃어버린 홍대입구역 인근(마포구)에서 습득됐어요.",
+        "sample_reason": "색·종류가 같고 잃어버린 홍대입구역 인근(마포구)에서 습득됐어요.",
         "sample_mine": "내 물건이에요", "sample_map": "지도",
         "result_title": "매칭 결과", "mine_title": "내 신고 (이 브라우저)", "refresh": "새로고침",
         "mine_lead": "딱 맞는 게 없어도 신고는 저장돼요. <b>새 습득물이 들어오면 매일 다시 찾아</b> 이메일로 알려드려요. "
@@ -116,7 +116,7 @@ T: dict[str, dict[str, str]] = {
         "stat_cost": "이용료", "stat_cost_v": "무료",
         "how_title": "이렇게 찾아드려요", "how_lede": "복잡한 검색 조건 없이, 잃어버린 상황을 말하듯 적으면 돼요.",
         "how1_t": "설명하거나 사진 올리기",
-        "how1_d": "‘어제 2호선에서 검정 지갑을 잃어버렸어요’처럼 평소 말하듯 적거나, 물건 사진을 올리세요.",
+        "how1_d": "‘어제 2호선에서 검정 지갑을 잃어버렸어요’처럼 평소 말하듯 적거나 물건 사진을 올리세요.",
         "how2_t": "AI가 후보와 근거 제시",
         "how2_d": "의미로 비교해 같은 물건일 가능성이 높은 습득물을 점수·이유와 함께 보여드려요. 확인은 본인이 해요.",
         "how3_t": "보관 기관에서 찾기",
@@ -125,15 +125,15 @@ T: dict[str, dict[str, str]] = {
         "feat1_t": "말하듯 검색", "feat1_d": "물품명을 정확히 몰라도 돼요. 영어·일본어 등 어떤 언어로 써도 한국어 습득물과 맞춰 찾아요.",
         "feat2_t": "이동 경로까지 고려",
         "feat2_d": "지하철·버스로 이동했다면 노선이 지나는 지역까지 넓혀서 찾아요. 분실물은 다른 곳에서 발견되는 일이 많거든요.",
-        "feat3_t": "사진으로도 찾기", "feat3_d": "사진 속 종류·색상을 읽어 검색하고, 사진이 있는 습득물은 직접 비교해요.",
+        "feat3_t": "사진으로도 찾기", "feat3_d": "사진 속 종류·색상을 읽어 검색하고 사진이 있는 습득물은 직접 비교해요.",
         "feat4_t": "놓치지 않게 알림", "feat4_d": "지금 없어도 신고는 저장돼요. 새 습득물이 들어오면 매일 다시 찾아 이메일로 알려드려요.",
         "trust_title": "믿고 쓸 수 있도록",
         "trust_a_t": "공식 데이터만",
         "trust_a_d": "경찰청 유실물 통합포털(LOST112)과 공공데이터포털에 공개된 습득물만 다뤄요. 매일 자정 새 습득물을 반영해요.",
         "trust_b_t": "개인정보는 최소로",
-        "trust_b_d": "회원가입이 없고 사진은 저장하지 않아요. 신고는 알림 기간이 끝나면 자동 삭제되고, 언제든 직접 지울 수 있어요.",
+        "trust_b_d": "회원가입이 없고 사진은 저장하지 않아요. 신고는 알림 기간이 끝나고 30일 뒤 자동 삭제되고 언제든 직접 지울 수 있어요.",
         "trust_c_t": "확인은 언제나 본인이",
-        "trust_c_d": "AI는 후보를 추천할 뿐이에요. 같은 물건인지는 직접 확인하고, 수령은 보관 기관의 본인 확인 절차를 따라요.",
+        "trust_c_d": "AI는 후보를 추천할 뿐이에요. 같은 물건인지는 직접 확인하고 수령은 보관 기관의 본인 확인 절차를 따라요.",
         "faq_title": "자주 묻는 질문",
         "cta_title": "지금 바로 찾아보세요", "cta_lede": "1분이면 충분해요. 회원가입 없이 무료로 쓸 수 있어요.", "cta_btn": "분실물 찾기",
         "browse_title": "전체 습득물 둘러보기",
@@ -198,7 +198,7 @@ T: dict[str, dict[str, str]] = {
         "trust_a_d": "We only use found items published by Korea's National Police Agency (LOST112) and the Public Data "
                      "Portal, refreshed every night.",
         "trust_b_t": "Minimal personal data",
-        "trust_b_d": "No sign-up, and photos are never stored. Reports are deleted automatically after the alert period, and "
+        "trust_b_d": "No sign-up, and photos are never stored. Reports are deleted automatically 30 days after the alert period ends, and "
                      "you can delete them anytime.",
         "trust_c_t": "You always confirm",
         "trust_c_d": "AI only suggests candidates. You check whether it's yours, and the holding office verifies your identity.",
@@ -228,7 +228,7 @@ FAQ: dict[str, list[tuple[str, str]]] = {
          "결과에 나온 보관 기관에 전화해 보관 여부를 확인한 뒤, 신분증(외국인은 여권)을 챙겨 방문하세요. 지갑 속 카드처럼 "
          f"내 물건임을 보여줄 특징을 말할 수 있으면 좋아요. {BRAND}는 물건을 보관하거나 배송하지 않아요."),
         ("지금 결과에 없으면요?",
-         "습득물은 습득 후 며칠에 걸쳐 등록돼요. 검색하면 신고가 저장되고, 이메일을 남기면 알림 기간(기본 30일, 최대 180일) 동안 "
+         "습득물은 습득 후 며칠에 걸쳐 등록돼요. 검색하면 신고가 저장돼요. 이메일을 남기면 알림 기간(기본 30일, 최대 180일) 동안 "
          "매일 새 습득물과 비교해 유력 후보가 나오면 알려드려요."),
         ("외국인도 쓸 수 있나요?",
          "네. 영어 화면을 제공하고 어떤 언어로 써도 검색돼요. 판정 근거와 알림 메일도 쓰신 언어로 보내요. 보관 기관과 통화가 "
@@ -237,7 +237,7 @@ FAQ: dict[str, list[tuple[str, str]]] = {
          "AI가 추정한 '같은 물건일 가능성'(0~100)이에요. 80점 이상은 유력 후보, 50~79점은 비슷한 후보예요. 점수가 높아도 "
          "확정은 아니니 직접 확인하세요."),
         ("개인정보는 안전한가요?",
-         "회원가입이 없고 사진은 저장하지 않아요. 신고 내용은 알림 기간이 끝나고 30일 뒤 자동 삭제되며, '내 신고'에서 바로 지울 "
+         "회원가입이 없고 사진은 저장하지 않아요. 신고 내용은 알림 기간이 끝나고 30일 뒤 자동 삭제되며 '내 신고'에서 바로 지울 "
          "수도 있어요. 자세한 내용은 개인정보처리방침을 확인하세요."),
     ],
     "en": [
