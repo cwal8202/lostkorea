@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import threading
 import time
@@ -106,6 +107,12 @@ _KIND_LABELS = [
 ]
 
 
+def _disk_percent(path: str = "/") -> int:
+    """디스크 사용률(%). 컨테이너 안에서도 호스트 디스크(overlay 하부)를 가리킨다."""
+    u = shutil.disk_usage(path)
+    return round(u.used * 100 / u.total) if u.total else 0
+
+
 def weekly(days: int = 7, today: date | None = None, status: dict | None = None) -> str:
     """지난 days일 운영 요약 → 관리자 메일. 본문을 반환."""
     from apps import store
@@ -123,7 +130,8 @@ def weekly(days: int = 7, today: date | None = None, status: dict | None = None)
     lines += ["", "신고 현황(전체):",
               f"  찾는 중 {rc.get('open', 0)} · 유력 후보 {rc.get('candidate', 0)} · 확인 {rc.get('confirmed', 0)}"
               f" · 만료 {rc.get('expired', 0)} · 이메일 확인됨 {rc.get('email_verified', 0)}",
-              "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}"]
+              "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}",
+              f"디스크: {_disk_percent()}% 사용"]
     body = "\n".join(lines)
     print(body)
     alert(f"주간 운영 요약 ({since}~{today})", body)

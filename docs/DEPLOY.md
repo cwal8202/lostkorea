@@ -181,6 +181,16 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - **보유 기간**: 알림 기간 종료 + `RETENTION_DAYS`(기본 30)일이 지난 신고는 매일 재매칭 전에 자동 삭제.
   `/privacy`(개인정보처리방침)에 같은 기간을 적어 두었으니 값을 바꾸면 **방침 문구도 같이** 고칠 것.
 - **컨테이너 로그**: backend·caddy·postgres는 10MB × 3개로 회전(`x-logging`). 백엔드 로그엔 내부 프록시 IP만 남는다.
+- **수집 로그**(`daily_collect.log`): 5MB를 넘으면 수집 시작 때 최근 2만 줄만 남김. **디스크 85%↑**(`DISK_ALERT_PERCENT`)면 관리자 메일.
+
+## AI 모델·비용 설정 (.env)
+| 변수 | 기본값 | 뜻 |
+|---|---|---|
+| `GEMINI_GRADE_MODEL` | `gemini-3.6-flash` | 추출·노선·판정·사진에 쓰는 모델 |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.8-flash` | 기본 모델이 404(종료·차단)면 자동 전환 + 관리자 메일. 재시작하면 기본 모델부터 다시 시도 |
+| `GEMINI_THINKING_LEVEL` | `minimal` | 숨은 thinking 토큰(출력 요금). 실측상 꺼도 품질 동일·응답 16.9→6.3초. 모델이 거부하면 low→생략 자동 조정 |
+| `DAILY_AI_BUDGET` | `1500` | 하루 AI 사용 상한(글 신고 1 · 사진 3 · 검색 API 1~2 단위) — 넘으면 429 |
+- 비용 실측·모델 선택 메모는 [LAUNCH.md 4](LAUNCH.md) 참고.
 
 ## 이후 강화(선택)
 - **React/Vercel 프론트 분리**: 분리 시 FastAPI에 CORS 허용 오리진 추가.

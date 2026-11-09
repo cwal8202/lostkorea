@@ -76,6 +76,7 @@ def test_weekly_summary(mails):
     store.add("검정 지갑", {}, [], [], None, None)
     body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 170581, "latest_found_at": "2026-11-08"})
     assert "방문(영어): 12" in body and "신고(글): 3" in body and "찾는 중 1" in body and "170581" in body
+    assert "디스크:" in body
     assert len(mails) == 1 and "주간 운영 요약" in mails[0][0]
 
 

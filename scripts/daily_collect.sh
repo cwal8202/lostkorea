@@ -10,6 +10,12 @@
 #   chmod +x scripts/daily_collect.sh
 #   (crontab -l 2>/dev/null; echo "0 0 * * * /root/findit/scripts/daily_collect.sh >> /root/findit/daily_collect.log 2>&1") | crontab -
 cd "$(dirname "$0")/.."                 # repo 루트(findit/)
+
+# 로그가 끝없이 커지지 않게: 5MB를 넘으면 최근 2만 줄만 남김(같은 파일을 cron이 이어 쓰므로 내용만 교체)
+LOG="$(pwd)/daily_collect.log"
+if [ -f "$LOG" ] && [ "$(stat -c%s "$LOG")" -gt 5000000 ]; then
+  tail -n 20000 "$LOG" > "$LOG.tmp" && cat "$LOG.tmp" > "$LOG"; rm -f "$LOG.tmp"
+fi
 COMPOSE="docker compose -f docker-compose.prod.yml"
 
 DAYS=${COLLECT_DAYS:-7}                 # 조회 창(일). 늦게 등록되는 습득물까지 잡도록 넉넉히.
@@ -32,6 +38,13 @@ fi
 
 # 수집은 성공했어도 새 데이터가 며칠째 없으면(공공 API 장애·쿼터 등) 알림
 $COMPOSE run --rm -T backend uv run python -m apps.ops freshness --max-age-days 3 || true
+
+# 디스크 사용률 경보 — 색인·로그·백업이 쌓여 디스크가 차면 DB·검색·수집이 함께 멈춘다
+USE=$(df -P / | awk 'NR==2 {gsub("%","",$5); print $5}')
+if [ "${USE:-0}" -ge "${DISK_ALERT_PERCENT:-85}" ]; then
+  $COMPOSE run --rm -T backend uv run python -m apps.ops alert "디스크 ${USE}% 사용 — 정리 필요" \
+    "서버 디스크 사용률이 ${USE}%예요(기준 ${DISK_ALERT_PERCENT:-85}%). 확인: df -h /, docker system df, du -sh /root/findit-backups" || true
+fi
 
 # 월요일엔 지난 7일 운영 요약(방문·신고·알림·오류·수집) 메일
 if [ "$(date +%u)" = "1" ]; then
