@@ -1,5 +1,5 @@
 {
-  "description": "FindIt 매칭 성능 골든셋 v1. 질의=자연어 분실신고, expected=정답 습득물 atcId. 코퍼스: eval/data/corpus.json (2026-08 습득물 2000건). type=질의 유형(성능 특성 분석용).",
+  "description": "LostKorea 매칭 성능 골든셋 v1. 질의=자연어 분실신고, expected=정답 습득물 atcId. 코퍼스: eval/data/corpus.json (2026-08 습득물 2000건). type=질의 유형(성능 특성 분석용).",
   "queries": [
     { "id": "q01", "query": "닥스 검정색 남성 반지갑 잃어버렸어요", "expected": "F2026083100003998", "type": "brand_syn", "note": "DAKS 지갑" },
     { "id": "q02", "query": "jillstuart 라임색 지갑", "expected": "F2026083100003775", "type": "brand", "note": "jillstuart 지갑" },

@@ -1,4 +1,4 @@
-# FindIt 배포 (단일 VPS + Docker Compose + HTTPS + 자동배포)
+# LostKorea 배포 (단일 VPS + Docker Compose + HTTPS + 자동배포)
 
 Hetzner CX33(8GB) 등 VPS 한 대에 **OpenSearch(nori) + PostgreSQL + 백엔드(FastAPI+웹) + Caddy**를
 `docker-compose.prod.yml`로 함께 띄운다. 프론트는 백엔드가 같이 서빙하므로 별도 배포 불필요.
@@ -10,7 +10,7 @@ Hetzner CX33(8GB) 등 VPS 한 대에 **OpenSearch(nori) + PostgreSQL + 백엔드
 
 > 시크릿은 서버의 `.env`(git 미포함). **OpenSearch·PostgreSQL은 외부 포트 노출 안 함** — Caddy(80/443)만 외부에 열림.
 
-라이브(심사 기간 한시): **https://findit-lost.duckdns.org**
+라이브: **https://findit-lost.duckdns.org** (정식 도메인 lostkorea 연결 예정)
 
 ---
 
@@ -28,10 +28,10 @@ docker --version && docker compose version
 ## 2. 코드 받기
 ```bash
 apt-get update && apt-get install -y git
-git clone https://github.com/cwal8202/findit.git /root/findit
-cd /root/findit
+git clone https://github.com/cwal8202/findit.git /root/lostkorea
+cd /root/lostkorea
 ```
-> 자동배포 워크플로가 `/root/findit` 경로를 가정하므로 이 위치에 클론한다.
+> 자동배포 워크플로가 `/root/lostkorea` 경로를 가정하므로 이 위치에 클론한다.
 
 ## 3. 시크릿(.env) 작성
 ```bash
@@ -54,7 +54,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 # OpenSearch가 healthy 될 때까지 대기(1~2분). 상태:
 docker compose -f docker-compose.prod.yml ps
 ```
-컨테이너 4종이 뜬다: `findit-opensearch` · `findit-postgres` · `findit-backend` · `findit-caddy`.
+컨테이너 4종이 뜬다: `lostkorea-opensearch` · `lostkorea-postgres` · `lostkorea-backend` · `lostkorea-caddy`.
 
 ## 5. 색인 시드 (캐시된 2,000건 즉시 색인 — 임베딩 비용 0)
 ```bash
@@ -63,7 +63,7 @@ docker compose -f docker-compose.prod.yml exec backend uv run python eval/index_
 → 인덱스 자동 생성 + 문서수 출력되면 성공.
 
 ## 6. 접속 확인
-- 브라우저에서 **https://<도메인>** → FindIt 화면 (🔒 유효 인증서 확인).
+- 브라우저에서 **https://<도메인>** → LostKorea 화면 (🔒 유효 인증서 확인).
 - `curl https://<도메인>/health` → `{"status":"ok",...}`
 - (도메인 미설정 시 `http://<서버IP>`)
 
@@ -79,7 +79,7 @@ ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw --force enable   # ufw 쓸 
 ```bash
 timedatectl set-timezone Asia/Seoul     # 서버 시각을 KST로(현재 운영 서버는 KST)
 chmod +x scripts/daily_collect.sh
-(crontab -l 2>/dev/null; echo "0 0 * * * /root/findit/scripts/daily_collect.sh >> /root/findit/daily_collect.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 0 * * * /root/lostkorea/scripts/daily_collect.sh >> /root/lostkorea/daily_collect.log 2>&1") | crontab -
 ```
 - 매일 00:00(KST) 실행 → 최근 7일 창 `--enrich --rematch`.
 - **왜 7일 창인가**: 습득물은 습득일 이후 며칠에 걸쳐 등록된다. '어제분'만 자정에 조회하면 5건 안팎만 잡히고
@@ -89,37 +89,37 @@ chmod +x scripts/daily_collect.sh
   빈 날도 재매칭은 진행.
 - **색인 상한**: 습득일 185일(`FOUND_RETENTION_DAYS`)이 지난 습득물은 수집 때마다 삭제 — 소유자가 찾아갈 수 있는 기간(6개월)이 지났고,
   안 지우면 벡터 메모리·디스크가 계속 커진다.
-- 로그 확인: `tail -50 /root/findit/daily_collect.log` (재매칭 대상·최고 grade·신규 매칭 건수가 찍힘)
+- 로그 확인: `tail -50 /root/lostkorea/daily_collect.log` (재매칭 대상·최고 grade·신규 매칭 건수가 찍힘)
 - 즉시 한 번 돌려보려면: `bash scripts/daily_collect.sh`
 - 수집은 **별도 일회성 컨테이너**(`docker compose run --rm backend …`)에서 실행 → 수집 중 자동배포가 백엔드를 재생성해도 끊기지 않음.
   (예전 `exec` 방식은 새벽 배포에 수집이 중단돼 작업이 유실됨. 첫 7일 창 실행은 서버에서 ~4.5시간.)
-- 진행 확인: `docker ps | grep backend-run` (수집 컨테이너) · `tail -f /root/findit/daily_collect.log`
+- 진행 확인: `docker ps | grep backend-run` (수집 컨테이너) · `tail -f /root/lostkorea/daily_collect.log`
 - 수집기는 **500건마다 색인** — 중간에 끊겨도 앞 배치는 남고 다음 실행이 '이미 색인' 스킵으로 이어서 처리.
 - **실패·정체 알림**: 수집이 실패하면, 또는 가장 최근 습득일이 3일 넘게 지나면(새 데이터가 안 들어옴) 관리자
   (`NOTIFY_EMAIL_TO`, 없으면 `SMTP_USER`)에게 메일(`apps/ops.py`). 수동 점검:
   `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.ops freshness --max-age-days 3`
 
 ## 8-1. DB 일일 백업 (cron)
-`scripts/backup_db.sh` — PostgreSQL(분실물 신고)을 `pg_dump | gzip`으로 `/root/findit-backups/`에 저장, 14일 보관, 실패 시 메일.
+`scripts/backup_db.sh` — PostgreSQL(분실물 신고)을 `pg_dump | gzip`으로 `/root/lostkorea-backups/`에 저장, 14일 보관, 실패 시 메일.
 ```bash
 chmod +x scripts/backup_db.sh
-(crontab -l 2>/dev/null; echo "0 4 * * * /root/findit/scripts/backup_db.sh >> /root/findit/backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 4 * * * /root/lostkorea/scripts/backup_db.sh >> /root/lostkorea/backup.log 2>&1") | crontab -
 ```
-- 복구: `gunzip -c /root/findit-backups/findit_YYYYMMDD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U findit findit`
+- 복구: `gunzip -c /root/lostkorea-backups/lostkorea_YYYYMMDD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U lostkorea lostkorea`
 - 백업은 같은 서버에 남음(서버 장애엔 무력) → 중요해지면 외부 저장소로 복사. OpenSearch는 재수집으로 복구 가능해 백업 제외.
 
-## 8-2. DB 비밀번호 (최초 1회 확인)
-`.env`에 `POSTGRES_PASSWORD`가 없으면 compose 기본값(`findit_pw`)이 쓰인다. DB는 외부에 노출되지 않지만 강한 값으로 바꿀 것.
-Postgres는 **처음 만들 때만** 이 값을 읽으므로, 이미 운영 중이면 DB 안에서 바꾸고 `.env`를 맞춘다.
-**수집이 돌고 있지 않을 때** 할 것(`docker ps | grep backend-run`이 비어 있어야 함) — 진행 중인 수집은 끝에 재매칭하며
-옛 비밀번호로 DB에 새로 접속해 실패한다. `.env`가 바뀌면 postgres 컨테이너도 재생성되지만 데이터는 볼륨에 유지.
+## 8-2. DB 비밀번호 (필수)
+`.env`의 `POSTGRES_PASSWORD`는 **필수**다 — compose에 기본값이 없어서 비어 있으면 아예 뜨지 않는다(공개 레포에 적힌 기본값으로
+조용히 뜨는 일 방지). 운영 서버는 2026-11-09에 무작위 값으로 교체했다(옛 기본값은 네트워크 접속 거부 확인).
+다시 바꿀 때는 **수집 시간(00:00~01:00)을 피해서** — Postgres는 처음 만들 때만 이 값을 읽으므로 DB 안에서 바꾸고 `.env`를 맞춘다:
 ```bash
 P=$(openssl rand -hex 24)
-docker compose -f docker-compose.prod.yml exec -T postgres psql -U findit -c "ALTER USER findit WITH PASSWORD '$P'"
-echo "POSTGRES_PASSWORD=$P" >> .env
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U lostkorea -c "ALTER USER lostkorea WITH PASSWORD '$P'"
+sed -i '/^POSTGRES_PASSWORD=/d' .env && echo "POSTGRES_PASSWORD=$P" >> .env && unset P
 docker compose -f docker-compose.prod.yml up -d postgres backend    # DATABASE_URL 갱신(수 초 중단)
-curl -s localhost/health                                            # 확인
+curl -s localhost/health/deep
 ```
+※ 컨테이너 안(127.0.0.1)에서는 비밀번호 없이 접속된다(공식 이미지의 로컬 신뢰 설정) — 확인은 다른 컨테이너에서 네트워크로.
 
 ## 9. 자동배포 (GitHub Actions)
 `.github/workflows/deploy.yml` — **`main`에 push되면** GitHub Actions가 서버에 SSH 접속해 자동 재배포한다.
@@ -159,8 +159,8 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 재시작: `docker compose -f docker-compose.prod.yml restart backend`
 - 수동 코드 갱신(자동배포 대신): `git pull && docker compose -f docker-compose.prod.yml up -d --build backend caddy`
 - 중지(과금 종료 전, 데이터 볼륨 유지): `docker compose -f docker-compose.prod.yml down`
-- 완전 삭제: 위 + `docker volume rm findit_findit-os-data findit_findit-pg-data findit_findit-caddy-data findit_findit-caddy-config`
-- 인증서 갱신은 Caddy가 자동. `findit-caddy-data` 볼륨에 인증서 영속(재기동해도 재발급 안 함).
+- 완전 삭제: 위 + `docker volume rm lostkorea_os-data lostkorea_pg-data lostkorea_caddy-data lostkorea_caddy-config`
+- 인증서 갱신은 Caddy가 자동. `lostkorea_caddy-data` 볼륨에 인증서 영속(재기동해도 재발급 안 함).
 - **실시간 진행(SSE)**: 웹 검색은 `POST /lost-items/stream`·`/lost-items/image/stream`(`text/event-stream`)을 씀.
   백엔드가 `X-Accel-Buffering: no`·`Cache-Control: no-cache`를 보냄. 라이브에서 단계가 한꺼번에 뜨면(프록시 버퍼링)
   `Caddyfile`의 `reverse_proxy backend:8000` 블록에 `flush_interval -1` 추가 후 caddy 재기동.
@@ -187,7 +187,7 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 페이지는 `apps/api/site.py`가 언어별(한/영)로 서버에서 그린다: 템플릿 `apps/web/*.html` + 공통 머리글·바닥글
   `apps/web/partials/` + 문구 사전(`T`·`FAQ`). 정적 자산은 내용 해시를 `?v=`로 붙여 배포 즉시 새 파일을 받는다.
 - 서비스 이름은 `BRAND_NAME`(기본 `LostKorea`) 하나로 화면·메일·OG에 반영. 로고 글자(Lost**Korea**)는 템플릿에 직접 있음.
-  **컨테이너·DB·볼륨 이름(findit-*)은 바꾸지 말 것** — 운영 데이터 볼륨과 연결이 끊긴다.
+- 내부 이름도 2026-11-09에 findit → lostkorea로 이전(아래 '이름 이전 기록').
 - 폰트: Pretendard(SIL OFL, `static/fonts/pretendard/`)를 자체 호스팅 — 외부 CDN에 방문자 IP를 넘기지 않고, 차단 지역에서도 동작.
 
 ## AI 모델·비용 설정 (.env)
@@ -199,6 +199,18 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 | `AI_PRICE_IN_PER_M` · `AI_PRICE_OUT_PER_M` | `0.75` · `3.75` | 주간 요약의 AI 비용 추정 단가(USD/100만 토큰). 2027-01-01 Gemini 인상 시 갱신 |
 | `DAILY_AI_BUDGET` | `1500` | 하루 AI 사용 상한(글 신고 1 · 사진 3 · 검색 API 1~2 단위) — 넘으면 429 |
 - 비용 실측·모델 선택 메모는 [LAUNCH.md 4](LAUNCH.md) 참고.
+
+## 이름 이전 기록 (2026-11-09, findit → lostkorea)
+서비스명 변경(FIND-82)에 이어 내부 이름도 옮겼다(FIND-83). Docker 볼륨은 이름을 바꿀 수 없어 **새 볼륨으로 복사**했다.
+1. DB 백업(`pre-rename_*.sql.gz`) → 백엔드 중지 → 임시 슈퍼유저로 `ALTER DATABASE findit RENAME TO lostkorea`,
+   `ALTER ROLE findit RENAME TO lostkorea`(SCRAM 비밀번호는 이름 변경에도 유지) → 임시 사용자 삭제
+2. 옛 스택 `down`(볼륨 유지) → `/root/findit` → `/root/lostkorea`, 백업 폴더도 `/root/lostkorea-backups`로 이동
+3. 새 볼륨 `lostkorea_{os,pg,caddy}-data`·`lostkorea_caddy-config`를 compose 라벨과 함께 만들고 `cp -a`로 복사, 크기 비교
+4. 이미지 태그 `findit/*` → `lostkorea/*`, 새 스택 기동(`name: lostkorea`) → DB·색인 건수·`/health/deep`·인증서 재사용 확인
+5. cron 경로 갱신 + 옛 경로 `/root/findit` → 새 폴더 심볼릭 링크(호환)
+- **옛 볼륨 `findit_findit-*`는 되돌리기용으로 남겨 둠** — 한동안 문제없으면 삭제:
+  `docker volume rm findit_findit-os-data findit_findit-pg-data findit_findit-caddy-data findit_findit-caddy-config`
+  (`findit_findit-data`는 현재 구성에서 쓰지 않는 예전 볼륨 — 내용 확인 후 결정)
 
 ## 이후 강화(선택)
 - **React/Vercel 프론트 분리**: 분리 시 FastAPI에 CORS 허용 오리진 추가.

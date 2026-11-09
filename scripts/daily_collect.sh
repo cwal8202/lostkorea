@@ -8,8 +8,8 @@
 #
 # 설치(서버, KST 자정):
 #   chmod +x scripts/daily_collect.sh
-#   (crontab -l 2>/dev/null; echo "0 0 * * * /root/findit/scripts/daily_collect.sh >> /root/findit/daily_collect.log 2>&1") | crontab -
-cd "$(dirname "$0")/.."                 # repo 루트(findit/)
+#   (crontab -l 2>/dev/null; echo "0 0 * * * /root/lostkorea/scripts/daily_collect.sh >> /root/lostkorea/daily_collect.log 2>&1") | crontab -
+cd "$(dirname "$0")/.."                 # repo 루트(/root/lostkorea)
 
 # 로그가 끝없이 커지지 않게: 5MB를 넘으면 최근 2만 줄만 남김(같은 파일을 cron이 이어 쓰므로 내용만 교체)
 LOG="$(pwd)/daily_collect.log"
@@ -32,7 +32,7 @@ if ! $COMPOSE run --rm -T backend \
     --rows 1000 --max 20000 --enrich --rematch; then
   echo "==== [$(date '+%F %T')] 수집 실패 ===="
   $COMPOSE run --rm -T backend uv run python -m apps.ops alert "일일 수집 실패" \
-    "daily_collect.sh 실패 ($(date '+%F %T')). 로그: /root/findit/daily_collect.log" || true
+    "daily_collect.sh 실패 ($(date '+%F %T')). 로그: /root/lostkorea/daily_collect.log" || true
   exit 1
 fi
 
@@ -43,7 +43,7 @@ $COMPOSE run --rm -T backend uv run python -m apps.ops freshness --max-age-days 
 USE=$(df -P / | awk 'NR==2 {gsub("%","",$5); print $5}')
 if [ "${USE:-0}" -ge "${DISK_ALERT_PERCENT:-85}" ]; then
   $COMPOSE run --rm -T backend uv run python -m apps.ops alert "디스크 ${USE}% 사용 — 정리 필요" \
-    "서버 디스크 사용률이 ${USE}%예요(기준 ${DISK_ALERT_PERCENT:-85}%). 확인: df -h /, docker system df, du -sh /root/findit-backups" || true
+    "서버 디스크 사용률이 ${USE}%예요(기준 ${DISK_ALERT_PERCENT:-85}%). 확인: df -h /, docker system df, du -sh /root/lostkorea-backups" || true
 fi
 
 # 월요일엔 지난 7일 운영 요약(방문·신고·알림·오류·수집) 메일

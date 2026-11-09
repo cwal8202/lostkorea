@@ -1,4 +1,4 @@
-# FindIt 백엔드(FastAPI + 웹) 이미지. OpenSearch·Postgres는 compose로 분리.
+# LostKorea 백엔드(FastAPI + 웹) 이미지. OpenSearch·Postgres는 compose로 분리.
 FROM python:3.12-slim
 
 # curl: 색인 시드/헬스체크 편의

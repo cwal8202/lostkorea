@@ -1,5 +1,5 @@
 // LostKorea 앱 — 검색(실시간 진행)·결과·알림 설정·내 신고·전체 습득물. 페이지 글자는 서버가 언어별로 채우고,
-// 여기 I18N은 검색 중·결과처럼 동적으로 바뀌는 문구만. 언어는 서버가 window.FINDIT_LANG로 알려줌.
+// 여기 I18N은 검색 중·결과처럼 동적으로 바뀌는 문구만. 언어는 서버가 window.LK_LANG로 알려줌.
 const $ = (id) => document.getElementById(id);
 const esc = (s) => (s ?? "").toString().replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const gradeColor = (g) => g == null ? 'var(--gray)' : g >= 80 ? 'var(--green)' : g >= 50 ? 'var(--amber)' : 'var(--gray)';
@@ -175,7 +175,7 @@ const I18N = {
   },
 };
 // 화면 언어: 서버가 정함(/ → 한국어, /en → 영어. 외국어 브라우저는 /에서 /en으로 이동). 그 외 언어는 번역 위젯.
-const LANG = window.FINDIT_LANG === "en" ? "en" : "ko";
+const LANG = window.LK_LANG === "en" ? "en" : "ko";
 const googTarget = () => { const m = document.cookie.match(/(?:^|;\s*)googtrans=\/[^/;]*\/([^;]+)/);
   return m && m[1] ? decodeURIComponent(m[1]) : ""; };
 // 서버에 보낼 사용자 언어(판정 근거·알림 메일 언어).
@@ -256,7 +256,7 @@ function loadTranslate() {
 // html의 translated-ltr 클래스는 붙어도 글자는 그대로인 경우가 있어 신호로 못 씀)
 // → 제목 글자가 실제로 바뀔 때까지 1.5초마다 다시 선택. 최대 ~20초.
 function translateTo(code) {
-  const h1 = document.querySelector(window.FINDIT_VIEW === "browse" ? ".page-head h1" : ".hero h1");
+  const h1 = document.querySelector(window.LK_VIEW === "browse" ? ".page-head h1" : ".hero h1");
   const orig = h1 ? h1.textContent : "";
   return loadTranslate().then(() => new Promise(resolve => {
     let tries = 0;
@@ -315,7 +315,13 @@ function matchCard(m, idx, preview = false) {
 let _lid = null, _token = "", _matches = [];
 
 // 등록 응답의 (id, 관리 토큰)을 이 브라우저에 보관 → '내 신고'·확인·제외·알림 설정에 사용(서버엔 해시만 있음)
-const MINE_KEY = "findit_mine";
+const MINE_KEY = "lostkorea_mine";
+// 이름 변경 전(FindIt) 키에 보관된 '내 신고'를 새 키로 옮김 — 기존 사용자의 신고 관리 토큰을 잃지 않게
+try {
+  const old = localStorage.getItem("findit_mine");
+  if (old && !localStorage.getItem(MINE_KEY)) localStorage.setItem(MINE_KEY, old);
+  if (old) localStorage.removeItem("findit_mine");
+} catch (e) {}
 function mineRefs() { try { return JSON.parse(localStorage.getItem(MINE_KEY) || "[]"); } catch (e) { return []; } }
 function saveMineRef(id, token) {
   if (!id || !token) return;
@@ -713,7 +719,7 @@ function renderMine() {
 function toggleMine() { _mineExpanded = !_mineExpanded; renderMine(); }
 function startSearch() {
   const el = $("text");
-  if (!el || window.FINDIT_VIEW === "browse") { location.href = (LANG === "en" ? "/en" : "/") + "#search"; return; }
+  if (!el || window.LK_VIEW === "browse") { location.href = (LANG === "en" ? "/en" : "/") + "#search"; return; }
   document.getElementById("search").scrollIntoView({ behavior: "smooth", block: "start" });
   setTimeout(() => el.focus({ preventScroll: true }), 400);
 }
@@ -735,7 +741,7 @@ async function fetchStats() {
 }
 
 applyLang();
-if (window.FINDIT_VIEW === "browse") doBrowse(1);
+if (window.LK_VIEW === "browse") doBrowse(1);
 else { loadMine(); fetchStats(); }
 
 async function doBrowse(page) {

@@ -13,12 +13,9 @@
 
 ## 1. 이번 주 (무료, 각 5~30분)
 
-### 1-1. DB 비밀번호 교체 (5분) — 남은 서버 작업
-서버에서 `cd /root/findit` 후, **00:00~01:00(수집 시간)만 피해서**:
-```bash
-P=$(openssl rand -hex 24) && docker compose -f docker-compose.prod.yml exec -T postgres psql -U findit -c "ALTER USER findit WITH PASSWORD '$P'" && echo "POSTGRES_PASSWORD=$P" >> .env && unset P
-docker compose -f docker-compose.prod.yml up -d postgres backend && sleep 8 && curl -s localhost/health
-```
+### 1-1. DB 비밀번호 교체 — ✅ 완료(2026-11-09)
+공개 레포에 적힌 기본값(`findit_pw`)이던 것을 무작위 값으로 교체(서버 `.env`에만 저장, 옛 값은 접속 거부 확인).
+이제 compose에 기본값이 없어 비밀번호 없이는 뜨지 않는다. 다시 바꾸는 절차는 DEPLOY.md 8-2.
 
 ### 1-2. 검색엔진 등록 (30분) — 노출의 시작 · **도메인(2-1)을 산 뒤에** 하는 게 효율적
 지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 등록은 주소 단위라, 지금 duckdns 주소로 등록하면
@@ -65,7 +62,7 @@ docker compose -f docker-compose.prod.yml up -d postgres backend && sleep 8 && c
 
 ## 3. 사용자 유입 — 가장 중요 (시간 필요)
 
-사람이 FindIt이 필요한 순간은 **물건을 잃어버린 직후**다. 그 순간 그 사람이 보는 곳에 있어야 한다.
+사람이 LostKorea가 필요한 순간은 **물건을 잃어버린 직후**다. 그 순간 그 사람이 보는 곳에 있어야 한다.
 
 | 채널 | 왜 | 할 일 |
 |---|---|---|

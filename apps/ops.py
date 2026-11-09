@@ -94,7 +94,7 @@ def freshness(max_age_days: int, status: dict | None = None, today: date | None 
         alert("데이터 정체 — 새 습득물이 들어오지 않아요",
               f"색인 문서 {status.get('count')}건, 가장 최근 습득일 {latest or '없음'}"
               f"({age if age is not None else '?'}일 전, 기준 {max_age_days}일).\n"
-              "수집 cron·공공데이터 API·임베딩 쿼터를 확인하세요. 로그: /root/findit/daily_collect.log")
+              "수집 cron·공공데이터 API·임베딩 쿼터를 확인하세요. 로그: /root/lostkorea/daily_collect.log")
     return ok
 
 

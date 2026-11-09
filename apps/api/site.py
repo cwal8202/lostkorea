@@ -4,7 +4,7 @@
   (검색엔진·SNS 미리보기는 JS를 안 돌리거나 늦게 돌리므로 — 화면에 다른 언어가 잠깐 비치는 일도 없음).
 - 템플릿 자리표시자: `<!--HEAD-->`(제목·메타·OG·hreflang·JSON-LD) · `<!--HEADER-->` · `<!--FOOTER-->` · `{{키}}`(문구·링크).
 - 정적 자산(css·js)은 내용 해시를 `?v=`로 붙여 배포 즉시 새 파일을 받게 한다.
-- 서비스 이름은 `settings.brand_name` 하나로(내부 이름 findit-*·DB 이름은 그대로 — 바꾸면 운영 볼륨과 끊김).
+- 서비스 이름은 `settings.brand_name` 하나로(로고 글자 Lost·Korea는 partials에 직접).
 """
 
 from __future__ import annotations
@@ -314,7 +314,7 @@ def _head(page: str, lang: str) -> str:
                "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
                               for q, a in FAQ[lang]]}]
         lines.append(f'<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>')
-    lines.append(f'<script>window.FINDIT_LANG = "{lang}"; window.FINDIT_VIEW = "{page}";</script>')
+    lines.append(f'<script>window.LK_LANG = "{lang}"; window.LK_VIEW = "{page}";</script>')
     return "\n".join(lines)
 
 

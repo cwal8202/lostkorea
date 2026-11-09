@@ -49,7 +49,7 @@ def main() -> None:
     ax2.spines["left"].set_visible(False)
     ax2.tick_params(axis="y", labelleft=False)
     fig.suptitle(f"외국인 방문 상위 {a.top}개 시군구 — 외국인 방문과 습득물 ({span})", fontsize=13, fontweight="bold")
-    fig.text(0.5, 0.01, "출처: 한국관광 데이터랩 지역별 방문자수(외국인) · 경찰청/포털기관 습득물정보(보관장소 기준) · FindIt 분석",
+    fig.text(0.5, 0.01, "출처: 한국관광 데이터랩 지역별 방문자수(외국인) · 경찰청/포털기관 습득물정보(보관장소 기준) · LostKorea 분석",
              ha="center", fontsize=8.5, color="#6b7280")
     fig.savefig(out / f"top{a.top}_foreign_vs_found.png", dpi=180, bbox_inches="tight")
     plt.close(fig)

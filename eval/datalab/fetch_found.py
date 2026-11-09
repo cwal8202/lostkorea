@@ -1,7 +1,7 @@
 """경찰청·포털기관 습득물 목록(상세 X) → 보관장소를 시군구로 해석 → 시군구별 건수 집계 캐시.
 
 데이터랩 방문자수와 같은 기간으로 맞추기 위한 수집. 원본은 저장하지 않고 집계만(레포 용량·개인정보 최소화).
-지역 해석은 FindIt 운영과 같은 해석기(gazetteer + 지오코딩 캐시, apps.api.region).
+지역 해석은 LostKorea 운영과 같은 해석기(gazetteer + 지오코딩 캐시, apps.api.region).
 
 실행:  uv run python -m eval.datalab.fetch_found --start 20260801 --end 20260830
 """

@@ -25,7 +25,7 @@ def fetch(start: str, end: str, rows: int = 10000) -> list[dict]:
     while True:
         q = urllib.parse.urlencode({
             "serviceKey": settings.data_go_kr_service_key_decoded, "numOfRows": rows, "pageNo": page,
-            "MobileOS": "ETC", "MobileApp": "FindIt", "startYmd": start, "endYmd": end, "_type": "json"})
+            "MobileOS": "ETC", "MobileApp": "LostKorea", "startYmd": start, "endYmd": end, "_type": "json"})
         with urllib.request.urlopen(f"{URL}?{q}", timeout=60) as r:
             body = json.load(r)["response"]["body"]
         got = (body.get("items") or {}).get("item") or []

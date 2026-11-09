@@ -1,4 +1,4 @@
-"""FindIt 매칭 성능 baseline (인프라/API 키 불필요).
+"""LostKorea 매칭 성능 baseline (인프라/API 키 불필요).
 
 순수 파이썬 BM25로 골든셋을 채점한다. 한국어 형태소 분석기 없이
 '문자 바이그램 + 영문 단어' 토큰화를 쓴다(가벼운 근사 baseline).

@@ -1,4 +1,4 @@
-"""FindIt LLM grading 실험 — 검색(EMB)이 좁힌 top-K를 Gemini가 재정렬.
+"""LostKorea LLM grading 실험 — 검색(EMB)이 좁힌 top-K를 Gemini가 재정렬.
 
 가설: 임베딩이 애매하게 남긴 상위권(브랜드·모델 정보가 있는 질의)을 LLM이 근거로 바로잡는다.
 - EMB top-K 후보 → gemini-2.5-flash가 각 후보 0~100 채점(+근거) → 재정렬.

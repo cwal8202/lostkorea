@@ -26,5 +26,5 @@ jobs:
             fi
             echo "실패 $i/3 — 60초 후 재시도"; sleep 60
           done
-          echo "::error::FindIt 서비스 응답 없음 ($BASE)"
+          echo "::error::LostKorea 서비스 응답 없음 ($BASE)"
           exit 1

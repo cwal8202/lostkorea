@@ -1,5 +1,5 @@
 [project]
-name = "findit"
+name = "lostkorea"
 version = "0.1.0"
 description = "분실물 매칭 AI 에이전트 — 습득물 하이브리드 검색 + 지역 가점 + LLM grading"
 requires-python = ">=3.10"

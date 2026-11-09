@@ -26,7 +26,7 @@ def test_foreign_browser_redirected_to_english():
 
 def test_korean_in_language_list_stays_korean():
     r = client.get("/", headers=KO_BROWSER)
-    assert r.status_code == 200 and '<html lang="ko">' in r.text and 'window.FINDIT_LANG = "ko"' in r.text
+    assert r.status_code == 200 and '<html lang="ko">' in r.text and 'window.LK_LANG = "ko"' in r.text
 
 
 def test_crawlers_are_not_redirected():
@@ -37,7 +37,7 @@ def test_crawlers_are_not_redirected():
 def test_english_page_has_english_meta_and_hreflang():
     r = client.get("/en", headers=EN_BROWSER)
     t = r.text
-    assert r.status_code == 200 and '<html lang="en">' in t and 'window.FINDIT_LANG = "en"' in t
+    assert r.status_code == 200 and '<html lang="en">' in t and 'window.LK_LANG = "en"' in t
     assert "Lost something in Korea?" in t and 'og:image' in t and 'hreflang="ko"' in t
     assert 'rel="canonical" href="https://findit-lost.duckdns.org/en"' in t
     assert "<!--HEAD-->" not in t
@@ -108,7 +108,7 @@ def test_home_is_server_rendered_in_each_language_with_faq_schema():
 
 def test_browse_page_opens_browse_view():
     t = client.get("/browse", headers=KO_BROWSER).text
-    assert 'class="page-browse"' in t and 'window.FINDIT_VIEW = "browse"' in t and 'id="viewBrowse"' in t
+    assert 'class="page-browse"' in t and 'window.LK_VIEW = "browse"' in t and 'id="viewBrowse"' in t
 
 
 def test_static_assets_served():

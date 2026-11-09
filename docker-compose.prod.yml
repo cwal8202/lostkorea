@@ -1,7 +1,11 @@
-# FindIt 프로덕션 배포 — OpenSearch(nori) + 백엔드(FastAPI+웹, 웹까지 서빙).
+# LostKorea 프로덕션 배포 — OpenSearch(nori) + Postgres + 백엔드(FastAPI+웹) + Caddy(HTTPS).
 # 실행:  docker compose -f docker-compose.prod.yml up -d --build
-# 접속:  http://<서버IP>   (백엔드 80 → 8000)
-# 시크릿: 같은 폴더 .env (.env.example 참고). OpenSearch는 외부에 포트 노출 안 함(내부 전용).
+# 시크릿: 같은 폴더 .env (.env.example 참고). OpenSearch·Postgres는 외부에 포트 노출 안 함(내부 전용).
+#
+# 프로젝트 이름을 고정(폴더 이름과 무관) → 컨테이너 lostkorea-*, 볼륨 lostkorea_*.
+# (2026-11-09 findit → lostkorea 이전: 옛 볼륨 findit_findit-*에서 데이터를 복사해 옮김 — docs/DEPLOY.md 참고)
+name: lostkorea
+
 # 컨테이너 로그 상한(기본 json-file은 무제한 → 디스크가 찰 수 있음). 10MB × 3개 회전.
 x-logging: &logging
   driver: json-file
@@ -12,8 +16,8 @@ x-logging: &logging
 services:
   opensearch:
     build: ./infra/opensearch
-    image: findit/opensearch-nori:2.17.1
-    container_name: findit-opensearch
+    image: lostkorea/opensearch-nori:2.17.1
+    container_name: lostkorea-opensearch
     environment:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=true
@@ -23,7 +27,7 @@ services:
       memlock: { soft: -1, hard: -1 }
       nofile: { soft: 65536, hard: 65536 }
     volumes:
-      - findit-os-data:/usr/share/opensearch/data
+      - os-data:/usr/share/opensearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -33,16 +37,17 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: findit-postgres
+    container_name: lostkorea-postgres
     logging: *logging
     environment:
-      - POSTGRES_USER=findit
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-findit_pw}
-      - POSTGRES_DB=findit
+      - POSTGRES_USER=lostkorea
+      # 기본값 없음(필수) — 공개 레포에 적힌 기본 비밀번호로 조용히 뜨는 일이 없게. 값은 .env에.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 설정하세요}
+      - POSTGRES_DB=lostkorea
     volumes:
-      - findit-pg-data:/var/lib/postgresql/data
+      - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U findit"]
+      test: ["CMD-SHELL", "pg_isready -U lostkorea -d lostkorea"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -50,13 +55,13 @@ services:
 
   backend:
     build: .
-    image: findit/backend:latest
-    container_name: findit-backend
+    image: lostkorea/backend:latest
+    container_name: lostkorea-backend
     logging: *logging
     env_file: .env                         # Gemini·SMTP·data.go.kr·Kakao 키
     environment:
       - OPENSEARCH_URL=http://opensearch:9200   # 컨테이너 내부 DNS(로컬호스트 아님)
-      - DATABASE_URL=postgresql://findit:${POSTGRES_PASSWORD:-findit_pw}@postgres:5432/findit
+      - DATABASE_URL=postgresql://lostkorea:${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 설정하세요}@postgres:5432/lostkorea
       - APP_ENV=production                 # 앱 오류 메일 등 운영 전용 동작
     depends_on:
       opensearch:
@@ -69,23 +74,23 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    container_name: findit-caddy
+    container_name: lostkorea-caddy
     logging: *logging
     environment:
-      - DOMAIN=${DOMAIN:-}                  # .env 의 DuckDNS 도메인. 없으면 http(:80)만.
+      - DOMAIN=${DOMAIN:-}                  # .env 의 도메인. 없으면 http(:80)만.
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./infra/caddy:/etc/caddy:ro         # 디렉터리 마운트: git pull이 파일을 교체(inode 변경)해도 새 파일이 보이게
-      - findit-caddy-data:/data            # 인증서 영속
-      - findit-caddy-config:/config
+      - caddy-data:/data                    # 인증서 영속
+      - caddy-config:/config
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
-  findit-os-data:
-  findit-pg-data:
-  findit-caddy-data:
-  findit-caddy-config:
+  os-data:
+  pg-data:
+  caddy-data:
+  caddy-config:

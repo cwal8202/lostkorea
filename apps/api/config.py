@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     opensearch_index: str = "found_items"
 
     # 분실물 저장소(린 v1: SQLite. 추후 PostgreSQL). 런타임 상태 → git 제외.
-    db_path: Path = _ROOT / "data" / "findit.db"
+    db_path: Path = _ROOT / "data" / "lostkorea.db"
     rematch_grade_threshold: int = 80  # 이 점수 이상이면 "매칭 성립"(알림 대상)
     weak_grade_threshold: int = 50     # 약한 후보 하한 — 신고자가 옵트인하면 [이 값, 위 임계) 구간도 '참고' 알림
     watch_days_default: int = 30       # 지속 재매칭(알림) 기간 기본값 — 지나면 expired, 재매칭·LLM 비용 중단
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # 알림 채널: console | email  (email은 아래 SMTP 설정 필요, 미설정 시 console 폴백)
     notifier_channel: str = "console"
     public_base_url: str = "https://findit-lost.duckdns.org"  # 메일 CTA·로고 URL 등 외부 링크 기준
-    brand_name: str = "LostKorea"   # 사용자에게 보이는 서비스 이름(화면·메일·OG). 내부 이름 findit-*은 그대로
+    brand_name: str = "LostKorea"   # 사용자에게 보이는 서비스 이름(화면·메일·OG)
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_user: str = ""            # 발신 계정(Gmail 주소)
