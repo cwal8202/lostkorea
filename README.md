@@ -12,7 +12,7 @@
 > 유력 후보 + **근거** + (사진 있으면) 썸네일 → *[내 물건이에요]* 시 보관기관·전화·지도·lost112 안내.
 > 🌐 **다국어** — 어떤 언어로 검색해도 결과, 화면·수령안내도 여러 언어(외국인도 이용).
 >
-> 📄 모든 결정·실험·수치는 [`docs/PROGRESS.md`](docs/PROGRESS.md), 배포는 [`docs/DEPLOY.md`](docs/DEPLOY.md).
+> 📄 모든 결정·실험·수치는 [`docs/PROGRESS.md`](docs/PROGRESS.md), 배포는 [`docs/DEPLOY.md`](docs/DEPLOY.md), 서비스화 남은 일은 [`docs/LAUNCH.md`](docs/LAUNCH.md).
 
 ![FindIt 랜딩](docs/screenshots/hero.png)
 
@@ -82,7 +82,7 @@
 → 의미 임베딩이 주력 랭커(한글↔영문·번역·오타 커버). **지역 가점**은 밀집 군집(검정지갑 193건 등)에서
 묻힌 정답을 MRR 0.084→0.857로 끌어올림(덧셈 소프트 w≈0.05, eval 검증). dep→구/시 gazetteer+지오코딩 커버 **95%**.
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 151개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·실시간 스트림·다국어 메일·보안·레이트리밋·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 152개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·실시간 스트림·다국어 메일·보안·레이트리밋·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 카카오 알림톡(현재 이메일/콘솔 알림) · 브라우저 확장 · 인증(user_id) · React/Vercel 프론트 분리 · 이미지 임베딩(CLIP) 검색.
 
@@ -108,8 +108,8 @@ eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, O
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · region 백필/지오코딩
-tests/       pytest 151개 (외부 서비스 목킹)
-docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · screenshots/
+tests/       pytest 152개 (외부 서비스 목킹)
+docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI 엔드포인트 13개 (/found-items/search·/browse, /lost-items[+/image, /stream], /alerts·/confirm·/dismiss, /health, GET /)
 apps/agent/     매칭 에이전트 (LangGraph: extract→route→fanout→search→grade, 단계 스트림) + rematch(지속 재매칭·알림 기간)
 apps/collector/ 수집기 (data.go.kr 목록 → 기존 항목 스킵 → 새 항목 상세 enrich → 임베딩 → 색인, --rematch)

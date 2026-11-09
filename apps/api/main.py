@@ -193,6 +193,14 @@ def terms_en() -> FileResponse:
     return FileResponse(_WEB / "terms_en.html", headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/en/guide", include_in_schema=False)
+def guide_en(request: Request) -> FileResponse:
+    """'한국에서 물건을 잃어버렸을 때' 영어 가이드 — 검색 유입용(외국인이 실제로 검색하는 질문에 답하는 페이지)."""
+    if not _is_bot(request):
+        store.bump("view_guide")
+    return FileResponse(_WEB / "guide_en.html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/robots.txt", include_in_schema=False)
 def robots() -> PlainTextResponse:
     base = settings.public_base_url.rstrip("/")
@@ -212,6 +220,7 @@ def sitemap() -> Response:
         alts = (f'<xhtml:link rel="alternate" hreflang="ko" href="{base}{ko}"/>'
                 f'<xhtml:link rel="alternate" hreflang="en" href="{base}{en}"/>')
         urls += [f"<url><loc>{base}{ko}</loc>{alts}</url>", f"<url><loc>{base}{en}</loc>{alts}</url>"]
+    urls.append(f"<url><loc>{base}/en/guide</loc></url>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
            + "".join(urls) + "</urlset>")

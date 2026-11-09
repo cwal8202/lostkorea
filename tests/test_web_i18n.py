@@ -68,3 +68,10 @@ def test_english_policy_pages():
 def test_email_site_link_follows_reporter_language():
     assert notifier._site({"lang": "ko"}) == "https://findit-lost.duckdns.org"
     assert notifier._site({"lang": "ja"}) == "https://findit-lost.duckdns.org/en"
+
+
+def test_english_guide_page_in_sitemap():
+    r = client.get("/en/guide", headers=EN_BROWSER)
+    assert r.status_code == 200 and "Lost something in Korea?" in r.text and "1330" in r.text
+    assert "<loc>https://findit-lost.duckdns.org/en/guide</loc>" in client.get("/sitemap.xml").text
+    assert store.metrics_since("2000-01-01").get("view_guide") == 1

@@ -98,7 +98,7 @@ def freshness(max_age_days: int, status: dict | None = None, today: date | None 
 
 
 _KIND_LABELS = [
-    ("view_ko", "방문(한국어)"), ("view_en", "방문(영어)"),
+    ("view_ko", "방문(한국어)"), ("view_en", "방문(영어)"), ("view_guide", "영어 가이드 방문"),
     ("report_text", "신고(글)"), ("report_image", "신고(사진)"), ("report_invalid", "신고 아님(잡담 등)"),
     ("email_given", "이메일 입력"), ("email_verified", "이메일 확인"), ("alert_sent", "알림 메일 발송"),
     ("confirm", "'내 물건이에요'"), ("dismiss", "'아니에요'"), ("delete", "신고 삭제"),
