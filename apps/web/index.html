@@ -44,7 +44,15 @@
           <div id="hint" class="hint" role="alert"></div>
           <div class="examples" id="examples"></div>
           <details class="tips"><summary>{{photo_tip_title}}</summary><p>{{photo_tip}}</p></details>
-          <p class="privacy-note">{{privacy_note}}</p>
+          <div class="privacy">
+            <ul class="assure">
+              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure1}}</li>
+              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure2}}</li>
+              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure3}}</li>
+            </ul>
+            <p class="privacy-note">{{privacy_note}}</p>
+            <details class="privacy-more"><summary>{{privacy_more}}</summary><p>{{privacy_detail}}</p></details>
+          </div>
         </div>
 
         <ul class="trust-row">
@@ -218,6 +226,14 @@
   </section>
 </main>
 <!--FOOTER-->
+
+<!-- 휴대폰 하단 고정 버튼 — 입력창·결과·마지막 버튼이 화면에 없을 때만 보임(app.js initStickyCta) -->
+<div class="sticky-cta" id="stickyCta" hidden>
+  <button type="button" class="btn btn-primary btn-lg" onclick="startSearch()">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    {{cta_btn}}
+  </button>
+</div>
 
 <div id="lightbox" hidden onclick="closeLightbox()"><img id="lightboxImg" src="" alt="" /></div>
 <script src="/static/js/app.js?v={{V}}"></script>

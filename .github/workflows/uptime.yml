@@ -6,7 +6,8 @@ name: Uptime
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # 정각·30분은 GitHub 예약 실행이 몰려 밀리거나 건너뛰어짐(11/9 추가 후 예약 실행 0회) → 붐비지 않는 7·37분
+    - cron: "7,37 * * * *"
   workflow_dispatch: {}
 
 jobs:

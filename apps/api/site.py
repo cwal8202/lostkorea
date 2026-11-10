@@ -101,9 +101,12 @@ T: dict[str, dict[str, str]] = {
         "photo_tip_title": "사진으로 찾을 때 알아두세요",
         "photo_tip": "습득물은 사진이 없는 경우가 많아요(약 22%만 보유). 그래서 사진 속 <b>종류·색상을 읽어 글로 검색</b>하고 "
                      "후보 중 <b>사진이 있는 건 올린 사진과 직접 비교</b>해요. 설명·장소를 함께 적을수록 정확해져요.",
-        "privacy_note": "이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석돼요(사진은 저장 안 함). "
-                        "신고는 알림 기간이 끝나고 30일 뒤 자동 삭제돼요. 검색하면 <a href=\"/privacy\">개인정보처리방침</a>·"
+        "assure1": "사진은 저장 안 함", "assure2": "Google AI로 분석", "assure3": "신고 자동 삭제",
+        "privacy_note": "이름·전화번호는 적지 마세요. 검색하면 <a href=\"/privacy\">개인정보처리방침</a>·"
                         "<a href=\"/terms\">이용약관</a>에 동의한 것으로 봐요.",
+        "privacy_more": "자세히",
+        "privacy_detail": "신고 문장과 사진은 비슷한 습득물을 찾으려고 Google Gemini로 분석해요. 사진은 분석에만 쓰고 저장하지 않아요. "
+                          "신고는 알림 기간이 끝나고 30일 뒤 자동 삭제되고, '내 신고'에서 언제든 직접 지울 수 있어요.",
         "trust1": "경찰청·공공데이터포털 공식 데이터", "trust2": "매일 자정 갱신", "trust3": "영어 화면 · 13개 언어 알림",
         "sample_badge": "예시 결과", "sample_item": "검정 가죽 지갑", "sample_color": "검정", "sample_score": "일치",
         "sample_meta": "보관: 마포경찰서 · 습득일 11월 8일",
@@ -163,10 +166,13 @@ T: dict[str, dict[str, str]] = {
         "photo_tip": "Many found items have no photo (only ~22% do). So we <b>read your photo's type and color and search by "
                      "text</b>, and <b>compare directly</b> with candidates that do have a photo. Adding a description and "
                      "place improves accuracy.",
-        "privacy_note": "Please don't include names or phone numbers. Your text/photo is analyzed by Google Gemini for matching "
-                        "(photos are not stored), and reports are deleted automatically 30 days after the alert period ends. "
-                        "By searching you agree to the <a href=\"/en/privacy\">Privacy Policy</a> and "
-                        "<a href=\"/en/terms\">Terms</a>.",
+        "assure1": "Photos not stored", "assure2": "Analyzed by Google AI", "assure3": "Reports auto-deleted",
+        "privacy_note": "Don't include names or phone numbers. By searching you agree to the "
+                        "<a href=\"/en/privacy\">Privacy Policy</a> and <a href=\"/en/terms\">Terms</a>.",
+        "privacy_more": "Details",
+        "privacy_detail": "Your text and photo are analyzed by Google Gemini to find matching items. Photos are used only for "
+                          "this and are never stored. Reports are deleted automatically 30 days after the alert period ends, "
+                          "and you can delete them anytime under \"My reports\".",
         "trust1": "Official data from Korean police", "trust2": "Updated daily", "trust3": "Alerts in 13 languages",
         "sample_badge": "Example result", "sample_item": "Black leather wallet", "sample_color": "black",
         "sample_score": "match", "sample_meta": "Held at: Mapo Police Station · found Nov 8",

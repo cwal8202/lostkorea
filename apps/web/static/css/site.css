@@ -134,8 +134,17 @@ body { top: 0 !important; }
 details.tips { margin-top: 12px; font-size: 14px; color: var(--sub); }
 details.tips p { margin-top: 6px; line-height: 1.6; }
 details summary { cursor: pointer; }
-.privacy-note { margin-top: 12px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
-.privacy-note a { color: var(--sub); text-decoration: underline; }
+/* 개인정보 안내 — 핵심 3가지는 체크 한 줄, 나머지는 '자세히'로 접음(색은 --sub: 흰 바탕 대비 4.5:1 이상) */
+.privacy { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.assure { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px;
+          font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.assure li { display: inline-flex; align-items: center; gap: 5px; }
+.assure .ic { width: 16px; height: 16px; color: var(--green); stroke-width: 2.6; }
+.privacy-note { margin: 6px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--sub); }
+.privacy-note a, .privacy-more p a { color: var(--sub); text-decoration: underline; }
+details.privacy-more { font-size: 12.5px; color: var(--sub); }
+details.privacy-more summary { display: inline-block; padding: 8px 0; text-decoration: underline; text-underline-offset: 2px; }
+details.privacy-more p { margin: 0 0 2px; line-height: 1.6; }
 .trust-row { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 8px 20px;
              font-size: 14px; color: #475569; }
 .trust-row li { display: inline-flex; align-items: center; gap: 7px; }
@@ -318,6 +327,10 @@ details.how-searched > div { margin-top: 10px; }
 #lightbox[hidden] { display: none !important; }
 #lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 12px; box-shadow: 0 8px 40px rgba(0, 0, 0, .5); }
 
+/* 휴대폰 하단 고정 '분실물 찾기' — 데스크톱에선 항상 숨김 */
+.sticky-cta { display: none; }
+@keyframes lk-rise { from { transform: translateY(100%); } to { transform: none; } }
+
 /* ── 반응형 ─────────────────────────────────────── */
 @media (max-width: 1000px) {
   .features { grid-template-columns: repeat(2, 1fr); }
@@ -349,4 +362,10 @@ details.how-searched > div { margin-top: 10px; }
   .nav-right { gap: 4px; min-width: 0; }
   .lang-wrap .ic { display: none; }
   .lang-select { max-width: 110px; }
+  .sticky-cta:not([hidden]) { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, .97);
+    border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(15, 23, 42, .08); animation: lk-rise .18s ease-out; }
+  .sticky-cta .btn { width: 100%; min-height: 48px; }
+  .page-home .site-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }  /* 고정 버튼이 바닥글을 가리지 않게 */
 }
+@media (prefers-reduced-motion: reduce) { .sticky-cta { animation: none !important; } }

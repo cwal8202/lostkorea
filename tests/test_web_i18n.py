@@ -88,6 +88,19 @@ def test_search_box_comes_first_and_form_is_minimal():
     assert 'aria-live="polite"' in body                                # 진행 상황을 화면낭독기에도
 
 
+@pytest.mark.parametrize("path,ai_line,policy", [("/ko", "Google AI로 분석", 'href="/privacy"'),
+                                                 ("/en", "Analyzed by Google AI", 'href="/en/privacy"')])
+def test_privacy_notice_is_short_but_keeps_ai_and_consent_visible(path, ai_line, policy):
+    """입력창 아래 개인정보 안내는 체크 3개 + 한 줄로 줄이되, 국외 AI 분석 사실과 방침 동의는 접지 않고 보이게.
+    삭제 시점(알림 기간 종료 + 30일)은 '자세히' 안에만 — 칩에 '30일 뒤 삭제'처럼 틀리게 줄여 쓰지 않음."""
+    body = client.get(path, headers=KO_BROWSER).text
+    card = body[body.index('class="search-card"'):body.index('class="trust-row"')]
+    visible, detail = card.split('class="privacy-more"', 1)
+    assert ai_line in visible and policy in visible
+    assert "30" not in visible[visible.index('class="assure"'):] and "30" in detail
+    assert 'id="stickyCta" hidden' in body                              # 휴대폰 하단 고정 버튼(처음엔 숨김)
+
+
 @pytest.mark.parametrize("path", ["/ko", "/en", "/browse", "/en/browse", "/en/guide", "/privacy", "/terms",
                                   "/en/privacy", "/en/terms"])
 def test_every_page_renders_with_shared_header_and_footer(path):

@@ -736,9 +736,23 @@ async function fetchStats() {
   } catch (e) { /* 통계가 없어도 페이지는 그대로 */ }
 }
 
+// 휴대폰 하단 고정 '분실물 찾기' — 입력창·결과·마지막 버튼 중 하나라도 화면에 보이면 숨김(같은 버튼이 두 번 보이지 않게).
+// 화면 폭 조건은 CSS가 맡음(데스크톱에선 hidden이 풀려도 표시 안 됨).
+function initStickyCta() {
+  const bar = $("stickyCta");
+  if (!bar || window.LK_VIEW === "browse" || !("IntersectionObserver" in window)) return;
+  const seen = new Set();
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) e.isIntersecting ? seen.add(e.target) : seen.delete(e.target);
+    bar.hidden = seen.size > 0;
+  });
+  [document.querySelector(".search-card"), $("resultCard"), document.querySelector(".cta-band")]
+    .filter(Boolean).forEach(el => io.observe(el));
+}
+
 applyLang();
 if (window.LK_VIEW === "browse") doBrowse(1);
-else { loadMine(); fetchStats(); }
+else { loadMine(); fetchStats(); initStickyCta(); }
 
 async function doBrowse(page) {
   const p = new URLSearchParams({
