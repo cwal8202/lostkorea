@@ -44,6 +44,8 @@ def test_korean_email_needs_no_translation(monkeypatch):
     monkeypatch.setattr(gemini, "translate_strings", lambda *a: (_ for _ in ()).throw(AssertionError("호출 금지")))
     subject, text, html = notifier.build_email({"text": "검정 지갑", "lang": "ko"}, [MATCH])
     assert subject.startswith("[LostKorea] 분실물 매칭 알림") and "유력 후보" in text and "보관장소" in text
+    # 경찰청 습득물 검색은 경찰민원24로 옮겨 감(옛 lost112.go.kr은 응답 없음)
+    assert "minwon24.police.go.kr" in text and "minwon24.police.go.kr" in html and "lost112.go.kr" not in html
 
 
 def test_foreign_email_translates_ui_items_and_places(monkeypatch):

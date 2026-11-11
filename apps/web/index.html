@@ -2,84 +2,57 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <!--HEAD-->
 </head>
 <body class="page-{{VIEW}}">
 <!--HEADER-->
 <main id="main">
 
-  <!-- ── 히어로 + 검색 ─────────────────────────────────────────── -->
+  <!-- ── 첫 화면: 제목 하나 · 입력창 하나 · 버튼 하나 (애플 여백 + 토스 타이포) ───────────── -->
   <section class="hero" id="search">
-    <div class="container hero-grid">
-      <div class="hero-main">
-        <p class="eyebrow">
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
-          {{hero_eyebrow}}
-        </p>
-        <h1 class="hero-title">{{hero_title}}</h1>
-        <p class="lede">{{hero_lede}}</p>
+    <div class="container hero-inner">
+      <p class="eyebrow">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 3 8.3 7 10 4-1.7 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        {{hero_eyebrow}}
+      </p>
+      <h1 class="hero-title">{{hero_title}}</h1>
+      <p class="lede">{{lede}}</p>
 
-        <div class="search-card">
-          <label for="text" class="search-label">{{search_label}}</label>
-          <textarea id="text" placeholder="{{text_ph}}" maxlength="500" rows="3"
-            oninput="$('textCount').textContent=this.value.length" onkeydown="onTextKey(event)"></textarea>
-          <div class="search-row">
-            <input type="file" id="photo" accept="image/*" onchange="onPhoto(event)" hidden />
-            <button type="button" class="btn btn-outline" id="photoBtn" onclick="$('photo').click()">
-              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
-              {{photo_add}}
-            </button>
-            <span id="photoChip" class="photo-chip" hidden>
-              <img id="photoPreview" alt="" />
-              <button type="button" class="chip-x" onclick="clearPhoto()" aria-label="{{photo_remove}}">✕</button>
-            </span>
-            <label class="date-lbl"><span>{{lost_date}}</span><input type="date" id="lostDate" /></label>
-            <span class="count"><span id="textCount">0</span>/500</span>
-          </div>
-          <button id="go" class="btn btn-primary btn-lg go" onclick="search()">
-            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <span class="go-label">{{search_btn}}</span>
+      <div class="search-card">
+        <label for="text" class="search-label">{{search_label}}</label>
+        <textarea id="text" placeholder="{{text_ph}}" maxlength="500" rows="3"
+          oninput="$('textCount').textContent=this.value.length" onkeydown="onTextKey(event)"></textarea>
+        <div class="search-row">
+          <input type="file" id="photo" accept="image/*" onchange="onPhoto(event)" hidden />
+          <button type="button" class="btn btn-soft" id="photoBtn" onclick="$('photo').click()">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            {{photo_add}}
           </button>
-          <div id="hint" class="hint" role="alert"></div>
-          <div class="examples" id="examples"></div>
-          <details class="tips"><summary>{{photo_tip_title}}</summary><p>{{photo_tip}}</p></details>
-          <div class="privacy">
-            <ul class="assure">
-              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure1}}</li>
-              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure2}}</li>
-              <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure3}}</li>
-            </ul>
-            <p class="privacy-note">{{privacy_note}}</p>
-            <details class="privacy-more"><summary>{{privacy_more}}</summary><p>{{privacy_detail}}</p></details>
-          </div>
+          <span id="photoChip" class="photo-chip" hidden>
+            <img id="photoPreview" alt="" />
+            <button type="button" class="chip-x" onclick="clearPhoto()" aria-label="{{photo_remove}}">✕</button>
+          </span>
+          <label class="date-field"><span>{{lost_date}}</span><input type="date" id="lostDate" /></label>
+          <span class="count"><span id="textCount">0</span>/500</span>
         </div>
-
-        <ul class="trust-row">
-          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>{{trust1}}</li>
-          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{trust2}}</li>
-          <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>{{trust3}}</li>
-        </ul>
+        <button id="go" class="btn btn-primary btn-xl go" onclick="search()">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="go-label">{{search_btn}}</span>
+        </button>
+        <div id="hint" class="hint" role="alert"></div>
+        <div class="examples" id="examples"></div>
+        <details class="tips"><summary>{{photo_tip_title}}</summary><p>{{photo_tip}}</p></details>
+        <div class="privacy">
+          <ul class="assure">
+            <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure1}}</li>
+            <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure2}}</li>
+            <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>{{assure3}}</li>
+          </ul>
+          <p class="privacy-note">{{privacy_note}}</p>
+          <details class="privacy-more"><summary>{{privacy_more}}</summary><p>{{privacy_detail}}</p></details>
+        </div>
       </div>
-
-      <aside class="hero-visual" aria-hidden="true">
-        <div class="sample">
-          <div class="sample-head"><span class="badge">{{sample_badge}}</span><span class="sample-dots"><i></i><i></i><i></i></span></div>
-          <div class="match sample-match">
-            <div class="grade" style="background:var(--green)">88<small>{{sample_score}}</small></div>
-            <div class="m-body">
-              <div class="m-title">{{sample_item}} <span class="muted">/ {{sample_color}}</span></div>
-              <div class="m-meta">{{sample_meta}}</div>
-              <div class="m-reason"><svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>{{sample_reason}}</div>
-              <div class="m-actions"><span class="btn btn-success btn-xs">{{sample_mine}}</span><span class="btn btn-outline btn-xs">{{sample_map}}</span></div>
-            </div>
-          </div>
-          <div class="sample-rows">
-            <div class="sample-row"><span class="grade grade-sm" style="background:var(--amber)">62</span><span class="bar"></span></div>
-            <div class="sample-row"><span class="grade grade-sm" style="background:var(--gray)">20</span><span class="bar short"></span></div>
-          </div>
-        </div>
-      </aside>
     </div>
   </section>
 
@@ -93,77 +66,111 @@
     <div class="card" id="mineCard" hidden>
       <div class="card-head">
         <h2 class="card-title">{{mine_title}}</h2>
-        <button class="btn btn-ghost btn-sm" onclick="loadMine()">{{refresh}}</button>
+        <button class="btn btn-soft btn-sm" onclick="loadMine()">{{refresh}}</button>
       </div>
       <p class="muted small">{{mine_lead}}</p>
       <div id="mine"></div>
     </div>
   </div>
 
-  <!-- ── 전체 습득물(/browse에서만 보임) ─────────────────────────── -->
+  <!-- ── 전체 습득물(/browse에서만 보임) — 검색 한 줄 + 필터는 접기 ─────────── -->
   <section class="container browse-view" id="viewBrowse">
     <div class="page-head">
       <h1>{{browse_title}}</h1>
       <p class="lede">{{browse_lede}}</p>
     </div>
-    <div class="card filters">
-      <div class="filter-row">
-        <input id="bq" class="input grow" placeholder="{{kw_ph}}" onkeydown="if(event.key==='Enter')doBrowse(1)" />
-        <select id="bregion" class="input" onchange="doBrowse(1)"><option value="">{{all_regions}}</option></select>
-      </div>
-      <div class="filter-row">
-        <label class="date-lbl"><span>{{found_date}}</span><input type="date" id="bfrom" onchange="doBrowse(1)" /></label>
-        <label class="date-lbl"><span>~</span><input type="date" id="bto" onchange="doBrowse(1)" /></label>
+    <div class="filters">
+      <div class="filter-main">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="bq" class="input" placeholder="{{kw_ph}}" aria-label="{{kw_ph}}" onkeydown="if(event.key==='Enter')doBrowse(1)" />
         <button class="btn btn-primary" onclick="doBrowse(1)">{{search_short}}</button>
-        <button class="btn btn-ghost" onclick="resetBrowse()">{{reset}}</button>
-        <label class="per-page"><select id="bsize" class="input" onchange="doBrowse(1)">
+      </div>
+      <div class="filter-chips">
+        <label class="fchip"><span class="sr-only">{{all_regions}}</span>
+          <select id="bregion" onchange="doBrowse(1)"><option value="">{{all_regions}}</option></select></label>
+        <label class="fchip"><span class="sr-only">{{photo}}</span>
+          <select id="bphoto" onchange="doBrowse(1)">
+            <option value="">{{photo_all}}</option><option value="with">{{photo_with}}</option><option value="without">{{photo_without}}</option>
+          </select></label>
+        <label class="fchip"><span class="sr-only">{{sort}}</span>
+          <select id="bsort" onchange="doBrowse(1)">
+            <option value="new" selected>{{sort_new}}</option><option value="old">{{sort_old}}</option>
+          </select></label>
+        <label class="fchip"><span>{{found_date}}</span><input type="date" id="bfrom" onchange="doBrowse(1)" /></label>
+        <label class="fchip"><span>~</span><input type="date" id="bto" onchange="doBrowse(1)" /></label>
+        <label class="fchip"><select id="bsize" onchange="doBrowse(1)">
           <option value="10" selected>10</option><option value="20">20</option><option value="30">30</option>
-        </select> {{per_page}}</label>
-        <span id="bcount" class="muted small"></span>
+        </select><span>{{per_page}}</span></label>
+        <button class="fchip fchip-reset" onclick="resetBrowse()">{{reset}}</button>
+        <span id="bcount" class="bcount"></span>
       </div>
     </div>
-    <div class="card">
-      <div id="browseList"><span class="muted">{{loading}}</span></div>
+    <div class="list-card">
+      <div id="browseList">
+        <div class="skel"><i></i><div><b></b><b class="s"></b></div></div>
+        <div class="skel"><i></i><div><b></b><b class="s"></b></div></div>
+        <div class="skel"><i></i><div><b></b><b class="s"></b></div></div>
+      </div>
       <div id="browsePager" class="pager"></div>
     </div>
   </section>
 
-  <!-- ── 데이터 규모 ─────────────────────────────────────────── -->
-  <section class="stats-band">
-    <div class="container stats">
-      <div class="stat"><b id="statTotal">—</b><span>{{stat_items}}</span></div>
-      <div class="stat"><b id="statLatest">—</b><span>{{stat_latest}}</span></div>
-      <div class="stat"><b>{{stat_update_v}}</b><span>{{stat_update}}</span></div>
-      <div class="stat"><b>{{stat_cost_v}}</b><span>{{stat_cost}}</span></div>
+  <!-- ── 이렇게 찾아드려요: 25초 시연(입력 → 검색 → 알림 신청 → 메일 → 수령). PC는 브라우저 창, 휴대폰은 휴대폰 틀(장식) — 단계 목록이 같은 내용을 글로 ── -->
+  <section class="section flow" id="flow" aria-labelledby="flowTitle">
+    <div class="container flow-grid">
+      <div class="flow-copy">
+        <p class="eyebrow">{{flow_eyebrow}}</p>
+        <h2 id="flowTitle">{{flow_title}}</h2>
+        <p class="sub">{{flow_lede}}</p>
+        <ol class="flow-steps" id="flowSteps">
+          <li><button type="button"><b>{{flow1_t}}</b><span>{{flow1_d}}</span></button></li>
+          <li><button type="button"><b>{{flow2_t}}</b><span>{{flow2_d}}</span></button></li>
+          <li><button type="button"><b>{{flow3_t}}</b><span>{{flow3_d}}</span></button></li>
+          <li><button type="button"><b>{{flow4_t}}</b><span>{{flow4_d}}</span></button></li>
+          <li><button type="button"><b>{{flow5_t}}</b><span>{{flow5_d}}</span></button></li>
+        </ol>
+        <div class="flow-ctrl">
+          <button type="button" id="flowToggle" class="btn btn-soft" data-pause="{{flow_pause}}" data-play="{{flow_play}}">{{flow_pause}}</button>
+          <button type="button" class="btn btn-primary" onclick="startSearch()">{{flow_try}}</button>
+        </div>
+      </div>
+      <div class="flow-stage">
+        <span class="flow-tag">{{flow_tag}}</span>
+        <div class="device phone" id="flowDevice" aria-hidden="true"><div class="device-screen" id="flowDemo"></div></div>
+      </div>
     </div>
   </section>
 
-  <!-- ── 이용 방법 ──────────────────────────────────────────── -->
-  <section class="section" id="how">
+  <!-- ── 공식 데이터 · 규모 (미국 정부 사이트 배너처럼 한 줄 신뢰 표시 + 큰 숫자) ─────────── -->
+  <section class="data-band" aria-label="{{stat_items}}">
     <div class="container">
-      <div class="section-head"><h2>{{how_title}}</h2><p>{{how_lede}}</p></div>
+      <p class="data-source">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        {{trust1}} · {{trust3}}
+      </p>
+      <div class="stats">
+        <div class="stat"><b id="statTotal"><span class="skel-num"></span></b><span>{{stat_items}}</span></div>
+        <div class="stat"><b id="statLatest"><span class="skel-num"></span></b><span>{{stat_latest}}</span></div>
+        <div class="stat"><b>{{stat_update_v}}</b><span>{{stat_update}}</span></div>
+        <div class="stat"><b>{{stat_cost_v}}</b><span>{{stat_cost}}</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 잃어버렸다면, 이 순서로 (GOV.UK·TfL식 단계 안내) ─────────────── -->
+  <section class="section alt" id="how">
+    <div class="container">
+      <div class="section-head"><h2>{{steps_title}}</h2><p>{{steps_lede}}</p></div>
       <ol class="steps">
-        <li class="step">
-          <span class="step-num">1</span>
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>
-          <h3>{{how1_t}}</h3><p>{{how1_d}}</p>
-        </li>
-        <li class="step">
-          <span class="step-num">2</span>
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></svg></span>
-          <h3>{{how2_t}}</h3><p>{{how2_d}}</p>
-        </li>
-        <li class="step">
-          <span class="step-num">3</span>
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>
-          <h3>{{how3_t}}</h3><p>{{how3_d}}</p>
-        </li>
+        <li class="step"><span class="step-num">1</span><div><h3>{{step1_t}}</h3><p>{{step1_d}}</p></div></li>
+        <li class="step"><span class="step-num">2</span><div><h3>{{step2_t}}</h3><p>{{step2_d}}</p></div></li>
+        <li class="step"><span class="step-num">3</span><div><h3>{{step3_t}}</h3><p>{{step3_d}}</p></div></li>
       </ol>
     </div>
   </section>
 
   <!-- ── 특징 ──────────────────────────────────────────────── -->
-  <section class="section alt">
+  <section class="section">
     <div class="container">
       <div class="section-head"><h2>{{feat_title}}</h2></div>
       <div class="features">
@@ -188,20 +195,20 @@
   </section>
 
   <!-- ── 신뢰 ──────────────────────────────────────────────── -->
-  <section class="section">
+  <section class="section alt">
     <div class="container">
       <div class="section-head"><h2>{{trust_title}}</h2></div>
       <div class="trust-grid">
         <div class="trust-item">
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+          <span class="check"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></span>
           <div><h3>{{trust_a_t}}</h3><p>{{trust_a_d}}</p></div>
         </div>
         <div class="trust-item">
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+          <span class="check"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></span>
           <div><h3>{{trust_b_t}}</h3><p>{{trust_b_d}}</p></div>
         </div>
         <div class="trust-item">
-          <span class="icon-tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M3 21c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="m16 11 2 2 4-4"/></svg></span>
+          <span class="check"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg></span>
           <div><h3>{{trust_c_t}}</h3><p>{{trust_c_d}}</p></div>
         </div>
       </div>
@@ -209,7 +216,7 @@
   </section>
 
   <!-- ── 자주 묻는 질문 ───────────────────────────────────────── -->
-  <section class="section alt" id="faq">
+  <section class="section" id="faq">
     <div class="container faq">
       <div class="section-head"><h2>{{faq_title}}</h2></div>
       {{FAQ_ITEMS}}
@@ -221,15 +228,14 @@
     <div class="container">
       <h2>{{cta_title}}</h2>
       <p>{{cta_lede}}</p>
-      <a class="btn btn-white btn-lg" href="#search" onclick="startSearch(); return false;">{{cta_btn}}</a>
+      <a class="btn btn-white btn-xl" href="#search" onclick="startSearch(); return false;">{{cta_btn}}</a>
     </div>
   </section>
 </main>
 <!--FOOTER-->
 
-<!-- 휴대폰 하단 고정 버튼 — 입력창·결과·마지막 버튼이 화면에 없을 때만 보임(app.js initStickyCta) -->
 <div class="sticky-cta" id="stickyCta" hidden>
-  <button type="button" class="btn btn-primary btn-lg" onclick="startSearch()">
+  <button type="button" class="btn btn-primary btn-xl" onclick="startSearch()">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     {{cta_btn}}
   </button>
@@ -237,5 +243,6 @@
 
 <div id="lightbox" hidden onclick="closeLightbox()"><img id="lightboxImg" src="" alt="" /></div>
 <script src="/static/js/app.js?v={{V}}"></script>
+<script src="/static/js/demo.js?v={{V}}"></script>
 </body>
 </html>

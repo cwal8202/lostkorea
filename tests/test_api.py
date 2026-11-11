@@ -133,6 +133,32 @@ def test_browse_translation_cached(monkeypatch):
     assert '"q": "Wallet"' in calls[0]                        # 검색어는 JSON 데이터로 감싸 전달
 
 
+def test_browse_photo_filter_and_sort(monkeypatch):
+    bodies = []
+    monkeypatch.setattr(search_mod, "_os_raw",
+                        lambda body: bodies.append(body) or {"hits": {"hits": [], "total": {"value": 0}}})
+    assert client.get("/found-items/browse").status_code == 200
+    assert client.get("/found-items/browse", params={"photo": "with", "sort": "old"}).status_code == 200
+    assert client.get("/found-items/browse", params={"photo": "without"}).status_code == 200
+    plain, with_old, without = (b["query"]["bool"] for b in bodies)
+    order = [b["sort"][0]["found_at"]["order"] for b in bodies]
+    assert order == ["desc", "asc", "desc"]                          # 기본 최신순, sort=old면 오래된순
+    assert not any("script" in f for f in plain["filter"]) and not plain["must_not"]  # 기본은 사진 조건 없음
+    assert any("script" in f for f in with_old["filter"])            # 사진 있는 것만
+    assert any("script" in f for f in without["must_not"])           # 사진 없는 것만
+    assert "no_img" in search_mod._PHOTO_SCRIPT["script"]["source"]  # 경찰청 '사진 없음' 그림은 사진 아님
+    assert client.get("/found-items/browse", params={"photo": "all"}).status_code == 422
+    assert client.get("/found-items/browse", params={"sort": "random"}).status_code == 422
+
+
+def test_browse_item_carries_found_place(monkeypatch):
+    src = {"atc_id": "F1", "fd_sn": "1", "name": "지갑", "found_place": "택시", "region": "서울특별시 마포구"}
+    monkeypatch.setattr(search_mod, "_os_raw", lambda body: {"hits": {"hits": [{"_id": "F1_1", "_source": src}],
+                                                                      "total": {"value": 1}}})
+    item = client.get("/found-items/browse").json()["items"][0]
+    assert item["found_place"] == "택시" and item["atc_id"] == "F1" and item["fd_sn"] == "1"  # 원본 글 링크·습득 장소용
+
+
 class _Req:
     def __init__(self, host, xff="", cf=""):
         self.client = type("C", (), {"host": host})()

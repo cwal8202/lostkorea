@@ -69,9 +69,25 @@ class ConsoleNotifier:
         _emit(f"✉️ [확인 메일→{to}, {lang}] {link}")
 
 
+_NOTE_RE = re.compile(r"특이\s*사항\s*[:：]?\s*(.*)$", re.S)
+_NOTE_NONE = re.compile(r"^(없음|없습니다|해당\s*없음|무|-|\.)?$")
+_BOILER = (re.compile(r"^.*?습득\s*/?\s*보관\s*하였습니다\.?", re.S), re.compile(r"분실하신\s*분께서는.*?바랍니다\.?", re.S))
+
+
 def _clean_desc(s) -> str:
-    """특이사항(uniq) 앞머리 '내용' 라벨·줄바꿈 잡음 정리."""
-    return re.sub(r"\s+", " ", re.sub(r"^\s*내용\s*", "", str(s or ""))).strip()
+    """특이사항(uniq)에서 단서만 남김 — '내용' 라벨·줄바꿈 정리.
+
+    경찰 원문은 "○○에서는 [날짜] [물건]을 습득/보관 하였습니다 … 특이사항 : X" 틀이라 앞 140자를 자르면
+    상투 문장만 남았음 → 끝의 X만(없음이면 빈칸). 틀이 아닌 글은 상투 문장만 걷어내고 나머지를 씀.
+    """
+    s = re.sub(r"^\s*내용\s*", "", str(s or ""))
+    m = _NOTE_RE.search(s)
+    if m:
+        v = re.sub(r"\s+", " ", m.group(1)).strip()
+        return "" if _NOTE_NONE.match(v) else v
+    for rx in _BOILER:
+        s = rx.sub("", s)
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def _valid_img(url: str) -> str:
@@ -91,10 +107,10 @@ def _grade_color(g) -> str:
 KO = {
     "tagline": "분실물 매칭 AI",
     "head_strong": "🔔 유력 후보를 찾았어요 — 확인해보세요",
-    "desc_strong": "등록하신 분실물 '{t}' 과(와) 일치할 가능성이 높은 습득물을 찾았어요. "
+    "desc_strong": "'{t}' 신고와 일치할 가능성이 높은 습득물을 찾았어요. "
                    "본인 물건이면 아래 보관기관으로 수령을 문의하세요.",
     "head_weak": "🔎 비슷한 후보가 있어요 — 참고용",
-    "desc_weak": "등록하신 분실물 '{t}' 과(와) 정확히 일치하진 않지만(신뢰도 낮음) 비슷한 습득물이에요. "
+    "desc_weak": "'{t}' 신고와 정확히 일치하진 않지만(신뢰도 낮음) 비슷한 습득물이에요. "
                  "'약한 후보도 알림 받기'를 켜두셔서 보내드려요. 더 정확한 후보는 계속 찾고 있어요.",
     "subj_strong": "분실물 매칭 알림", "subj_weak": "비슷한 후보 알림(참고)",
     "item": "물품", "category": "분류", "held": "보관장소", "region": "지역", "found": "습득일",
@@ -103,10 +119,12 @@ KO = {
     "others_text": "비슷한 후보 {n}건도 확인해보세요:", "others_html": "비슷한 후보 {n}건",
     "claim": "본인 물건이면 위 보관기관 연락처로 수령을 문의하세요.",
     "cta": "{brand}에서 전체 결과 보기 →", "cta_text": "{brand}에서 전체 결과 보기: {url}",
-    "or_type": "또는 주소창에 {url} 입력",
-    "official": "공식 조회: {lost112} (경찰청 유실물 통합포털)",
+    "or_type": "버튼이 안 눌리면 이 링크를 여세요: {url}",
+    "official": "공식 조회: {lost112} (경찰청 습득물 검색)",
     "footer": "최종 확인·수령은 본인이 진행하세요. 본 메일은 {brand} 자동 알림입니다.",
 }
+# 경찰청 습득물 검색(경찰민원24). 옛 주소 lost112.go.kr은 11/12 기준 응답 없음 → 새 주소로.
+POLICE_FOUND_SEARCH = "https://minwon24.police.go.kr/cvlcpt/cvlcptAply.do?cvlcptId=MW-201"
 _PH = re.compile(r"\{(\w+)\}")
 _UI_CACHE: dict[str, dict] = {}
 
@@ -212,7 +230,8 @@ def _localize(matches: list[dict], lang: str) -> list[dict]:
 
 def _intro(lost: dict, weak: bool, S: dict = KO) -> tuple[str, str]:
     """(제목줄, 설명) — 유력 후보 vs 약한 후보(참고)."""
-    t = (lost.get("text") or "")[:40]
+    text = (lost.get("text") or "").strip()
+    t = text[:40] + ("…" if len(text) > 40 else "")
     kind = "weak" if weak else "strong"
     return S[f"head_{kind}"], _fill(S[f"desc_{kind}"], t=t)
 
@@ -223,7 +242,14 @@ def _site(lost: dict) -> str:
     return base if (lost.get("lang") or "ko") == "ko" else f"{base}/en"
 
 
-def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO) -> str:
+def report_link(lost: dict, token: str) -> str:
+    """그 신고의 결과로 바로 가는 링크. 토큰은 # 뒤(브라우저만 읽음 — 서버·프록시 기록에 남지 않음)."""
+    site = _site(lost)
+    page = site if site.endswith("/en") else site + "/"  # https://lostkorea.com/#r=… · https://lostkorea.com/en#r=…
+    return f"{page}#r={lost.get('id')}.{token}" if lost.get("id") and token else site
+
+
+def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "") -> str:
     m = _top(matches)
     head, desc = _intro(lost, weak, S)
     lines = [
@@ -251,8 +277,8 @@ def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
     lines += [
         "",
         S["claim"],
-        _fill(S["cta_text"], url=_site(lost)),
-        _fill(S["official"], lost112="https://www.lost112.go.kr"),
+        _fill(S["cta_text"], url=link or _site(lost)),
+        _fill(S["official"], lost112=POLICE_FOUND_SEARCH),
         f"({S['footer']})",
     ]
     return "\n".join(lines)
@@ -296,9 +322,10 @@ def _card_html(m: dict, primary: bool = False, S: dict = KO) -> str:
     )
 
 
-def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO) -> str:
+def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "") -> str:
     e = _html.escape
     site = _site(lost)
+    cta_href = link or site
     head, desc = _intro(lost, weak, S)
     others = matches[1 : 1 + TOP_OTHERS]
     others_html = ""
@@ -309,8 +336,8 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         )
     logo = (f'<img src="cid:lk-logo" width="40" height="40" alt="{e(settings.brand_name)}" '
             'style="border-radius:9px;display:block" />') if _LOGO.exists() else ""
-    site_link = f'<a href="{e(site)}" style="color:#2563eb">{e(site)}</a>'
-    lost112 = '<a href="https://www.lost112.go.kr">lost112.go.kr</a>'
+    site_link = f'<a href="{e(cta_href)}" style="color:#2563eb">{e(site)}</a>'
+    lost112 = f'<a href="{POLICE_FOUND_SEARCH}">minwon24.police.go.kr</a>'
     return (
         '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Malgun Gothic\',sans-serif;'
         'max-width:560px;color:#1f2430">'
@@ -324,7 +351,7 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         f'{_card_html(_top(matches), primary=True, S=S)}{others_html}'
         # 사이트 이동 CTA
         f'<div style="text-align:center;margin:22px 0 6px">'
-        f'<a href="{e(site)}" style="display:inline-block;background:#2563eb;color:#fff;'
+        f'<a href="{e(cta_href)}" style="display:inline-block;background:#2563eb;color:#fff;'
         'text-decoration:none;padding:13px 30px;border-radius:10px;font-weight:700;font-size:15px">'
         f'{e(S["cta"])}</a></div>'
         f'<p style="text-align:center;font-size:12px;color:#6b7280;margin:0 0 16px">'
@@ -334,14 +361,27 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
     )
 
 
-def build_email(lost: dict, matches: list[dict], weak: bool = False) -> tuple[str, str, str]:
-    """(제목, 텍스트, HTML) — 신고자 언어(lost['lang'])로. 한국어가 아니면 문구·물품 정보를 번역."""
+def build_email(lost: dict, matches: list[dict], weak: bool = False, link: str = "") -> tuple[str, str, str]:
+    """(제목, 텍스트, HTML) — 신고자 언어(lost['lang'])로. 한국어가 아니면 문구·물품 정보를 번역.
+
+    link: 그 신고의 결과로 바로 가는 링크(report_link). 없으면 사이트 첫 화면.
+    """
     lang = gemini.normalize_lang(lost.get("lang"))
     S = _ui(lang)
     ms = _localize(matches, lang)
     kind = "weak" if weak else "strong"
     subject = f"[{settings.brand_name}] {S[f'subj_{kind}']} — {_top(ms).get('name')}"
-    return subject, _text_body(lost, ms, weak, S), _html_body(lost, ms, weak, S)
+    return subject, _text_body(lost, ms, weak, S, link), _html_body(lost, ms, weak, S, link)
+
+
+def _new_report_link(lost: dict) -> str:
+    """메일마다 새 링크 토큰 발급(서버엔 해시만). 저장 실패해도 메일은 첫 화면 링크로 보냄."""
+    try:
+        from apps import store
+        return report_link(lost, store.new_link_token(lost["id"]))
+    except Exception as e:  # noqa: BLE001
+        _emit(f"[알림] 결과 링크 발급 실패({type(e).__name__}) → 첫 화면 링크로")
+        return _site(lost)
 
 
 class EmailNotifier:
@@ -353,7 +393,7 @@ class EmailNotifier:
         if not (settings.smtp_user and settings.smtp_password and to) or not matches:
             _emit("[알림] 이메일 설정/수신자/후보 미비 → 발송 생략")
             return
-        subject, text, html = build_email(lost, matches, weak)
+        subject, text, html = build_email(lost, matches, weak, link=_new_report_link(lost))
         if self._send(to, subject, text, html, logo=True):
             _emit(f"📧 [이메일 알림→{to}, {lost.get('lang') or 'ko'}] '{_top(matches).get('name')}' "
                   f"외 {max(len(matches)-1,0)}건 발송 완료")

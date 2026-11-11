@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -46,6 +47,25 @@ def list_items(source: str, start: str, end: str, rows: int, max_items: int) -> 
             break
         page += 1
     return items[:max_items]
+
+
+def list_all(source: str, start: str, end: str, rows: int, max_items: int) -> tuple[list[dict], bool]:
+    """목록 전부 + '끝까지 받았는지'. 대조(정리)는 끝까지 받은 구간에서만 — 중간에 끊긴 목록으로 지우면 안 됨."""
+    items: list[dict] = []
+    page, total = 1, -1
+    while len(items) < max_items:
+        res = client.get_list(source, start, end, page=page, rows=rows)
+        if res["code"] not in ("00", ""):
+            print(f"  ⚠ {source} 목록 응답: {res['code']} {res['msg']}")
+            return items, False
+        total = res["total"]
+        if not res["items"]:
+            break
+        items += res["items"]
+        if len(items) >= total:
+            break
+        page += 1
+    return items[:max_items], total >= 0 and len(items) == total
 
 
 def existing_ids(ids: list[str], chunk: int = 1000) -> set[str]:
@@ -114,13 +134,130 @@ def prune_old(days: int | None = None, today: date | None = None) -> int:
     return deleted
 
 
+# ── 정리: 경찰 목록과 대조해 종결된 습득물 삭제 + 바뀐 사진 반영 ──
+# 경찰 목록 API는 '보관중'만 돌려줌(종결 = 주인에게 반환 등 처리 끝난 물건은 빠짐 — 11/12 확인).
+# 그런데 수집은 새 항목만 넣고 다시 보지 않아, 종결된 물건과 내려간 사진이 계속 남았음
+# (11/12 실측: 최근 7일 경찰서 색인의 27%, 9~10월 습득분의 30~45%가 이미 종결).
+# 안전장치: 목록을 끝까지 받은 구간만 / 목록이 비면 건너뜀 / 지울 대상 일부를 상세 조회해 '보관중'이 하나라도 있으면 삭제 보류.
+CLOSED_SAMPLE = 5
+
+
+def _ymd_iso(ymd: str) -> str:
+    return f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}"
+
+
+def _os(path: str, body: dict | None = None, method: str = "POST", timeout: int = 120) -> dict:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(f"{settings.opensearch_url}{path}", data, {"Content-Type": "application/json"},
+                                 method=method)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.load(r)
+
+
+def indexed_in_range(source: str, start: str, end: str) -> dict[str, str]:
+    """색인된 문서 {_id: image_url} — 출처·습득일 구간(YYYYMMDD) 전부(scroll)."""
+    body = {"size": 5000, "_source": ["image_url"], "sort": ["_doc"], "query": {"bool": {"filter": [
+        {"term": {"source": source}}, {"range": {"found_at": {"gte": _ymd_iso(start), "lte": _ymd_iso(end)}}}]}}}
+    res = _os(f"/{settings.opensearch_index}/_search?scroll=2m", body)
+    sid, out = res.get("_scroll_id"), {}
+    try:
+        while res["hits"]["hits"]:
+            out.update({h["_id"]: (h.get("_source") or {}).get("image_url", "") for h in res["hits"]["hits"]})
+            res = _os("/_search/scroll", {"scroll": "2m", "scroll_id": sid})
+            sid = res.get("_scroll_id", sid)
+    finally:
+        if sid:
+            try:
+                _os("/_search/scroll", {"scroll_id": sid}, method="DELETE")
+            except Exception:  # noqa: BLE001 — 정리 못 해도 2분 뒤 자동 만료
+                pass
+    return out
+
+
+def _bulk_actions(lines: list[str], chunk: int = 2000) -> int:
+    """삭제·부분 수정 _bulk(줄 단위 NDJSON). 오류 건수 반환(이미 없는 문서 삭제 404는 오류 아님)."""
+    errors = 0
+    for i in range(0, len(lines), chunk):
+        body = ("\n".join(lines[i : i + chunk]) + "\n").encode("utf-8")
+        req = urllib.request.Request(f"{settings.opensearch_url}/_bulk", body, {"Content-Type": "application/x-ndjson"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            res = json.load(r)
+        errors += sum(1 for it in res.get("items", []) for v in it.values()
+                      if v.get("status", 200) >= 300 and v.get("status") != 404)
+    return errors
+
+
+def _closed_confirmed(source: str, ids: list[str]) -> bool:
+    """지울 대상 표본을 상세 조회 — 하나라도 '보관중'이면 False(목록 누락 의심). 확인된 게 하나도 없어도 False."""
+    confirmed = 0
+    for i in ids:
+        atc, _, sn = i.rpartition("_")
+        try:
+            d = client.get_detail(source, atc, sn or "1")
+        except Exception:  # noqa: BLE001
+            continue
+        if (d.get("csteSteNm") or "").strip() == "보관중":
+            return False
+        confirmed += 1
+    return confirmed > 0
+
+
+def reconcile(source: str, start: str, end: str, listed: list[dict], complete: bool, dry_run: bool = False) -> dict:
+    """색인(출처·습득일 구간)을 경찰 목록과 대조 → 목록에 없는 것(종결) 삭제, 사진 주소가 바뀐 것 갱신."""
+    stat = {"source": source, "range": f"{start}~{end}", "listed": len(listed), "indexed": 0,
+            "closed": 0, "photo": 0, "skipped": ""}
+    if not complete:
+        stat["skipped"] = "목록을 끝까지 받지 못함"
+        return stat
+    have = indexed_in_range(source, start, end)
+    stat["indexed"] = len(have)
+    now = {list_id(li): li.get("fdFilePathImg", "") for li in listed}
+    gone = [i for i in have if i not in now]
+    if gone and not listed:
+        stat["skipped"] = "목록이 비었음(장애 의심) — 삭제 보류"
+        gone = []
+    elif gone and not _closed_confirmed(source, random.sample(gone, min(CLOSED_SAMPLE, len(gone)))):
+        stat["skipped"] = "표본 중 보관중이 있음(목록 누락 의심) — 삭제 보류"
+        gone = []
+    changed = {i: now[i] for i in have if i in now and now[i] and now[i] != have[i]}
+    stat["closed"], stat["photo"] = len(gone), len(changed)
+    if not dry_run and (gone or changed):
+        idx = settings.opensearch_index
+        lines = [json.dumps({"delete": {"_index": idx, "_id": i}}) for i in gone]
+        for i, url in changed.items():
+            lines += [json.dumps({"update": {"_index": idx, "_id": i}}), json.dumps({"doc": {"image_url": url}})]
+        stat["errors"] = _bulk_actions(lines)
+    return stat
+
+
+def older_range(today: date, keep_days: int, chunk_days: int = 30, recent_days: int = 7) -> tuple[str, str]:
+    """수집 창(최근 recent_days일)보다 오래된 보관 기간(keep_days일)을 chunk_days일씩 돌아가며 — 밤마다 한 덩어리.
+
+    보관 기간 185일·덩어리 30일이면 7일마다 전체를 한 번씩 대조(목록 호출은 하루 수십 건 — 한도 10만/일).
+    """
+    oldest = today - timedelta(days=keep_days)
+    newest = today - timedelta(days=recent_days + 1)
+    n = max(1, -(-((newest - oldest).days + 1) // chunk_days))
+    a = oldest + timedelta(days=(today.toordinal() % n) * chunk_days)
+    b = min(newest, a + timedelta(days=chunk_days - 1))
+    return a.strftime("%Y%m%d"), b.strftime("%Y%m%d")
+
+
+def _print_reconcile(stat: dict, dry_run: bool) -> None:
+    head = "[정리·시험]" if dry_run else "[정리]"
+    print(f"  {head} {stat['source']} {stat['range']}: 경찰 목록 {stat['listed']}건 · 색인 {stat['indexed']}건 → "
+          f"종결 삭제 {stat['closed']}건 · 사진 갱신 {stat['photo']}건"
+          + (f" · 오류 {stat['errors']}건" if stat.get("errors") else "")
+          + (f" ({stat['skipped']})" if stat["skipped"] else ""), flush=True)
+
+
 BATCH = 500  # 상세 조회 → 임베딩 → 색인을 이 단위로 — 중간에 끊겨도 앞 배치는 남고, 재실행 시 스킵으로 이어감
 
 
 def new_items(source: str, start: str, end: str, rows: int, max_items: int,
-              skip_existing: bool = False) -> list[dict]:
-    """목록 조회 + (선택) 이미 색인된 항목 제외."""
-    items = list_items(source, start, end, rows, max_items)
+              skip_existing: bool = False, listed: list[dict] | None = None) -> list[dict]:
+    """목록 조회 + (선택) 이미 색인된 항목 제외. listed를 주면 목록을 다시 받지 않음(정리에서 이미 받은 것)."""
+    items = list_items(source, start, end, rows, max_items) if listed is None else listed
     if skip_existing and items:
         have = existing_ids([list_id(li) for li in items])
         new = [li for li in items if list_id(li) not in have]
@@ -174,7 +311,12 @@ def main() -> None:
     ap.add_argument("--rematch", action="store_true", help="색인 후 open 분실물 지속 재매칭 실행")
     ap.add_argument("--refresh-existing", action="store_true",
                     help="이미 색인된 항목도 다시 상세 조회·임베딩(기본: 새 항목만)")
+    ap.add_argument("--reconcile", action="store_true",
+                    help="경찰 목록과 대조해 종결된 습득물 삭제·사진 갱신(수집 창 + 오래된 구간 한 덩어리)")
+    ap.add_argument("--reconcile-only", action="store_true", help="대조만(새 항목 수집·재매칭 없이)")
+    ap.add_argument("--reconcile-chunk-days", type=int, default=30, help="밤마다 대조할 오래된 구간 길이(일)")
     args = ap.parse_args()
+    args.reconcile = args.reconcile or args.reconcile_only
 
     indexing = not (args.dry_run or args.no_embed)
     sources = ["police", "portal"] if args.source == "both" else [args.source]
@@ -182,8 +324,22 @@ def main() -> None:
     sample = None
     for src in sources:
         print(f"[{src}] 수집 {args.start}~{args.end} (max {args.max}, enrich={args.enrich})")
+        listed = None
+        if args.reconcile:
+            listed, complete = list_all(src, args.start, args.end, args.rows, args.max)
+            try:
+                _print_reconcile(reconcile(src, args.start, args.end, listed, complete, dry_run=not indexing),
+                                 not indexing)
+                o_start, o_end = older_range(date.today(), settings.found_retention_days, args.reconcile_chunk_days)
+                o_listed, o_complete = list_all(src, o_start, o_end, args.rows, 500_000)
+                _print_reconcile(reconcile(src, o_start, o_end, o_listed, o_complete, dry_run=not indexing),
+                                 not indexing)
+            except Exception as e:  # noqa: BLE001 — 정리 실패가 수집·재매칭을 막지 않게
+                print(f"  ! 정리 실패: {type(e).__name__}: {e}")
+            if args.reconcile_only:
+                continue
         items = new_items(src, args.start, args.end, args.rows, args.max,
-                          skip_existing=indexing and not args.refresh_existing)
+                          skip_existing=indexing and not args.refresh_existing, listed=listed)
         for i in range(0, len(items), BATCH):  # 배치마다 상세 → (임베딩·색인) — 끊겨도 앞 배치는 보존
             docs = enrich_docs(src, items[i : i + BATCH], args.enrich)
             for d in docs:  # 구/시 해석해 색인에 저장(둘러보기 지역 필터·집계용, 비용 0)

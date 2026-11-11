@@ -94,7 +94,7 @@ def test_privacy_notice_is_short_but_keeps_ai_and_consent_visible(path, ai_line,
     """입력창 아래 개인정보 안내는 체크 3개 + 한 줄로 줄이되, 국외 AI 분석 사실과 방침 동의는 접지 않고 보이게.
     삭제 시점(알림 기간 종료 + 30일)은 '자세히' 안에만 — 칩에 '30일 뒤 삭제'처럼 틀리게 줄여 쓰지 않음."""
     body = client.get(path, headers=KO_BROWSER).text
-    card = body[body.index('class="search-card"'):body.index('class="trust-row"')]
+    card = body[body.index('class="search-card"'):body.index('id="resultCard"')]
     visible, detail = card.split('class="privacy-more"', 1)
     assert ai_line in visible and policy in visible
     assert "30" not in visible[visible.index('class="assure"'):] and "30" in detail
@@ -153,3 +153,21 @@ def test_search_engine_verification_tag_on_home():
     t = client.get("/", headers=KO_BROWSER).text
     for name, value in SITE_VERIFICATION.items():
         assert f'<meta name="{name}" content="{value}" />' in t
+
+
+@pytest.mark.parametrize("path,chapter", [("/ko", "알림 신청"), ("/en", "Get alerts")])
+def test_home_has_flow_demo_with_text_alternative(path, chapter):
+    """첫 화면 25초 시연: 시연 틀은 화면낭독기에서 숨기고(aria-hidden), 같은 내용을 단계 목록 글로 제공.
+    로컬 미리보기 전용 스크립트(예시 데이터)는 운영 페이지에 실리지 않음."""
+    body = client.get(path, headers=KO_BROWSER).text
+    assert 'id="flowDevice" aria-hidden="true"' in body and 'id="flowDemo"' in body
+    assert 'id="flowSteps"' in body and chapter in body and 'id="flowToggle"' in body   # 일시정지 버튼
+    assert "/static/js/demo.js?v=" in body and "preview_v2" not in body
+
+
+@pytest.mark.parametrize("path,photo,sort", [("/browse", "사진 있는 것만", "오래된순"),
+                                             ("/en/browse", "With photo", "Oldest first")])
+def test_browse_page_has_photo_filter_and_sort(path, photo, sort):
+    body = client.get(path, headers=KO_BROWSER).text
+    assert 'id="bphoto"' in body and photo in body and 'value="with"' in body and 'value="without"' in body
+    assert 'id="bsort"' in body and sort in body and 'value="old"' in body

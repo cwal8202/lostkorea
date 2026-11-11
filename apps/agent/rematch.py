@@ -48,7 +48,7 @@ def alert_level(grade: int | None, notify_weak: bool) -> str | None:
 
 
 _SLIM_KEYS = ("atc_id", "fd_sn", "name", "subject", "description", "category", "color", "dep_place",
-              "region", "found_at", "org_name", "tel", "source", "image_url", "score", "grade", "reason",
+              "found_place", "region", "found_at", "org_name", "tel", "source", "image_url", "score", "grade", "reason",
               "name_en", "desc_en", "visual_score", "visual_reason")
 
 

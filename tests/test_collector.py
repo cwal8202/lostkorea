@@ -139,3 +139,69 @@ def test_existing_ids_treats_docs_without_detail_as_missing(monkeypatch):
                      {"_id": "C_1", "found": False}]}
     monkeypatch.setattr(run.urllib.request, "urlopen", lambda req, timeout=0: io.BytesIO(json.dumps(docs).encode()))
     assert run.existing_ids(["A_1", "B_1", "C_1"]) == {"A_1"}
+
+
+# ── 정리: 경찰 목록과 대조(종결 삭제·사진 갱신) ──
+
+def _reconcile_env(monkeypatch, indexed: dict, detail_state: str = "종결"):
+    sent = []
+    monkeypatch.setattr(run, "indexed_in_range", lambda *a: dict(indexed))
+    monkeypatch.setattr(run, "_bulk_actions", lambda lines: sent.extend(lines) or 0)
+    monkeypatch.setattr(run.client, "get_detail", lambda *a: {"csteSteNm": detail_state})
+    return sent
+
+
+def test_reconcile_deletes_closed_and_updates_changed_photos(monkeypatch):
+    sent = _reconcile_env(monkeypatch, {"A_1": "http://x/a.jpg", "B_1": "http://x/b.jpg", "C_1": ""})
+    listed = [dict(_li("A"), fdFilePathImg="http://x/a.jpg"),           # 그대로
+              dict(_li("B"), fdFilePathImg="https://p/img02_no_img.gif")]  # 사진 내려감 / C는 목록에 없음(종결)
+    stat = run.reconcile("police", "20261104", "20261110", listed, complete=True)
+    assert stat["closed"] == 1 and stat["photo"] == 1 and not stat["skipped"]
+    acts = [json.loads(x) for x in sent]
+    assert {"delete": {"_index": run.settings.opensearch_index, "_id": "C_1"}} in acts
+    assert {"doc": {"image_url": "https://p/img02_no_img.gif"}} in acts
+    assert not any(a.get("delete", {}).get("_id") in ("A_1", "B_1") for a in acts)
+
+
+def test_reconcile_holds_deletion_when_sample_is_still_held(monkeypatch):
+    """목록에서 빠졌는데 상세는 '보관중' → 목록 누락 의심 → 삭제 안 함(사진 갱신은 진행)."""
+    sent = _reconcile_env(monkeypatch, {"A_1": "", "C_1": ""}, detail_state="보관중")
+    stat = run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True)
+    assert stat["closed"] == 0 and "보관중" in stat["skipped"]
+    assert not any("delete" in json.loads(x) for x in sent)
+
+
+def test_reconcile_skips_incomplete_or_empty_lists(monkeypatch):
+    sent = _reconcile_env(monkeypatch, {"A_1": "", "C_1": ""})
+    assert run.reconcile("police", "20261104", "20261110", [_li("A")], complete=False)["skipped"]  # 목록 중간에 끊김
+    stat = run.reconcile("police", "20261104", "20261110", [], complete=True)                      # 목록 0건(장애 의심)
+    assert stat["closed"] == 0 and stat["skipped"] and sent == []
+
+
+def test_reconcile_dry_run_changes_nothing(monkeypatch):
+    sent = _reconcile_env(monkeypatch, {"C_1": ""})
+    stat = run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True, dry_run=True)
+    assert stat["closed"] == 1 and sent == []
+
+
+def test_list_all_reports_whether_the_list_was_complete(monkeypatch):
+    pages = {1: [_li("A"), _li("B")], 2: [_li("C")]}
+    monkeypatch.setattr(run.client, "get_list", lambda s, a, b, page, rows: {
+        "items": pages.get(page, []), "total": 3, "code": "00", "msg": ""})
+    items, complete = run.list_all("police", "20261104", "20261110", 2, 100)
+    assert len(items) == 3 and complete
+    monkeypatch.setattr(run.client, "get_list", lambda s, a, b, page, rows: {
+        "items": [] if page > 1 else [_li("A")], "total": 3, "code": "00", "msg": ""})
+    assert run.list_all("police", "20261104", "20261110", 1, 100)[1] is False   # 3건 중 1건만 받음
+
+
+def test_older_range_rotates_through_holding_period():
+    from datetime import date, timedelta
+    seen = set()
+    for k in range(10):
+        a, b = run.older_range(date(2026, 11, 12) + timedelta(days=k), keep_days=185, chunk_days=30)
+        assert a <= b
+        seen.add(a)
+    assert len(seen) >= 6                                    # 며칠에 걸쳐 오래된 구간을 고루 돌아감
+    a, b = run.older_range(date(2026, 11, 12), keep_days=185, chunk_days=30)
+    assert "20260511" <= a and b <= "20261104"              # 보관 기간 안 · 최근 7일 창 밖

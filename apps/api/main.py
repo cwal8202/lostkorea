@@ -296,8 +296,10 @@ def browse_found_items(
     date_to: str = Query("", max_length=10, description="습득일 끝 YYYY-MM-DD"),
     page: int = Query(1, ge=1, description="페이지(1부터)"),
     size: int = Query(24, ge=1, le=100, description="페이지당 개수"),
+    photo: str = Query("", pattern="^(|with|without)$", description="사진: with=있는 것만, without=없는 것만, 빈값=전체"),
+    sort: str = Query("new", pattern="^(new|old)$", description="정렬: new=최신순, old=오래된순(습득일 기준)"),
 ) -> dict:
-    """전체 습득물 둘러보기 — 키워드/지역/날짜 필터 + 최신순. 임베딩 미사용(외국어 키워드만 번역 1회·캐시)."""
+    """전체 습득물 둘러보기 — 키워드/지역/날짜/사진 필터 + 최신순·오래된순. 임베딩 미사용(외국어 키워드만 번역 1회·캐시)."""
     if page * size > 10_000:  # OpenSearch 기본 max_result_window
         raise HTTPException(status_code=400, detail="더 이상 볼 수 없는 페이지예요. 검색 조건을 좁혀주세요.")
     if search_mod.needs_translation(q):  # 캐시에 없는 외국어 검색어만 LLM 호출 → 한도·예산 소비
@@ -306,7 +308,7 @@ def browse_found_items(
     if page == 1 and not _is_bot(request):  # 첫 페이지 조회만(페이지 넘김은 같은 조회)
         store.bump("browse")
     return search_mod.browse(q=q, region=region, date_from=date_from, date_to=date_to,
-                             page=page, size=size)
+                             page=page, size=size, photo=photo, sort=sort)
 
 
 @app.post("/lost-items", response_model=MatchResponse)
@@ -355,7 +357,13 @@ def _public_item(it: dict) -> dict:
     }
 
 
-_PRIVATE_FIELDS = ("email", "user_id", "token_hash", "verify_hash", "verify_expires", "graded_ids")
+_PRIVATE_FIELDS = ("email", "user_id", "token_hash", "verify_hash", "verify_expires", "graded_ids", "link_hashes")
+
+
+def _mask_email(email: str) -> str:
+    """알림 받는 이메일을 본인이 알아볼 만큼만(m•••@example.com) — 화면·응답에 전체 주소를 싣지 않음."""
+    local, _, domain = (email or "").partition("@")
+    return f"{local[:1]}•••@{domain}" if local and domain else ""
 
 
 def _owned(lid: str, token: str | None) -> dict:
@@ -377,9 +385,11 @@ def my_lost_items(req: MineRequest) -> list[dict]:
 
 @app.get("/lost-items/{lid}")
 def get_lost_item(lid: str, x_report_token: str | None = Header(None)) -> dict:
-    """신고 상세 — 관리 토큰을 가진 신고자만. 이메일 등 개인정보는 응답에 싣지 않음."""
+    """신고 상세 — 관리 토큰(또는 알림 메일 링크 토큰)을 가진 신고자만. 이메일은 가린 형태로만."""
     item = _owned(lid, x_report_token)
-    return {k: v for k, v in item.items() if k not in _PRIVATE_FIELDS}
+    out = {k: v for k, v in item.items() if k not in _PRIVATE_FIELDS}
+    out["email_masked"] = _mask_email(item.get("email") or "")
+    return out
 
 
 @app.post("/lost-items/{lid}/alerts")
@@ -394,7 +404,8 @@ def update_lost_item_alerts(lid: str, req: AlertSettingsRequest, request: Reques
 
     limiter.hit(f"alerts:{client_ip(request)}", settings.limit_alerts_hour, _HOUR)
     item = _owned(lid, x_report_token)
-    email = (req.email or "").strip()
+    # email 생략(None) = 지금 이메일 유지 — 기간만 바꾸려다 빈 칸 때문에 알림이 꺼지지 않게. ""는 알림 끄기.
+    email = (item.get("email") or "") if req.email is None else req.email.strip()
     if email and not _valid_email(email):
         raise HTTPException(status_code=400, detail="유효한 이메일이 아닙니다")
     notify_weak = bool(req.notify_weak and email)
@@ -410,7 +421,8 @@ def update_lost_item_alerts(lid: str, req: AlertSettingsRequest, request: Reques
         else:
             store.set_pending_email(lid, "", None, None)  # 이메일 비움 → 알림 해제
     verified = bool(email) and email == (item.get("email") or "") and item.get("email_verified", False)
-    return {"ok": True, "email": email, "email_verified": verified, "verification_sent": verification_sent,
+    shown = email if req.email is not None else _mask_email(email)  # 방금 입력한 주소만 그대로, 유지한 주소는 가림
+    return {"ok": True, "email": shown, "email_verified": verified, "verification_sent": verification_sent,
             "notify_weak": notify_weak, "watch_until": watch_until,
             "status": status or item.get("status")}
 

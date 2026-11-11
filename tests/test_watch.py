@@ -180,3 +180,43 @@ def test_alerts_requires_token_and_valid_email(fake):
     assert client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token},
                        json={"email": "nope"}).status_code == 400
     assert client.post("/lost-items/missing/alerts", headers={"X-Report-Token": token}, json={}).status_code == 404
+
+
+# ── 알림 메일 링크로 결과 다시 보기(다른 기기에서도) ──
+
+def test_email_link_token_opens_report_on_another_device():
+    lid, token = _report(matches=[{"atc_id": "A_1", "name": "지갑", "grade": 90}], email="me@x.com")
+    link = store.new_link_token(lid)
+    assert link != token
+    r = client.get(f"/lost-items/{lid}", headers={"X-Report-Token": link})      # 등록한 브라우저가 아니어도
+    body = r.json()
+    assert r.status_code == 200 and body["matches"][0]["atc_id"] == "A_1"
+    assert "email" not in body and body["email_masked"] == "m•••@x.com"          # 이메일은 가린 형태로만
+    assert "link_hashes" not in body and "token_hash" not in body
+    ok = client.post(f"/lost-items/{lid}/confirm", headers={"X-Report-Token": link}, json={"atc_id": "A_1"})
+    assert ok.status_code == 200 and store.get(lid)["status"] == "confirmed"      # '내 물건이에요'까지 가능
+
+
+def test_email_link_tokens_keep_recent_ones_and_reject_others():
+    lid, _ = _report()
+    first = store.new_link_token(lid)
+    second = store.new_link_token(lid)
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": first}).status_code == 200  # 지난 메일 링크도 유효
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": second}).status_code == 200
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": "guess"}).status_code == 404
+    other, _ = _report()
+    assert client.get(f"/lost-items/{other}", headers={"X-Report-Token": second}).status_code == 404  # 다른 신고엔 무효
+    for _ in range(store.LINK_KEEP):
+        store.new_link_token(lid)
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": first}).status_code == 404  # 오래된 링크부터 만료
+    assert len(store.get(lid)["link_hashes"]) == store.LINK_KEEP
+
+
+def test_alerts_without_email_field_keep_current_email(fake):
+    lid, token = _report(email="me@x.com")
+    store._run("UPDATE lost_items SET email_verified=1 WHERE id=?", (lid,))
+    r = client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"watch_days": 90})
+    assert r.status_code == 200 and r.json()["email"] == "m•••@x.com" and r.json()["email_verified"]
+    assert store.get(lid)["email"] == "me@x.com" and fake.verify_links == []      # 기간만 바꿔도 알림 유지
+    client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": ""})
+    assert store.get(lid)["email"] == ""                                           # ""는 알림 끄기

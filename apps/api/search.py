@@ -39,6 +39,7 @@ def _item(s: dict, _id: str = "", score: float = 0.0) -> dict:
         "category": s.get("category", ""),
         "color": s.get("color", ""),
         "dep_place": s.get("dep_place", ""),
+        "found_place": s.get("found_place", ""),  # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
         "region": s.get("region") or resolver.resolve(s.get("dep_place", "")),
         "found_at": s.get("found_at", ""),
         "org_name": s.get("org_name", ""),
@@ -82,9 +83,21 @@ def translate_keyword(q: str) -> str:
     return ko or q
 
 
+# 사진 있는 습득물 = image_url이 http로 시작하고 경찰청 '사진 없음' 그림(no_img)이 아님.
+# image_url은 색인 안 함(index:false)이라 term/prefix 질의가 안 됨 → 문서값(doc_values)을 스크립트로 판정.
+# 11/12 운영 실측: 181,671건 중 48,725건(27%). 첫 페이지 조회 0.26~0.28초(조건 없을 때 0.02~0.03초),
+# 키워드와 함께면 0.13초. 더 느려지면 색인에 has_image 필드를 따로 두는 방식으로 바꿀 것.
+_PHOTO_SCRIPT = {"script": {"source": (
+    "def v = doc['image_url']; "
+    "return v.size() > 0 && v.value.startsWith('http') && !v.value.contains('no_img')"
+)}}
+
+
 def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = "",
-           page: int = 1, size: int = 24) -> dict:
-    """전체 습득물 둘러보기 — BM25 키워드 + 지역/날짜 필터 + 최신순(임베딩 미사용, 즉시).
+           page: int = 1, size: int = 24, photo: str = "", sort: str = "new") -> dict:
+    """전체 습득물 둘러보기 — BM25 키워드 + 지역/날짜/사진 필터 + 최신순·오래된순(임베딩 미사용, 즉시).
+
+    photo: "with"=사진 있는 것만, "without"=사진 없는 것만, 그 외=전체. sort: "old"=오래된순, 그 외=최신순.
 
     반환: {total, page, size, items, regions(집계)}. region 드롭다운은 regions 집계로 구성.
     외국인 대응: 키워드에 한글이 없으면(영어·일본어 등) 한국어로 번역해 검색(데이터가 한국어라 BM25 매칭되게).
@@ -108,11 +121,17 @@ def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = ""
         if date_to:
             rng["lte"] = date_to
         filt.append({"range": {"found_at": rng}})
+    must_not: list[dict] = []
+    if photo == "with":
+        filt.append({"script": _PHOTO_SCRIPT})
+    elif photo == "without":
+        must_not.append({"script": _PHOTO_SCRIPT})
+    order = "asc" if sort == "old" else "desc"
 
     body = {
         "from": max(0, (page - 1) * size), "size": size,
-        "query": {"bool": {"must": must or [{"match_all": {}}], "filter": filt}},
-        "sort": [{"found_at": {"order": "desc", "missing": "_last"}}, "_score"],
+        "query": {"bool": {"must": must or [{"match_all": {}}], "filter": filt, "must_not": must_not}},
+        "sort": [{"found_at": {"order": order, "missing": "_last"}}, "_score"],
         "_source": {"excludes": ["embedding"]},
         "aggs": {"regions": {"terms": {"field": "region", "size": 100}}},
         "track_total_hits": True,
@@ -174,6 +193,7 @@ def search(
             "category": s.get("category", ""),
             "color": s.get("color", ""),
             "dep_place": s.get("dep_place", ""),
+            "found_place": s.get("found_place", ""),
             "region": region,
             "found_at": s.get("found_at", ""),
             "org_name": s.get("org_name", ""),

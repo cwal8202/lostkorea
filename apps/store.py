@@ -28,7 +28,8 @@ else:
 
     from apps.api.config import settings
 
-_JSON_COLS = ("extracted", "region_set", "queries", "best_match", "dismissed", "weak_notified", "matches", "graded_ids")
+_JSON_COLS = ("extracted", "region_set", "queries", "best_match", "dismissed", "weak_notified", "matches", "graded_ids",
+              "link_hashes")
 
 
 KST = timezone(timedelta(hours=9))
@@ -117,6 +118,7 @@ def init() -> None:
             verify_expires TEXT,
             matches TEXT,
             graded_ids TEXT,
+            link_hashes TEXT,
             created_at TEXT,
             matched_at TEXT
         )
@@ -134,7 +136,7 @@ def init() -> None:
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
              "token_hash": "TEXT", "email_verified": "INTEGER DEFAULT 0", "verify_hash": "TEXT",
-             "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT"}
+             "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT", "link_hashes": "TEXT"}
     if _PG:
         for col, typ in added.items():
             _run(f"ALTER TABLE lost_items ADD COLUMN IF NOT EXISTS {col} {typ}")
@@ -203,10 +205,30 @@ def get_many(lids: list[str]) -> list[dict]:
 
 
 def check_token(row: dict | None, token: str | None) -> bool:
-    """신고 관리 토큰 검증(상수 시간 비교). 토큰이 없는 옛 신고는 변경 불가."""
+    """신고 관리 토큰 검증(상수 시간 비교). 토큰이 없는 옛 신고는 변경 불가.
+
+    등록 때 브라우저가 받은 토큰 외에, 알림 메일 링크에 넣은 '링크 토큰'(최근 LINK_KEEP개)도 같은 권한 —
+    다른 기기에서 메일을 열어도 결과를 보고 '내 물건이에요'를 누를 수 있게.
+    """
     if not row or not token or not row.get("token_hash"):
         return False
-    return hmac.compare_digest(row["token_hash"], hash_token(token))
+    h = hash_token(token)
+    ok = hmac.compare_digest(row["token_hash"], h)
+    for lh in row.get("link_hashes") or []:
+        ok |= hmac.compare_digest(str(lh), h)
+    return ok
+
+
+LINK_KEEP = 10  # 신고당 유효한 메일 링크 토큰 수(오래된 메일의 링크부터 만료)
+
+
+def new_link_token(lid: str) -> str:
+    """알림 메일에 넣을 신고 전용 링크 토큰 발급 — 원문은 메일에만, 서버엔 해시만(최근 LINK_KEEP개) 저장."""
+    token = secrets.token_urlsafe(24)
+    row = get(lid) or {}
+    hashes = (row.get("link_hashes") or [])[-(LINK_KEEP - 1):] + [hash_token(token)]
+    _run("UPDATE lost_items SET link_hashes=? WHERE id=?", (json.dumps(hashes), lid))
+    return token
 
 
 def update_match(lid: str, best_match: dict, best_grade: int, status: str,

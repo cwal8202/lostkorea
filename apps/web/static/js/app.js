@@ -47,7 +47,8 @@ const I18N = {
     catPrefix:"분류:", zoom:"클릭하면 크게 보기", searching:"찾는 중…",
     naverMap:"네이버 지도", googleMap:"구글 지도",
     helpline:"외국인이라 통화가 어렵다면 <b>1330 관광통역안내전화</b>(24시간)로 전화하면 보관기관과의 통화를 통역해줘요.",
-    lost112:"(경찰청 유실물 통합포털)",
+    lost112:"(경찰민원24 · 경찰청 습득물 원본)",
+    lblPlace:"습득 장소", noteLbl:"특이사항", origShow:"원본 글 보기", origLink:"경찰청 원본 글", noPhoto:"사진 없음",
     xlateFail:"번역 서비스(Google)에 연결하지 못했어요. 영어 화면을 이용해 주세요.",
     subtitle:"잃어버린 물건을 자연어로 적으면, 습득물 공개데이터에서 찾아드려요.",
     tabFind:"🔍 AI로 찾기", tabBrowse:"📋 전체 둘러보기", register:"분실물 찾기",
@@ -81,6 +82,9 @@ const I18N = {
     alertTitle:"알림 설정",
     alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
     alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
+    alertTo:(e, ok)=>`알림 받는 이메일: <b>${e}</b>${ok ? "" : " (확인 대기 중)"}`, alertOff:"이메일 알림 끄기",
+    alertOffDone:"이메일 알림을 껐어요. 다시 받으려면 이메일을 입력하고 저장하세요.", emailPhChange:"다른 이메일로 바꾸려면 입력",
+    viewResult:"결과 보기", linkGone:"이 신고를 찾을 수 없어요. 삭제됐거나 보관 기간이 끝났을 수 있어요.",
     verifySent:(e)=>`<b>${e}</b>로 확인 메일을 보냈어요. 메일의 <b>[알림 받기 확인]</b>을 눌러야 알림이 켜져요.`,
     tooMany:"요청이 너무 많아요. 잠시 후 다시 시도해주세요.",
     privacyNote:'이름·전화번호 등 개인정보는 적지 마세요. 신고 내용·사진은 매칭을 위해 Google Gemini로 분석되고(사진은 저장 안 함), 신고는 알림 기간이 끝나고 30일 뒤 자동 삭제돼요. 신고하면 <a href="/privacy" target="_blank">개인정보처리방침</a>·<a href="/terms" target="_blank">이용약관</a>에 동의한 것으로 봐요.',
@@ -90,7 +94,7 @@ const I18N = {
     resultsSent:(x)=>`지금 결과도 ${x}로 보냈어요.`,
     emailPh2:"이메일 주소", emailInvalid:"유효한 이메일을 입력하세요.",
     browseXlate:"", perPage:"개씩", browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
-    prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
+    prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", retry:"다시 시도", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
     mineLoadFail:"목록을 불러오지 못했어요.", bestMatch:"최고 매칭",
     showMore:(n)=>`더 보기 (전체 ${n}건)`, collapse:"접기",
     stConfirmed:"확인됨", stCandidate:"유력 후보", stOpen:"찾는중", stExpired:"기간 만료",
@@ -119,7 +123,8 @@ const I18N = {
     catPrefix:"Category: ", zoom:"Click to enlarge", searching:"Searching…",
     naverMap:"Naver Map", googleMap:"Google Maps",
     helpline:"Don't speak Korean? Call <b>1330 (Korea Travel Helpline, 24/7)</b> — they can interpret your call with the holding office. From a foreign phone: +82-2-1330.",
-    lost112:"(Korean National Police lost &amp; found portal, Korean only)",
+    lost112:"(Korean National Police Minwon24, Korean only)",
+    lblPlace:"Place", noteLbl:"Notes", origShow:"Show original listing", origLink:"Original listing (Korean)", noPhoto:"No photo",
     xlateFail:"Couldn't reach the translation service (Google). Please use the English page.",
     subtitle:"Describe your lost item in any language — we search Korea's public found-item data.",
     tabFind:"🔍 AI Search", tabBrowse:"📋 Browse all", register:"Find a lost item",
@@ -153,6 +158,9 @@ const I18N = {
     alertTitle:"Alert settings",
     alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
     alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
+    alertTo:(e, ok)=>`Alerts go to <b>${e}</b>${ok ? "" : " (waiting for confirmation)"}`, alertOff:"Turn off email alerts",
+    alertOffDone:"Email alerts are off. To turn them back on, enter an email and save.", emailPhChange:"Enter a new email to change it",
+    viewResult:"View results", linkGone:"We couldn't find this report. It may have been deleted or expired.",
     verifySent:(e)=>`We sent a confirmation email to <b>${e}</b>. Press <b>Confirm</b> in that email to turn on alerts.`,
     tooMany:"Too many requests. Please try again shortly.",
     privacyNote:'Please do not include names or phone numbers. Your text/photo is analyzed by Google Gemini for matching (photos are not stored), and reports are deleted automatically 30 days after the alert period ends. By submitting you agree to the <a href="/privacy" target="_blank">Privacy Policy</a> and <a href="/terms" target="_blank">Terms</a>.',
@@ -163,7 +171,7 @@ const I18N = {
     emailPh2:"Email address", emailInvalid:"Enter a valid email.",
     browseXlate:"Item names &amp; descriptions here are in Korean. To read them in your language, use your browser's <b>“Translate page”</b> (right-click → Translate, or the translate icon in the address bar).",
     perPage:"per page", browseCount:(n)=>`${n.toLocaleString()} total`, noItems:"No found items match.", noName:"(no name)",
-    prev:"‹ Prev", next:"Next ›", loadFail:"Couldn't load.", mineEmpty:"No reports from this browser yet.",
+    prev:"‹ Prev", next:"Next ›", loadFail:"Couldn't load.", retry:"Try again", mineEmpty:"No reports from this browser yet.",
     mineLoadFail:"Couldn't load the list.", bestMatch:"Best match",
     showMore:(n)=>`Show all (${n})`, collapse:"Collapse",
     stConfirmed:"Confirmed", stCandidate:"Strong match", stOpen:"Searching", stExpired:"Expired",
@@ -194,6 +202,47 @@ const mapLinks = (m) => (m.org_name || m.region)
 // EN 모드: grade가 함께 만든 영어 물품명·설명 사용(없으면 한국어 원문). 둘러보기 항목은 번역 없음.
 const dispName = (m) => (LANG === "en" && m.name_en) ? m.name_en : m.name;
 const dispDesc = (m) => (LANG === "en" && m.desc_en) ? m.desc_en : cleanDesc(m.description);
+
+// 경찰청 원문(특이사항 칸)은 대개 "○○에서는 [날짜] [물건]을 습득/보관 하였습니다 … 특이사항 : …" 틀이라
+// 정작 단서인 '특이사항'이 맨 끝에 있음 → 끝의 특이사항만 뽑아 먼저 보여 주고, 원문 전체는 '원본 글 보기'로 펼침.
+const NOTE_RE = /특이\s*사항\s*[:：]?\s*([\s\S]*)$/;
+const NOTE_NONE = /^(없음|없습니다|해당\s*없음|무|-|\.)?$/;
+function descNote(s) {  // 특이사항 내용 / ""(없음) / null(틀이 아닌 글 — 기관이 직접 쓴 설명 등)
+  const m = (s || "").match(NOTE_RE);
+  if (!m) return null;
+  const v = m[1].replace(/\s+/g, " ").trim();
+  return NOTE_NONE.test(v) ? "" : v;
+}
+const cut = (s, n) => s.length > n ? s.slice(0, n) + "…" : s;
+// 특이사항 줄이 없는 원문에서 상투 문장("…을 습득/보관 하였습니다", "분실하신 분께서는 … 바랍니다")을 걷어냄 → 남는 게 없으면 빈칸
+const stripBoiler = (s) => (s || "").replace(/^[\s\S]*?습득\s*\/?\s*보관\s*하였습니다\.?/, "")
+  .replace(/분실하신\s*분께서는[\s\S]*?바랍니다\.?/, "");
+const origText = (s) => (s || "").replace(/^\s*내용\s*/, "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+// 원본 글(경찰민원24 상세 페이지) — 경찰서·기관 습득물 모두 관리번호(atc_id)+순번(fd_sn)으로 열림(11/12 확인, 로그인 불필요)
+const origUrl = (m) => m.atc_id
+  ? "https://minwon24.police.go.kr/cvlcpt/selectFindListDetail.do?cvlcptId=MW-201&pkupCmdtyMngId="
+    + encodeURIComponent(m.atc_id) + "&sortSn=" + encodeURIComponent(m.fd_sn || "1")
+  : "";
+const origLink = (m, cls = "") => origUrl(m)
+  ? `<a href="${origUrl(m)}" target="_blank" rel="noopener" class="${cls}">${ic('link', 'ic ic-sm')}${t('origLink')}</a>` : "";
+// 설명 칸: 특이사항이 있으면 그것만, 틀이 아닌 글이면 앞부분, '특이사항 없음'이면 생략(원문은 origDetails로)
+function descBlock(m, n = 160) {
+  if (LANG === "en" && m.desc_en) return `<div class="m-reason">${ic('note')}<span>${esc(cut(m.desc_en, n))}</span></div>`;
+  const note = descNote(m.description);
+  if (note) return `<div class="m-reason m-note">${ic('note')}<span><b>${t('noteLbl')}</b> ${esc(cut(note, n))}</span></div>`;
+  const d = note === null ? cleanDesc(stripBoiler(m.description)) : "";
+  return d ? `<div class="m-reason">${ic('note')}<span>${esc(cut(d, n))}</span></div>` : "";
+}
+// 원본 글 펼쳐 보기: 경찰청 게시 제목 + 원문 전체(줄바꿈 유지) + 원본 페이지 링크
+function origDetails(m) {
+  const raw = origText(m.description), url = origUrl(m);
+  if (!raw && !m.subject && !url) return "";
+  return `<details class="orig"><summary>${t('origShow')}</summary><div class="orig-body">
+      ${m.subject ? `<div class="orig-subj">${esc(m.subject)}</div>` : ""}
+      ${raw ? `<div class="orig-text">${esc(raw)}</div>` : ""}
+      ${origLink(m, "orig-link")}
+    </div></details>`;
+}
 
 const EXAMPLES = {
   ko: [["검정 지갑", "어제 서울 지하철 2호선에서 검정색 지갑을 잃어버렸어요"],
@@ -291,7 +340,7 @@ function matchCard(m, idx, preview = false) {
   const btns = preview ? '' : `<div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap">
       <button onclick="confirmMatch(${idx})" class="btn btn-success btn-xs">${ic('check', 'ic ic-sm')}${t('mine')}</button>
       <button onclick="dismissMatch(${idx})" class="btn btn-outline btn-xs">${t('notMine')}</button>
-      ${mapLinks(m)}
+      ${mapLinks(m)}${origLink(m, "maplink")}
     </div>`;
   return `<div class="match" data-idx="${idx}">
     <div class="grade" style="background:${gradeColor(g)}" title="${esc(t('scoreLegend'))}">${g==null?'–':g}<small>${t('scoreLabel')}</small></div>
@@ -300,9 +349,10 @@ function matchCard(m, idx, preview = false) {
       <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
       <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
       ${(m.org_name||m.tel) ? `<div class="m-meta"><span>${ic('building')}${esc(m.org_name)||'-'}</span>${m.tel?`<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>`:''}</div>` : ''}
-      ${dispDesc(m) ? `<div class="m-reason">${ic('note')}<span>${esc(dispDesc(m).slice(0,160))}${dispDesc(m).length>160?'…':''}</span></div>` : ''}
+      ${descBlock(m)}
       ${m.reason ? `<div class="m-reason">${ic('spark')}<span>${esc(m.reason)}</span></div>` : ''}
       ${m.visual_score != null ? `<div class="m-reason" style="color:${gradeColor(m.visual_score)}">${ic('camera')}<span><b>${t('visualSim')} ${m.visual_score}</b>${m.visual_reason ? ` <span class="muted">— ${esc(m.visual_reason)}</span>` : ''}</span></div>` : ''}
+      ${origDetails(m)}
       ${btns}
     </div>
   </div>`;
@@ -368,7 +418,7 @@ function claimGuide(m) {
               <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></li>
         </ol>
         <div class="note info" style="margin-top:10px">${ic('speech', 'ic ic-sm')} ${t('helpline')}</div>
-        <div style="margin-top:8px; font-size:13px">${ic('link', 'ic ic-sm')} <a href="https://www.lost112.go.kr" target="_blank" rel="noopener">lost112.go.kr</a> ${t('lost112')}</div>
+        ${origUrl(m) ? `<div style="margin-top:8px; font-size:13px">${origLink(m)} ${t('lost112')}</div>` : ""}
       </div>
     </div>
     <p class="muted small" style="margin-top:10px">${ic('clock', 'ic ic-sm')} ${t('claimTimeline')}</p>
@@ -431,22 +481,25 @@ function regionExplain(ex) {
 const WATCH_DAYS = [7, 30, 90, 180];  // 알림 기간 선택지(180 = 습득물 최대 보관 ~6개월)
 
 // 결과창 '알림 설정' — 등록 때 이메일을 넣었든 안 넣었든 항상 표시. 이메일·약한 후보·기간을 여기서 변경.
+// 이메일이 이미 있으면(메일 링크로 연 신고 등) 가린 주소를 보여 주고, 빈 칸으로 저장하면 그 이메일 유지(기간만 바꿀 때 알림이 꺼지지 않게).
 function alertPanel(d) {
-  const email = "";
+  const email = d.email_masked || "";
   const opts = WATCH_DAYS.map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${t('days', n)}</option>`).join("");
   return `<div id="alertPanel" class="alert-panel">
       <div class="alert-title">${ic('bell')}${t('alertTitle')}</div>
       <div class="muted small" style="margin-top:4px">${t('alertDesc')}</div>
+      ${email ? `<div class="alert-cur" id="alertCur">${t('alertTo', esc(email), d.email_verified)}
+        <button type="button" class="linkish" onclick="alertsOff()">${t('alertOff')}</button></div>` : ""}
       <div class="row">
-        <input id="alertEmail" type="email" class="input" value="${esc(email)}" placeholder="${t('emailPh2')}" />
+        <input id="alertEmail" type="email" class="input" value="" placeholder="${email ? t('emailPhChange') : t('emailPh2')}" />
         <label class="date-lbl">${t('alertPeriod')} <select id="alertDays" class="input">${opts}</select></label>
         <button class="btn btn-primary" onclick="saveAlerts()">${t('save')}</button>
       </div>
       <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; color:var(--sub); cursor:pointer">
-        <input type="checkbox" id="alertWeak" />
+        <input type="checkbox" id="alertWeak" ${d.notify_weak ? "checked" : ""} />
         <span>${t('notifyWeak')}</span>
       </label>
-      <div id="alertMsg" style="font-size:13px; margin-top:8px">${d.email_pending ? t('verifySent', esc(email)) : (d.watch_until ? t('alertUntil', d.watch_until.slice(0, 10), "") : "")}</div>
+      <div id="alertMsg" style="font-size:13px; margin-top:8px">${d.email_pending ? t('verifySent', esc(email)) : (d.watch_until ? t('alertUntil', d.watch_until.slice(0, 10), d.email_verified ? esc(email) : "") : "")}</div>
     </div>`;
 }
 
@@ -457,7 +510,7 @@ async function saveAlerts() {
   try {
     const res = await fetch(`/lost-items/${_lid}/alerts`, {
       method:"POST", headers: authHeaders(),
-      body: JSON.stringify({ email, notify_weak: $("alertWeak").checked, watch_days: +$("alertDays").value }) });
+      body: JSON.stringify({ email: email || null, notify_weak: $("alertWeak").checked, watch_days: +$("alertDays").value }) });
     if (!res.ok) throw new Error(await errText(res));
     const r = await res.json();
     $("alertWeak").checked = r.notify_weak;  // 이메일 없으면 서버가 옵트인 무효화 → 화면도 맞춤
@@ -467,6 +520,60 @@ async function saveAlerts() {
   } catch (e) {
     $("alertMsg").textContent = t('errPrefix') + e.message;
   }
+}
+
+async function alertsOff() {
+  try {
+    const res = await fetch(`/lost-items/${_lid}/alerts`, { method: "POST", headers: authHeaders(),
+      body: JSON.stringify({ email: "", notify_weak: false, watch_days: +$("alertDays").value }) });
+    if (!res.ok) throw new Error(await errText(res));
+    $("alertCur")?.remove();
+    $("alertWeak").checked = false;
+    $("alertEmail").placeholder = t('emailPh2');
+    $("alertMsg").innerHTML = `${ic('check', 'ic ic-sm')} ${t('alertOffDone')}`;
+    loadMine();
+  } catch (e) {
+    $("alertMsg").textContent = t('errPrefix') + e.message;
+  }
+}
+
+// 알림 메일 링크(#r=신고id.링크토큰)나 '내 신고'의 [결과 보기] → 저장된 그 신고의 결과를 다시 보여 줌.
+// 메일 링크 토큰도 관리 권한이 있어서 다른 기기에서 열어도 후보 확인·'내 물건이에요'·알림 설정이 됨.
+async function openReport(id, token) {
+  _token = token;
+  $("result").innerHTML = `<span class="muted">${t('loading')}</span>`;
+  $("resultCard").hidden = false;
+  try {
+    const res = await fetch(`/lost-items/${encodeURIComponent(id)}`, { headers: { "X-Report-Token": token } });
+    if (!res.ok) throw new Error(res.status);
+    const r = await res.json();
+    const gone = new Set(r.dismissed || []);
+    const matches = (r.matches || []).filter(m => !gone.has(m.atc_id));
+    if (r.status === "confirmed" && r.best_match) {
+      _lid = id; _matches = [r.best_match];
+      saveMineRef(id, token);
+      $("result").innerHTML = claimGuide(r.best_match);
+      loadMine();
+    } else {
+      renderResult(Object.assign({}, r, { id, token, matches, count: matches.length, email_pending: false,
+        status: r.status === "matched" ? "candidate" : r.status }), null, "");
+    }
+  } catch (e) {
+    $("result").innerHTML = `<div class="banner open">${ic('info')}<span>${t('linkGone')}</span></div>`;
+  }
+  $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function openMine(id) {
+  const ref = mineRefs().find(r => r.id === id);
+  if (ref) openReport(id, ref.token);
+}
+
+function openReportFromLink() {
+  const m = /^#r=([^.]+)\.(.+)$/.exec(location.hash || "");
+  if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);  // 토큰이 주소창·방문 기록·공유 링크에 남지 않게
+  openReport(decodeURIComponent(m[1]), decodeURIComponent(m[2]));
 }
 
 // ── 실시간 진행: 서버가 단계마다 보내는 SSE(event: 단계명, data: JSON)를 읽어 패널을 갱신 ──
@@ -679,7 +786,8 @@ function mineItem(it) {
       </div>
       <div style="text-align:right; flex:0 0 auto">
         <span class="status ${it.status === "matched" ? "candidate" : it.status}">${stLabel}</span>
-        <div><button class="mine-del" onclick="deleteMine('${esc(it.id)}')">${t('del')}</button></div>
+        <div><button class="mine-open" onclick="openMine('${esc(it.id)}')">${t('viewResult')}</button>
+          <button class="mine-del" onclick="deleteMine('${esc(it.id)}')">${t('del')}</button></div>
       </div>
     </div>
   </div>`;
@@ -730,10 +838,14 @@ function tryExample(text) {
 async function fetchStats() {
   if (!$("statTotal")) return;
   try {
-    const d = await (await fetch("/found-items/browse?size=1")).json();
+    const res = await fetch("/found-items/browse?size=1");
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
     $("statTotal").textContent = (d.total || 0).toLocaleString(LANG === "en" ? "en-US" : "ko-KR");
     $("statLatest").textContent = d.items?.[0]?.found_at || "—";
-  } catch (e) { /* 통계가 없어도 페이지는 그대로 */ }
+  } catch (e) {  // 통계가 없어도 페이지는 그대로 — 빈 칸 모양 대신 '—'
+    $("statTotal").textContent = "—"; $("statLatest").textContent = "—";
+  }
 }
 
 // 휴대폰 하단 고정 '분실물 찾기' — 입력창·결과·마지막 버튼 중 하나라도 화면에 보이면 숨김(같은 버튼이 두 번 보이지 않게).
@@ -752,24 +864,34 @@ function initStickyCta() {
 
 applyLang();
 if (window.LK_VIEW === "browse") doBrowse(1);
-else { loadMine(); fetchStats(); initStickyCta(); }
+else {
+  loadMine(); fetchStats(); initStickyCta(); openReportFromLink();
+  window.addEventListener("hashchange", openReportFromLink);  // 열린 탭에서 다른 메일 링크를 눌러도
+}
 
 async function doBrowse(page) {
   const p = new URLSearchParams({
     q: $("bq").value.trim(), region: $("bregion").value,
     date_from: $("bfrom").value, date_to: $("bto").value, page, size: $("bsize").value || 10,
+    photo: $("bphoto")?.value || "", sort: $("bsort")?.value || "new",  // 사진·정렬 칩(새 화면에만 있음)
   });
-  $("browseList").innerHTML = `<span class="muted">${t('loading')}</span>`;
+  // 불러오는 동안 빈 카드 모양(자리가 먼저 잡혀 화면이 덜 흔들림), 실패하면 [다시 시도]
+  $("browseList").innerHTML = '<div class="skel"><i></i><div><b></b><b class="s"></b></div></div>'.repeat(3);
+  $("bcount").textContent = ""; $("browsePager").innerHTML = "";
   try {
-    const d = await (await fetch("/found-items/browse?" + p)).json();
-    renderBrowse(d);
+    const res = await fetch("/found-items/browse?" + p);
+    if (!res.ok) throw new Error(res.status);
+    renderBrowse(await res.json());
   } catch (e) {
-    $("browseList").innerHTML = `<span class="muted">${t('loadFail')}</span>`;
+    $("browseList").innerHTML = `<div class="load-fail">${t('loadFail')}<br>
+      <button class="btn btn-soft" onclick="doBrowse(${page})">${t('retry')}</button></div>`;
   }
 }
 
 function resetBrowse() {
   $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
+  if ($("bphoto")) $("bphoto").value = "";
+  if ($("bsort")) $("bsort").value = "new";
   doBrowse(1);
 }
 
@@ -789,19 +911,33 @@ function renderBrowse(d) {
   renderPager(d.page || 1, Math.ceil((d.total || 0) / (d.size || 24)));
 }
 
+// 사진 없는 항목도 같은 자리에 회색 칸을 둬 목록 줄이 맞게(사진 불러오기 실패 시에도 이 칸으로 바뀜)
+const noPhotoBox = () => `<div class="bthumb noimg" aria-hidden="true">${ic('camera')}<span>${t('noPhoto')}</span></div>`;
+document.addEventListener('error', e => {
+  const el = e.target;
+  if (el.tagName === 'IMG' && el.classList.contains('bthumb')) el.outerHTML = noPhotoBox();
+}, true);
+
 function browseItem(m) {
   const img = validImg(m.image_url);
+  // 경찰청 사진은 원본 크기(수 MB)라 화면에 보일 때만 불러옴(loading=lazy)
   const thumb = img
-    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" referrerpolicy="no-referrer" onerror="this.style.display='none'"
-         title="${t('zoom')}"
-         style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
-    : '';
+    ? `<img class="thumb bthumb" data-full="${esc(img)}" src="${esc(img)}" alt="" loading="lazy" decoding="async"
+         referrerpolicy="no-referrer" title="${t('zoom')}" />`
+    : noPhotoBox();
+  const links = [
+    m.org_name ? `<span>${ic('building')}${esc(m.org_name)}</span>` : "",
+    m.tel ? `<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>` : "",
+    (m.org_name || m.region) ? `<span>${ic('map')}<a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> · <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></span>` : "",
+    origUrl(m) ? `<span>${origLink(m)}</span>` : "",
+  ].join("");
   return `<div class="bitem">${thumb}
     <div class="m-body">
       <div class="m-title">${esc(m.name) || t('noName')} <span class="muted">/ ${esc(m.color) || "-"}</span></div>
-      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(m.region) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}</div>
-      ${(m.org_name || m.tel) ? `<div class="m-meta"><span>${ic('building')}${esc(m.org_name) || "-"}</span>${m.tel ? `<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>` : ""}${(m.org_name||m.region)?`<span>${ic('map')}<a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> · <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></span>`:""}</div>` : ""}
-      ${cleanDesc(m.description) ? `<div class="m-reason">${ic('note')}<span>${esc(cleanDesc(m.description).slice(0, 120))}${cleanDesc(m.description).length > 120 ? "…" : ""}</span></div>` : ""}
+      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(m.region) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}${m.found_place ? ` · ${t('lblPlace')}: ${esc(m.found_place)}` : ""}</div>
+      ${links ? `<div class="m-meta">${links}</div>` : ""}
+      ${descBlock(m)}
+      ${origDetails(m)}
     </div></div>`;
 }
 

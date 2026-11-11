@@ -24,12 +24,13 @@ END=$(date -d 'yesterday' +%Y%m%d)
 echo "==== [$(date '+%F %T')] 최근 ${DAYS}일($START~$END) 수집 시작 ===="
 
 # --max: 소스별 목록 상한(하루 ~1,700건/소스 × 7일 여유). 상세·임베딩은 새 항목에만 쓰임.
+# --reconcile: 경찰 목록과 대조해 종결(주인 반환 등)된 습득물 삭제 + 바뀐 사진 반영 — 수집 창 + 오래된 구간 30일씩 돌아가며.
 # run --rm: 백엔드 서비스 컨테이너(exec)가 아니라 별도 일회성 컨테이너에서 실행 → 수집 도중 자동배포가
 # 백엔드를 재생성해도 끊기지 않음(2026-09-30: exec 방식이 01:24 배포로 중단돼 1시간 반 작업 유실).
 if ! $COMPOSE run --rm -T backend \
   uv run python -m apps.collector.run \
     --source both --start "$START" --end "$END" \
-    --rows 1000 --max 20000 --enrich --rematch; then
+    --rows 1000 --max 20000 --enrich --reconcile --rematch; then
   echo "==== [$(date '+%F %T')] 수집 실패 ===="
   $COMPOSE run --rm -T backend uv run python -m apps.ops alert "일일 수집 실패" \
     "daily_collect.sh 실패 ($(date '+%F %T')). 로그: /root/lostkorea/daily_collect.log" || true

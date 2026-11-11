@@ -21,6 +21,7 @@ class FoundItem(BaseModel):
     category: str = ""
     color: str = ""
     dep_place: str = ""      # 보관장소(원본)
+    found_place: str = ""    # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
     region: str = ""         # 해석된 구/시
     found_at: str = ""       # 습득일
     org_name: str = ""       # 보관기관(수령 문의)
@@ -64,7 +65,7 @@ class LostItemImageRequest(BaseModel):
 
 class AlertSettingsRequest(BaseModel):
     """결과창 '알림 설정' — 이메일·약한 후보 옵트인·알림 기간. 새 이메일이면 확인 메일 발송(확인 후 알림)."""
-    email: str = Field("", max_length=MAX_EMAIL)  # 알림 받을 이메일(비우면 알림 끔)
+    email: str | None = Field(None, max_length=MAX_EMAIL)  # 알림 받을 이메일("" = 알림 끔, 생략 = 지금 이메일 유지)
     notify_weak: bool = False       # 임계 미만 '약한 후보'도 참고 알림(확인된 이메일 있을 때만 유효)
     watch_days: int = 30            # 지금부터 며칠간 새 습득물과 재매칭·알림(1~watch_days_max)
 
