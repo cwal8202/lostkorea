@@ -18,9 +18,9 @@
 >
 > 📄 모든 결정·실험·수치는 [`docs/PROGRESS.md`](docs/PROGRESS.md), 배포는 [`docs/DEPLOY.md`](docs/DEPLOY.md), 서비스화 남은 일은 [`docs/LAUNCH.md`](docs/LAUNCH.md).
 
-![LostKorea 홈 — 첫 화면에서 바로 검색, 오른쪽은 결과 예시](docs/screenshots/hero.png)
+![LostKorea 홈 — 첫 화면에서 바로 검색](docs/screenshots/hero.png)
 
-*스크린샷은 모두 2026-11-09 운영 사이트를 그대로 캡처(검색 결과는 실제 습득물 데이터, 캡처용 신고는 바로 삭제).*
+*스크린샷은 모두 2026-11-13 운영 사이트를 그대로 캡처(검색 결과·메일은 실제 습득물 데이터, 캡처용 신고는 바로 삭제 — 수령 안내는 확인 처리 없이 화면만).*
 
 ---
 
@@ -45,13 +45,13 @@
 
 ## 📸 화면
 
-| AI 매칭 결과 (일치 점수·근거·보관기관·전화·지도) | 전체 습득물 (키워드·지역·날짜 필터) |
+| AI 매칭 결과 (일치 점수·근거·보관기관·전화·지도·원본 글) | 전체 습득물 (사진 미리보기·사진 있는 것만·정렬·원본 글) |
 |:---:|:---:|
 | [![AI 매칭](docs/screenshots/ai-match.png)](docs/screenshots/ai-match.png) | [![전체 습득물](docs/screenshots/browse.png)](docs/screenshots/browse.png) |
 | **영어 화면** (휴대폰 · 외국어 브라우저는 자동 이동) | **알림 메일** (같은 검색 결과로 만든 실제 메일 HTML) |
 | [![영어 화면](docs/screenshots/multilingual.png)](docs/screenshots/multilingual.png) | [![알림 메일](docs/screenshots/email.png)](docs/screenshots/email.png) |
 
-| [내 물건이에요] → 수령 안내 (전화·여권 지참·네이버/구글 지도·1330 통역·lost112) |
+| [내 물건이에요] → 수령 안내 (전화·여권 지참·네이버/구글 지도·1330 통역·경찰청 원본 글) |
 |:---:|
 | [![수령 안내](docs/screenshots/retrieval.png)](docs/screenshots/retrieval.png) |
 
