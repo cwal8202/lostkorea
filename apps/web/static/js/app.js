@@ -865,15 +865,39 @@ function initStickyCta() {
 }
 
 applyLang();
-if (window.LK_VIEW === "browse") doBrowse(1);
+if (window.LK_VIEW === "browse") { browseFromUrl(); doBrowse(1); }
 else {
   loadMine(); fetchStats(); initStickyCta(); openReportFromLink();
   window.addEventListener("hashchange", openReportFromLink);  // 열린 탭에서 다른 메일 링크를 눌러도
 }
 
+// 전체 습득물 조건을 주소에 남김 — 새로고침·뒤로 가기에도 유지, 조건 그대로 링크 공유(예: /browse?photo=with&sort=old)
+// (함수로 — 페이지 시작 코드가 이 아래 선언보다 먼저 실행되므로 const면 초기화 전 접근 오류)
+function browseKeys() {
+  return [["q", "bq"], ["region", "bregion"], ["photo", "bphoto"], ["sort", "bsort"], ["from", "bfrom"], ["to", "bto"]];
+}
+function browseFromUrl() {
+  const p = new URLSearchParams(location.search);
+  for (const [k, id] of browseKeys()) {
+    if (!p.has(k) || !$(id)) continue;
+    $(id).value = p.get(k);
+    if (id === "bregion") $(id).dataset.want = p.get(k);  // 지역 목록은 첫 응답 뒤에 채워짐 → 그때 선택
+  }
+}
+function browseToUrl() {
+  const p = new URLSearchParams();
+  for (const [k, id] of browseKeys()) {
+    const el = $(id), v = el ? (el.value || el.dataset.want || "").trim() : "";
+    if (v && !(k === "sort" && v === "new")) p.set(k, v);
+  }
+  const qs = p.toString();
+  history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+}
+
 async function doBrowse(page) {
+  browseToUrl();
   const p = new URLSearchParams({
-    q: $("bq").value.trim(), region: $("bregion").value,
+    q: $("bq").value.trim(), region: $("bregion").value || $("bregion").dataset.want || "",
     date_from: $("bfrom").value, date_to: $("bto").value, page, size: $("bsize").value || 10,
     photo: $("bphoto")?.value || "", sort: $("bsort")?.value || "new",  // 사진·정렬 칩(새 화면에만 있음)
   });
@@ -892,6 +916,7 @@ async function doBrowse(page) {
 
 function resetBrowse() {
   $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
+  delete $("bregion").dataset.want;
   if ($("bphoto")) $("bphoto").value = "";
   if ($("bsort")) $("bsort").value = "new";
   doBrowse(1);
@@ -900,7 +925,8 @@ function resetBrowse() {
 function renderBrowse(d) {
   const sel = $("bregion");
   if (d.regions?.length && sel.dataset.filled !== "1") {  // 지역 드롭다운 최초 1회 채움
-    const cur = sel.value;
+    const cur = sel.value || sel.dataset.want || "";
+    delete sel.dataset.want;
     sel.innerHTML = `<option value="">${t('allRegions')}</option>` +
       d.regions.slice().sort((a, b) => b.count - a.count)
         .map(r => `<option value="${esc(r.name)}">${esc(r.name)} (${r.count})</option>`).join("");
