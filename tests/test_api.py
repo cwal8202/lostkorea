@@ -187,3 +187,54 @@ def test_client_ip_behind_cloudflare_uses_real_visitor():
 def test_valid_email():
     assert main._valid_email("me@example.com")
     assert not main._valid_email("me@") and not main._valid_email("a b@c.com") and not main._valid_email("")
+
+
+# ── 습득물 사진 작은 미리보기(/thumb.jpg) ──
+_POLICE_IMG = "https://minwon24.police.go.kr/lost112/find/getOpenapiAttachFileImage/F1/1/C1/1.do"
+
+
+def _jpeg(w=1200, h=800) -> bytes:
+    import io as _io
+
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (w, h), (30, 60, 90)).save(buf, "JPEG")
+    return buf.getvalue()
+
+
+def test_thumb_only_for_police_photos():
+    for u in ("https://evil.example/x.jpg", "http://minwon24.police.go.kr/lost112/find/getOpenapiAttachFileImage/F1/1/C1/1.do",
+              "https://minwon24.police.go.kr/images/sub/img02_no_img.gif", "https://minwon24.police.go.kr/main.do"):
+        assert client.get("/thumb.jpg", params={"u": u}, follow_redirects=False).status_code == 400  # 아무 주소나 대신 받지 않음
+
+
+def test_thumb_resizes_and_caches(monkeypatch, tmp_path):
+    import io as _io
+
+    from PIL import Image
+
+    from apps.api import thumbs
+    calls = []
+    monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(thumbs.urllib.request, "urlopen", lambda req, timeout=0: calls.append(1) or _io.BytesIO(_jpeg()))
+    r = client.get("/thumb.jpg", params={"u": _POLICE_IMG})
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+    assert "public" in r.headers["cache-control"] and "max-age" in r.headers["cache-control"]   # Cloudflare가 저장
+    assert Image.open(_io.BytesIO(r.content)).size == (256, 256) and len(r.content) < 30_000
+    client.get("/thumb.jpg", params={"u": _POLICE_IMG})
+    assert calls == [1]                                            # 두 번째는 서버 캐시
+
+
+def test_thumb_falls_back_to_original(monkeypatch, tmp_path):
+    from apps.api import thumbs
+    monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(thumbs.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(OSError("timeout")))
+    r = client.get("/thumb.jpg", params={"u": _POLICE_IMG}, follow_redirects=False)
+    assert r.status_code == 302 and r.headers["location"] == _POLICE_IMG                       # 사진이 사라지지 않게
+
+
+def test_email_photo_uses_small_thumbnail():
+    from apps.notifier import build_email
+    m = {"atc_id": "A_1", "name": "지갑", "color": "검정", "grade": 90, "image_url": _POLICE_IMG}
+    _, _, html = build_email({"id": "x", "text": "검정 지갑", "lang": "ko"}, [m])
+    assert "/thumb.jpg?u=https%3A%2F%2Fminwon24.police.go.kr%2F" in html and f'src="{_POLICE_IMG}"' not in html

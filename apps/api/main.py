@@ -20,6 +20,7 @@ from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
+    Response,
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
@@ -28,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from apps import ops, store
 
 from . import search as search_mod
-from . import site
+from . import site, thumbs
 from .config import settings
 from .gemini import normalize_lang
 from .limits import client_ip, limiter
@@ -285,6 +286,23 @@ def register_lost_item_image_stream(req: LostItemImageRequest, request: Request)
                                      lost_date=req.lost_date, lang=lang)
     return StreamingResponse(_stream_match(steps, req.email or "", req.notify_weak, lang=lang),
                              media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@app.get("/thumb.jpg", include_in_schema=False)
+def thumbnail(request: Request, u: str = Query(..., max_length=500)) -> Response:
+    """경찰 습득물 사진의 작은 미리보기(256px, ~20KB) — 경로가 .jpg라 Cloudflare가 주소(쿼리 포함)별로 저장해 대신 응답.
+
+    경찰민원24 습득물 사진 주소만 허용. 횟수 초과·줄이기 실패면 원본으로 넘김(사진이 사라지지 않게).
+    """
+    if not thumbs.allowed(u):
+        raise HTTPException(status_code=400, detail="허용되지 않은 사진 주소")
+    try:
+        limiter.hit(f"thumb:{client_ip(request)}", settings.limit_thumb_hour, _HOUR)
+        data = thumbs.make(u)
+    except Exception:  # noqa: BLE001
+        return RedirectResponse(u, status_code=302)
+    return Response(data, media_type="image/jpeg",
+                    headers={"Cache-Control": "public, max-age=2592000, immutable"})
 
 
 @app.get("/found-items/browse")

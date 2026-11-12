@@ -321,6 +321,8 @@ function chips(items, cls="") {
 }
 
 const validImg = (u) => (u && u.startsWith('http') && !u.includes('no_img')) ? u : '';
+// 목록·결과의 작은 사진은 서버가 줄인 것(~20KB), 크게 보기는 원본 — 원본은 한 장 최대 ~3MB라 휴대폰 데이터 절약
+const thumbUrl = (u) => u.startsWith('https://minwon24.police.go.kr/') ? '/thumb.jpg?u=' + encodeURIComponent(u) : u;
 const cleanDesc = (s) => (s||'').replace(/^\s*내용\s*/,'').replace(/\s+/g,' ').trim();
 
 function openLightbox(url){ $("lightboxImg").src = url; $("lightbox").hidden = false; }
@@ -333,7 +335,7 @@ function matchCard(m, idx, preview = false) {
   const g = m.grade;
   const img = validImg(m.image_url);
   const thumb = img
-    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'"
+    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"
          title="${t('zoom')}"
          style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
     : '';
@@ -400,7 +402,7 @@ async function dismissMatch(idx) {
 
 function claimGuide(m) {
   const img = validImg(m.image_url);
-  const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(img)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
+  const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
   return `<div class="banner matched">${ic('check')}<span>${t('claimDone')}</span></div>
     <div class="match">
       ${thumb}
@@ -920,9 +922,9 @@ document.addEventListener('error', e => {
 
 function browseItem(m) {
   const img = validImg(m.image_url);
-  // 경찰청 사진은 원본 크기(수 MB)라 화면에 보일 때만 불러옴(loading=lazy)
+  // 작은 사진(서버가 줄인 ~20KB)을 화면에 보일 때만 불러옴(loading=lazy). 누르면 원본(data-full)
   const thumb = img
-    ? `<img class="thumb bthumb" data-full="${esc(img)}" src="${esc(img)}" alt="" loading="lazy" decoding="async"
+    ? `<img class="thumb bthumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" loading="lazy" decoding="async"
          referrerpolicy="no-referrer" title="${t('zoom')}" />`
     : noPhotoBox();
   const links = [

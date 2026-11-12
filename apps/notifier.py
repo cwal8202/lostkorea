@@ -14,6 +14,7 @@ from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import quote as _quote
 
 from apps.api import gemini
 from apps.api.config import settings
@@ -288,6 +289,8 @@ def _card_html(m: dict, primary: bool = False, S: dict = KO) -> str:
     e = _html.escape
     img = _valid_img(m.get("image_url", ""))
     size = 120 if primary else 60
+    if img.startswith("https://minwon24.police.go.kr/"):  # 서버가 줄인 작은 사진(원본은 한 장 최대 ~3MB)
+        img = f"{settings.public_base_url.rstrip('/')}/thumb.jpg?u={_quote(img, safe='')}"
     imgtag = (
         f'<img src="{e(img)}" alt="" style="width:{size}px;height:{size}px;object-fit:cover;'
         f'border-radius:8px;border:1px solid #eee;margin-right:12px" />'

@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     limit_image_day: int = 10
     limit_search_hour: int = 30        # 공개 검색 API(grade=true면 LLM)
     limit_translate_hour: int = 60     # 둘러보기 외국어 검색어 번역
+    limit_thumb_hour: int = 600        # 습득물 사진 미리보기(줄이기) — 넘으면 원본 주소로 넘김
     limit_alerts_hour: int = 10        # 알림 설정·이메일 확인
     limit_verify_mail_day: int = 3     # 같은 이메일 주소로 보내는 확인 메일
     daily_ai_budget: int = 1500        # 하루(KST) 전체 AI 요청 단위 상한 — 초과 시 429(과금 폭주 차단)
