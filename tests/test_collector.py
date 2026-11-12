@@ -157,7 +157,7 @@ def test_reconcile_deletes_closed_and_updates_changed_photos(monkeypatch):
               dict(_li("B"), fdFilePathImg="https://p/img02_no_img.gif")]  # 사진 내려감 / C는 목록에 없음(종결)
     stat = run.reconcile("police", "20261104", "20261110", listed, complete=True)
     assert stat["closed"] == 1 and stat["photo"] == 1 and not stat["skipped"]
-    acts = [json.loads(x) for x in sent]
+    acts = [json.loads(line) for x in sent for line in x.split("\n")]
     assert {"delete": {"_index": run.settings.opensearch_index, "_id": "C_1"}} in acts
     assert {"doc": {"image_url": "https://p/img02_no_img.gif"}} in acts
     assert not any(a.get("delete", {}).get("_id") in ("A_1", "B_1") for a in acts)
@@ -168,7 +168,7 @@ def test_reconcile_holds_deletion_when_sample_is_still_held(monkeypatch):
     sent = _reconcile_env(monkeypatch, {"A_1": "", "C_1": ""}, detail_state="보관중")
     stat = run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True)
     assert stat["closed"] == 0 and "보관중" in stat["skipped"]
-    assert not any("delete" in json.loads(x) for x in sent)
+    assert not any("delete" in json.loads(x.split("\n")[0]) for x in sent)
 
 
 def test_reconcile_skips_incomplete_or_empty_lists(monkeypatch):
@@ -205,3 +205,56 @@ def test_older_range_rotates_through_holding_period():
     assert len(seen) >= 6                                    # 며칠에 걸쳐 오래된 구간을 고루 돌아감
     a, b = run.older_range(date(2026, 11, 12), keep_days=185, chunk_days=30)
     assert "20260511" <= a and b <= "20261104"              # 보관 기간 안 · 최근 7일 창 밖
+
+
+def test_bulk_never_splits_an_update_pair(monkeypatch):
+    """수정 동작(2줄)이 덩어리 경계에서 갈라지면 OpenSearch가 400 — 11/13 첫 실행 실패 원인. 동작 단위로 나눠야 함."""
+    bodies = []
+
+    def fake_urlopen(req, timeout=0):
+        bodies.append(req.data.decode())
+        return io.BytesIO(b'{"items": []}')
+
+    monkeypatch.setattr(run.urllib.request, "urlopen", fake_urlopen)
+    acts = [json.dumps({"delete": {"_id": "D%d" % i}}) for i in range(3)]
+    acts += [json.dumps({"update": {"_id": "U%d" % i}}) + "\n" + json.dumps({"doc": {"image_url": "u"}}) for i in range(4)]
+    assert run._bulk_actions(acts, chunk=2) == 0
+    for body in bodies:
+        lines = body.strip("\n").split("\n")
+        for k, line in enumerate(lines):
+            if "update" in json.loads(line):
+                assert k + 1 < len(lines) and "doc" in json.loads(lines[k + 1])   # 내용 줄이 같은 덩어리에
+    assert sum(b.count('"delete"') for b in bodies) == 3 and sum(b.count('"update"') for b in bodies) == 4
+
+
+def _catch_up_env(monkeypatch, count: int):
+    """수집 창 목록 = W, 오래된 구간 목록 = O1~O3. 색인된 것 없음. 색인 건수는 count."""
+    monkeypatch.setattr(run, "list_all", lambda src, a, b, rows, mx: (
+        ([_li("W")] if a == "20261106" else [_li("O1"), _li("O2"), _li("O3")]), True))
+    monkeypatch.setattr(run, "reconcile", lambda *a, **k: {"source": a[0], "range": "", "listed": 0, "indexed": 0,
+                                                             "closed": 0, "photo": 0, "skipped": ""})
+    monkeypatch.setattr(run, "existing_ids", lambda ids: set())
+    monkeypatch.setattr(run, "_os", lambda *a, **k: {"count": count})
+    monkeypatch.setattr(run, "enrich_docs", lambda src, items, enrich: [
+        {"atc_id": li["atcId"], "name": "지갑", "color": "", "category": "", "dep_place": "", "found_place": "",
+         "description": ""} for li in items])
+    got = []
+    monkeypatch.setattr(run, "embed_and_index", lambda docs: got.extend(d["atc_id"] for d in docs)
+                        or {"count": len(docs), "errors": 0})
+    monkeypatch.setattr(run, "prune_old", lambda: 0)
+    monkeypatch.setattr(run.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b'{"count": 1}'))
+    monkeypatch.setattr(sys, "argv", ["run", "--source", "police", "--start", "20261106", "--end", "20261112",
+                                      "--enrich", "--reconcile", "--catch-up", "2"])
+    return got
+
+
+def test_catch_up_collects_late_registrations_up_to_the_nightly_cap(monkeypatch):
+    got = _catch_up_env(monkeypatch, count=181_874)
+    run.main()
+    assert got == ["W", "O1", "O2"]          # 수집 창 새 항목 + 오래된 구간에서 빠진 것 2건(상한)
+
+
+def test_catch_up_stops_when_index_is_large(monkeypatch):
+    got = _catch_up_env(monkeypatch, count=600_000)
+    run.main()
+    assert got == ["W"]                      # 색인 상한(기본 60만)이면 늦은 등록 수집 안 함 — 서버 메모리 보호

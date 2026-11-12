@@ -22,3 +22,5 @@ eval/datalab/data/visitors_*.json
 
 # 디자인 시안 비교 이미지·운영 데이터 표본(로컬 전용, 커밋 안 함)
 design-preview/
+# 임베딩 차원·모델 비교 캐시(eval/run_dims.py) — 크고 재생성 가능
+eval/data/emb_dims_cache.json

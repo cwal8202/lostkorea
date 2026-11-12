@@ -174,11 +174,15 @@ def indexed_in_range(source: str, start: str, end: str) -> dict[str, str]:
     return out
 
 
-def _bulk_actions(lines: list[str], chunk: int = 2000) -> int:
-    """삭제·부분 수정 _bulk(줄 단위 NDJSON). 오류 건수 반환(이미 없는 문서 삭제 404는 오류 아님)."""
+def _bulk_actions(actions: list[str], chunk: int = 1000) -> int:
+    """삭제·부분 수정 _bulk. 오류 건수 반환(이미 없는 문서 삭제 404는 오류 아님).
+
+    actions의 한 항목 = 동작 하나(삭제는 1줄, 수정은 '동작 줄\n내용 줄' 2줄) — **동작 단위로** 나눠 보냄.
+    11/13 첫 실행: 줄 단위로 2,000줄씩 자르다 수정 동작의 두 줄이 갈라져 400(Bad Request) → 앞 덩어리만 반영되고 멈췄음.
+    """
     errors = 0
-    for i in range(0, len(lines), chunk):
-        body = ("\n".join(lines[i : i + chunk]) + "\n").encode("utf-8")
+    for i in range(0, len(actions), chunk):
+        body = ("\n".join(actions[i : i + chunk]) + "\n").encode("utf-8")
         req = urllib.request.Request(f"{settings.opensearch_url}/_bulk", body, {"Content-Type": "application/x-ndjson"})
         with urllib.request.urlopen(req, timeout=300) as r:
             res = json.load(r)
@@ -223,10 +227,10 @@ def reconcile(source: str, start: str, end: str, listed: list[dict], complete: b
     stat["closed"], stat["photo"] = len(gone), len(changed)
     if not dry_run and (gone or changed):
         idx = settings.opensearch_index
-        lines = [json.dumps({"delete": {"_index": idx, "_id": i}}) for i in gone]
-        for i, url in changed.items():
-            lines += [json.dumps({"update": {"_index": idx, "_id": i}}), json.dumps({"doc": {"image_url": url}})]
-        stat["errors"] = _bulk_actions(lines)
+        actions = [json.dumps({"delete": {"_index": idx, "_id": i}}) for i in gone]
+        actions += [json.dumps({"update": {"_index": idx, "_id": i}}) + "\n" + json.dumps({"doc": {"image_url": url}})
+                    for i, url in changed.items()]
+        stat["errors"] = _bulk_actions(actions)
     return stat
 
 
@@ -315,6 +319,10 @@ def main() -> None:
                     help="경찰 목록과 대조해 종결된 습득물 삭제·사진 갱신(수집 창 + 오래된 구간 한 덩어리)")
     ap.add_argument("--reconcile-only", action="store_true", help="대조만(새 항목 수집·재매칭 없이)")
     ap.add_argument("--reconcile-chunk-days", type=int, default=30, help="밤마다 대조할 오래된 구간 길이(일)")
+    ap.add_argument("--catch-up", type=int, default=0,
+                    help="대조한 오래된 구간에서 늦게 등록돼 빠진 습득물을 출처당 최대 N건 수집(0=끔)")
+    ap.add_argument("--catch-up-max-docs", type=int, default=600_000,
+                    help="색인이 이 건수 이상이면 늦은 등록 수집을 건너뜀(서버 메모리 보호)")
     args = ap.parse_args()
     args.reconcile = args.reconcile or args.reconcile_only
 
@@ -322,9 +330,26 @@ def main() -> None:
     sources = ["police", "portal"] if args.source == "both" else [args.source]
     total = indexed = errors = 0
     sample = None
+
+    def collect(src: str, items: list[dict]) -> None:
+        """배치마다 상세 → (임베딩·색인) — 끊겨도 앞 배치는 보존."""
+        nonlocal total, indexed, errors, sample
+        for i in range(0, len(items), BATCH):
+            docs = enrich_docs(src, items[i : i + BATCH], args.enrich)
+            for d in docs:  # 구/시 해석해 색인에 저장(둘러보기 지역 필터·집계용, 비용 0)
+                d["region"] = region_resolver.resolve(d.get("dep_place", ""))
+            total += len(docs)
+            sample = sample or (docs[0] if docs else None)
+            if indexing and docs:
+                res = embed_and_index(docs)
+                indexed += res["count"]
+                errors += res["errors"]
+                print(f"  {src} 배치 {i // BATCH + 1}: {res['count']}건 색인 (누적 {indexed})", flush=True)
+
     for src in sources:
         print(f"[{src}] 수집 {args.start}~{args.end} (max {args.max}, enrich={args.enrich})")
-        listed = None
+        listed = o_listed = None
+        o_complete = False
         if args.reconcile:
             listed, complete = list_all(src, args.start, args.end, args.rows, args.max)
             try:
@@ -340,17 +365,24 @@ def main() -> None:
                 continue
         items = new_items(src, args.start, args.end, args.rows, args.max,
                           skip_existing=indexing and not args.refresh_existing, listed=listed)
-        for i in range(0, len(items), BATCH):  # 배치마다 상세 → (임베딩·색인) — 끊겨도 앞 배치는 보존
-            docs = enrich_docs(src, items[i : i + BATCH], args.enrich)
-            for d in docs:  # 구/시 해석해 색인에 저장(둘러보기 지역 필터·집계용, 비용 0)
-                d["region"] = region_resolver.resolve(d.get("dep_place", ""))
-            total += len(docs)
-            sample = sample or (docs[0] if docs else None)
-            if indexing and docs:
-                res = embed_and_index(docs)
-                indexed += res["count"]
-                errors += res["errors"]
-                print(f"  {src} 배치 {i // BATCH + 1}: {res['count']}건 색인 (누적 {indexed})", flush=True)
+        collect(src, items)
+
+        # 늦게 등록된 습득물: 수집 창(7일)이 지난 뒤 등록돼 영영 빠지던 것 — 오늘 대조한 오래된 구간에서 채움.
+        # 11/12 실측: 10/20 습득분은 보관 중 2,195건 중 1,293건이 색인에 없었음(부산유실물센터 등 한꺼번에 늦게 등록).
+        # 11/13 측정: 50만 건이어도 768차원 벡터 ~1.6GB(서버 여유 ~4GB) → 출처당 하룻밤 상한 + 색인 상한으로 천천히.
+        if args.catch_up and indexing and o_listed and o_complete:
+            try:
+                count = _os(f"/{settings.opensearch_index}/_count", method="GET").get("count", 0)
+            except Exception as e:  # noqa: BLE001
+                count = None
+                print(f"  ! 색인 건수 확인 실패({type(e).__name__}) → 늦은 등록 수집 건너뜀")
+            if count is not None and count >= args.catch_up_max_docs:
+                print(f"  늦은 등록 수집 건너뜀: 색인 {count}건 ≥ 상한 {args.catch_up_max_docs}건")
+            elif count is not None:
+                late = new_items(src, o_start, o_end, args.rows, len(o_listed), skip_existing=True, listed=o_listed)
+                print(f"  [늦은 등록] {src} {o_start}~{o_end}: 빠진 {len(late)}건 중 {min(len(late), args.catch_up)}건 수집",
+                      flush=True)
+                collect(src, late[: args.catch_up])
 
     print(f"\n총 정규화 {total}건")
     if sample:
