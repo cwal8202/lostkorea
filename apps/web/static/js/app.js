@@ -180,12 +180,26 @@ const I18N = {
 const LANG = window.LK_LANG === "en" ? "en" : "ko";
 const googTarget = () => { const m = document.cookie.match(/(?:^|;\s*)googtrans=\/[^/;]*\/([^;]+)/);
   return m && m[1] ? decodeURIComponent(m[1]) : ""; };
-// 서버에 보낼 사용자 언어(판정 근거·알림 메일 언어).
-// 1) 번역 위젯에서 고른 언어  2) 입력에 한글이 있으면 ko  3) 영어 화면이면 브라우저 언어(없으면 en)  4) ko
+// 입력 글의 문자로 본 언어 — 가나가 있으면 일본어(서울역처럼 한글 지명이 섞여도), 태국 문자·한자가 한글보다 많으면 태국어·중국어,
+// 한글이면 한국어, 베트남어 부호가 있으면 베트남어. 라틴 문자만이면 ""(영어인지 다른 언어인지 글자만으론 모름).
+function textLang(text) {
+  const n = (re) => ((text || "").match(re) || []).length;
+  const ko = n(/[가-힣]/g), kana = n(/[぀-ヿ]/g), han = n(/[一-鿿]/g), th = n(/[฀-๿]/g);
+  if (kana) return "ja";
+  if (th > ko) return "th";
+  if (han > ko) return /^zh-(TW|HK|MO)/i.test(navigator.language || "") || /[們這個說時對應無線錢機車電腦鏡傘證]/.test(text) ? "zh-TW" : "zh-CN";
+  if (ko) return "ko";
+  if (/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(text || "")) return "vi";
+  return "";
+}
+// 서버에 보낼 사용자 언어(판정 근거·물품명 번역·알림 메일 언어).
+// 1) 번역 위젯에서 고른 언어  2) 입력 글의 문자  3) 영어 화면이면 브라우저 언어(한국어 브라우저면 en)  4) 브라우저 언어
+// 예전엔 입력에 한글이 한 글자라도 있으면 ko — 일본어 신고에 '서울역'만 섞여도 결과가 한국어로 나왔음.
 function userLang(text) {
   const g = googTarget();
   if (g && g !== "ko") return g;
-  if (text && /[가-힣]/.test(text)) return "ko";
+  const byText = textLang(text);
+  if (byText) return byText;
   if (LANG === "en") return (navigator.language || "en").startsWith("ko") ? "en" : (navigator.language || "en");
   return navigator.language || "ko";
 }

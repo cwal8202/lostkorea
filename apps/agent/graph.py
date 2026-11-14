@@ -73,22 +73,68 @@ def n_search(state: AgentState) -> dict:
     return {"candidates": cands}
 
 
-def n_grade(state: AgentState) -> dict:
-    cands = state.get("candidates") or []
+def grade_candidates(text: str, cands: list[dict], lang: str = "ko", lost_date: str | None = None) -> list[dict]:
+    """후보 판정 + (외국어면) 물품명·특이사항 번역 → 결과 언어 검사 → 점수순 정렬. cands를 제자리 주석해 돌려줌.
+
+    - 판정(점수·근거)과 번역(실제 원문)을 **동시에** 두 호출로 — 기다리는 시간은 늘지 않음.
+      예전엔 판정 한 번에 이름·설명 번역까지 시켜 일본어·베트남어에서 이름이 영어, 근거가 한국어로 섞였음(11/15 측정).
+    - 번역 결과는 기존 칸 이름 그대로 name_en·desc_en(= 신고자 언어 — 화면·메일·저장 후보가 이 이름을 씀).
+    - 검사에 걸린 칸은 한 번만 다시 쓰고, 그래도 아니면 비움 → 물품명·설명은 한국어 원문 표시, 근거는 생략.
+    """
     if not cands:
-        return {"matches": []}
-    gmap = {int(x["id"]): x for x in gemini.grade(state["text"], cands, state.get("lang", "ko")) if "id" in x}
+        return []
+    if lang == "ko":
+        grades, tr = gemini.grade(text, cands, lang, lost_date=lost_date), {}
+    else:
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fg = ex.submit(gemini.grade, text, cands, lang, lost_date=lost_date)
+            ft = ex.submit(gemini.translate_items, cands, lang)
+            grades, tr = fg.result(), _safe(ft)
+    gmap = {int(x["id"]): x for x in grades if "id" in x}
+    vals: dict[str, str] = {}
     for i, it in enumerate(cands):
         g = gmap.get(i)
         it["grade"] = g.get("score") if g else None
         it["reason"] = g.get("reason") if g else None
-        if g:  # EN 등 비-한국어: 물품명/설명 영어 번역 얹음(원본은 한국어 유지)
-            if g.get("name_en"):
-                it["name_en"] = g.get("name_en")
-            if g.get("desc_en"):
-                it["desc_en"] = g.get("desc_en")
+        for src, dst in (("name", "name_en"), ("desc", "desc_en")):
+            it.pop(dst, None)
+            if (tr.get(i) or {}).get(src):
+                it[dst] = tr[i][src]
+        for k in ("name_en", "desc_en", "reason"):
+            if it.get(k):
+                vals[f"{k}:{i}"] = it[k]
+    if lang != "ko" and vals:
+        fixed = gemini.fix_language(vals, lang)
+        for key in vals:
+            k, i = key.split(":")
+            it = cands[int(i)]
+            if key in fixed:
+                it[k] = fixed[key]
+            elif k == "reason":
+                it["reason"] = None          # 근거 생략(다른 언어로 보여 주지 않음)
+            else:
+                it.pop(k, None)              # 물품명·설명 → 한국어 원문 표시
     cands.sort(key=lambda it: -(it["grade"] if it["grade"] is not None else -1))
-    return {"matches": cands}
+    return cands
+
+
+def _safe(fut) -> dict:
+    """번역 실패가 판정 결과를 막지 않게 — 실패면 빈 번역(원문 표시)."""
+    try:
+        return fut.result() or {}
+    except Exception as e:  # noqa: BLE001
+        print(f"[grade] 물품명 번역 실패({type(e).__name__}) → 원문 표시")
+        return {}
+
+
+def _lost_date(state: AgentState) -> str | None:
+    """사용자가 고른 분실일 우선, 없으면 글에서 추출한 날짜."""
+    return state.get("lost_date") or (state.get("extracted") or {}).get("lost_date") or None
+
+
+def n_grade(state: AgentState) -> dict:
+    cands = state.get("candidates") or []
+    return {"matches": grade_candidates(state["text"], cands, state.get("lang", "ko"), lost_date=_lost_date(state))}
 
 
 def _valid_gate(state: AgentState) -> str:

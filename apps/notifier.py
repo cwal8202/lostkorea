@@ -17,6 +17,7 @@ from typing import Protocol
 from urllib.parse import quote as _quote
 
 from apps.api import gemini
+from apps.api.desc import clean_desc as _clean_desc  # 메일·판정·이탈 기록 공용
 from apps.api.config import settings
 
 TOP_OTHERS = 5  # 상위 매칭 외에 함께 보여줄 "비슷한 후보" 수
@@ -68,27 +69,6 @@ class ConsoleNotifier:
 
     def verify(self, to: str, lang: str, link: str) -> None:
         _emit(f"✉️ [확인 메일→{to}, {lang}] {link}")
-
-
-_NOTE_RE = re.compile(r"특이\s*사항\s*[:：]?\s*(.*)$", re.S)
-_NOTE_NONE = re.compile(r"^(없음|없습니다|해당\s*없음|무|-|\.)?$")
-_BOILER = (re.compile(r"^.*?습득\s*/?\s*보관\s*하였습니다\.?", re.S), re.compile(r"분실하신\s*분께서는.*?바랍니다\.?", re.S))
-
-
-def _clean_desc(s) -> str:
-    """특이사항(uniq)에서 단서만 남김 — '내용' 라벨·줄바꿈 정리.
-
-    경찰 원문은 "○○에서는 [날짜] [물건]을 습득/보관 하였습니다 … 특이사항 : X" 틀이라 앞 140자를 자르면
-    상투 문장만 남았음 → 끝의 X만(없음이면 빈칸). 틀이 아닌 글은 상투 문장만 걷어내고 나머지를 씀.
-    """
-    s = re.sub(r"^\s*내용\s*", "", str(s or ""))
-    m = _NOTE_RE.search(s)
-    if m:
-        v = re.sub(r"\s+", " ", m.group(1)).strip()
-        return "" if _NOTE_NONE.match(v) else v
-    for rx in _BOILER:
-        s = rx.sub("", s)
-    return re.sub(r"\s+", " ", s).strip()
 
 
 def _valid_img(url: str) -> str:
@@ -149,7 +129,7 @@ def _table(name: str, base: dict, lang: str) -> dict:
     if key in _UI_CACHE:
         return _brand(_UI_CACHE[key])
     tr = gemini.translate_strings(base, lang)
-    if tr and all(set(_PH.findall(tr[k])) >= set(_PH.findall(v)) for k, v in base.items()):
+    if tr and all(k in tr and set(_PH.findall(tr[k])) >= set(_PH.findall(v)) for k, v in base.items()):
         _UI_CACHE[key] = tr
         return _brand(tr)
     return _table(name, base, "en") if lang != "en" else _brand(base)

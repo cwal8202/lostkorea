@@ -104,6 +104,7 @@ _KIND_LABELS = [
     ("email_given", "이메일 입력"), ("email_verified", "이메일 확인"), ("alert_sent", "알림 메일 발송"),
     ("confirm", "'내 물건이에요'"), ("dismiss", "'아니에요'"), ("delete", "신고 삭제"),
     ("browse", "둘러보기 조회"), ("unsubscribe", "알림 수신 거부"), ("email_link_open", "메일 링크로 결과 열람"), ("search_api", "검색 API"), ("rate_limited", "요청 제한(429)"), ("error", "오류"),
+    ("ai_lang_retry", "결과 언어 다시 쓰기(칸)"), ("ai_lang_fail", "결과 언어 실패 → 원문 표시(칸)"),
 ]
 
 

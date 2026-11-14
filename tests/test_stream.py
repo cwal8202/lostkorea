@@ -30,7 +30,7 @@ def fake_pipeline(monkeypatch):
     monkeypatch.setattr(route, "resolver", type("R", (), {"expand": lambda self, p: ["강남", "서초"]})())
     monkeypatch.setattr(fanout, "build_queries", lambda ex: ["검정 지갑", "지갑"])
     monkeypatch.setattr(search_mod, "search", lambda q, **k: [_cand("A"), _cand("B")])
-    monkeypatch.setattr(gemini, "grade", lambda text, cands, lang="ko":
+    monkeypatch.setattr(gemini, "grade", lambda text, cands, lang="ko", **k:
                         [{"id": 0, "score": 60, "reason": "색 일치"}, {"id": 1, "score": 85, "reason": "일치"}])
 
 

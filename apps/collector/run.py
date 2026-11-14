@@ -26,6 +26,7 @@ from datetime import date, datetime, timedelta
 from apps import store
 from apps.api import gemini
 from apps.api.config import settings
+from apps.api.desc import clean_desc
 from apps.api.region import resolver as region_resolver
 from apps.collector import client
 from apps.collector.normalize import doc_id, embed_text, list_id, normalize
@@ -220,14 +221,12 @@ def _mget_docs(ids: list[str], chunk: int = 1000) -> dict[str, dict]:
 
 def closure_rows(kind: str, docs: dict[str, dict], window: str, ours: dict[str, str], today: str) -> list[dict]:
     """색인 문서 → found_closures 행. has_desc는 경찰 상투 문장을 걷어낸 특이사항이 남는지(메일·화면과 같은 기준)."""
-    from apps.notifier import _clean_desc
-
     return [{
         "item_id": i, "kind": kind, "source": s.get("source", ""),
         "category_top": s.get("category_top", ""), "category_sub": s.get("category_sub", ""),
         "color": s.get("color", ""), "region": s.get("region", ""), "dep_place": s.get("dep_place", ""),
         "found_place": s.get("found_place", ""), "has_photo": int(_real_photo(s.get("image_url", ""))),
-        "has_desc": int(bool(_clean_desc(s.get("description")))), "found_at": s.get("found_at", ""),
+        "has_desc": int(bool(clean_desc(s.get("description")))), "found_at": s.get("found_at", ""),
         "first_seen": s.get("indexed_at") or None, "detected_at": today, "check_window": window,
         "our_report": ours.get(i, ""),
     } for i, s in docs.items()]

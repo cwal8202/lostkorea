@@ -69,7 +69,7 @@
   · 웹은 `…/stream`(SSE)으로 **추출 → 지역 → 검색어 → 검색 → 판정을 실시간 표시**(판정 전 후보를 먼저 보여줌)
 - **전체 둘러보기**: `GET /found-items/browse` — 키워드·지역·날짜 필터 + 최신순 목록(임베딩·LLM 없이 즉시)
 - **웹**: 홈 첫 화면에서 바로 검색(글·사진) → 실시간 진행 → 매칭 결과(일치 점수·근거·썸네일·보관기관·지도) → HITL 확인 → 수령 안내, 결과 화면에서 이메일 알림 설정, '내 신고'(이 브라우저) · 전체 습득물(`/browse`) · 영어 가이드(`/en/guide`)
-- **다국어**: 어떤 언어로 검색해도 결과(서버가 검색어 번역) + **영어 화면 직접 제공**([/en](https://lostkorea.com/en), 외국어 브라우저는 자동 이동) + 그 밖의 언어는 Google 번역 위젯(필요할 때만 로딩) + **알림 메일·판정 근거도 신고자 언어로**(13개 언어, 장소는 한국어 원문 병기). 수령 안내에 네이버·구글 지도와 1330 통역 전화 안내
+- **다국어**: 어떤 언어로 검색해도 결과(서버가 검색어 번역) + **영어 화면 직접 제공**([/en](https://lostkorea.com/en), 외국어 브라우저는 자동 이동) + 그 밖의 언어는 Google 번역 위젯(필요할 때만 로딩) + **알림 메일·판정 근거·물품명·특이사항도 신고자 언어로**(13개 언어, 장소는 한국어 원문 병기 — 판정과 번역을 나누고 결과 언어를 검사해 섞이면 다시 쓰거나 원문 표시, 6개 언어 측정 섞임 77칸→0). 수령 안내에 네이버·구글 지도와 1330 통역 전화 안내
 - **검색·SNS 노출**: 언어별 메타·hreflang·OG 이미지·JSON-LD(FAQPage 포함), robots.txt·sitemap.xml, 홈 화면 추가(PWA)
 - **웹사이트**: 홈(히어로 검색·데이터 규모·이용 방법·특징·신뢰·FAQ)·전체 습득물·영어 가이드·방침/약관 — 공통 머리글/바닥글, 서버가 언어별로 글자를 채워 그림(`apps/api/site.py`), Pretendard 자체 호스팅, 선 아이콘, 모바일 메뉴
 - **지속 재매칭 + 알림**: 신고 저장(open) → 새 습득물 유입마다 재매칭 → 성립 시 **이메일 알림**(로고·매칭 근거·사이트 버튼 포함).
@@ -97,7 +97,7 @@
 → 의미 임베딩이 주력 랭커(한글↔영문·번역·오타 커버). **지역 가점**은 밀집 군집(검정지갑 193건 등)에서
 묻힌 정답을 MRR 0.084→0.857로 끌어올림(덧셈 소프트 w≈0.05, eval 검증). dep→구/시 gazetteer+지오코딩 커버 **95%**.
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 225개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 267개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -120,11 +120,11 @@ Docker Compose · **Caddy(자동 HTTPS)** · **GitHub Actions(자동배포)** ·
 ## 레포 구조
 
 ```
-eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, OpenSearch 색인·검색·데모) + datalab/(데이터랩 결합 분석)
+eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, OpenSearch 색인·검색·데모, 결과 번역 6개 언어 측정 run_lang) + datalab/(데이터랩 결합 분석)
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩
-tests/       pytest 225개 (외부 서비스 목킹)
+tests/       pytest 267개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)

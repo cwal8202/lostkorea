@@ -1,0 +1,1091 @@
+{
+ "tag": "before",
+ "repeat": 2,
+ "langs": {
+  "en": [
+   {
+    "sec": 6.3,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Brown card wallet",
+      "desc_en": "Brown card wallet found in Jongno-gu, Seoul.",
+      "reason": "Color mismatch (brown instead of black)."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior black wallet",
+      "desc_en": "Black Dior wallet found in an unknown location.",
+      "reason": "Matches item type (wallet) and color (black); specific brand (Dior) not mentioned by user."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Black pouch",
+      "desc_en": "Black pouch classified under miscellaneous wallets.",
+      "reason": "Matches color (black) but item type (pouch) differs from wallet."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Peach orange women's wallet",
+      "desc_en": "Peach orange women's wallet found in Busan.",
+      "reason": "Color mismatch (peach orange) and location (Busan)."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 60,
+      "name_en": "Louis Quatorze black card wallet",
+      "desc_en": "Black Louis Quatorze card wallet found in Yangsan.",
+      "reason": "Matches color (black) and wallet type, but brand (Louis Quatorze) and location (Yangsan) are specific."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Grey card wallet",
+      "desc_en": "Grey card wallet found in an unknown location.",
+      "reason": "Color mismatch (grey instead of black)."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "Celine royal blue card wallet",
+      "desc_en": "Royal blue Celine card wallet found in an unknown location.",
+      "reason": "Color mismatch (royal blue)."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 65,
+      "name_en": "Black card wallet",
+      "desc_en": "Black card wallet found in Busan.",
+      "reason": "Matches color (black) and type (card wallet), though location is Busan."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "Black wallet",
+      "desc_en": "Black wallet found in Busan.",
+      "reason": "Strong match for black wallet, though location is Busan."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "Black bifold wallet",
+      "desc_en": "Black bifold wallet found in Ulsan.",
+      "reason": "Matches color (black) and wallet type (bifold), though location is Ulsan."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 85,
+      "name_en": "Black card wallet with cards",
+      "desc_en": "Black card wallet containing cards and ID found in Mokpo.",
+      "reason": "High match for black card wallet containing credit cards and ID."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "Black MagSafe card wallet",
+      "desc_en": "Black MagSafe card wallet found in Daegu.",
+      "reason": "Matches color (black) but is a specific MagSafe phone card holder."
+     }
+    ]
+   },
+   {
+    "sec": 5.3,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "Brown Card Wallet",
+      "desc_en": "A brown-colored card wallet found in Jongno-gu, Seoul.",
+      "reason": "It is a card wallet, but the color is brown instead of black."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior Black Wallet",
+      "desc_en": "A black Dior wallet found with unknown location.",
+      "reason": "Matches the item type (wallet) and color (black), but includes a specific brand (Dior) not mentioned by the user."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Black Pouch",
+      "desc_en": "A black pouch categorized under wallets.",
+      "reason": "Matches the black color, but is described as a pouch rather than a leather wallet."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "Peach Orange Women's Wallet",
+      "desc_en": "A peach orange women's wallet found in Busan.",
+      "reason": "Matches the item type (wallet), but the color (peach orange) and location (Busan) do not match well."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 60,
+      "name_en": "Louis Quatorze Black Card Wallet",
+      "desc_en": "A black Louis Quatorze card wallet found in Yangsan, Gyeongnam.",
+      "reason": "Matches the color (black) and wallet type, but specifies a brand (Louis Quatorze) and location (Yangsan) is distant."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 20,
+      "name_en": "Grey Card Wallet",
+      "desc_en": "A grey card wallet found with unknown location.",
+      "reason": "It is a card wallet, but the color is grey instead of black."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "Celine Royal Blue Card Wallet",
+      "desc_en": "A royal blue Celine card wallet.",
+      "reason": "It is a card wallet, but the color is royal blue and a specific brand (Celine) is listed."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 70,
+      "name_en": "Black Card Wallet",
+      "desc_en": "A black card wallet found in Busan.",
+      "reason": "Matches color (black) and wallet type, but found in Busan which is far from the Seoul Subway Line 2."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 75,
+      "name_en": "Black Wallet",
+      "desc_en": "A general black wallet found in Busan.",
+      "reason": "Matches the black wallet description well, though found in Busan."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 70,
+      "name_en": "Black Bifold Wallet",
+      "desc_en": "A black bifold wallet found in Ulsan.",
+      "reason": "Matches the black color and general wallet type (bifold), but found in Ulsan."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 80,
+      "name_en": "Black Card Wallet with Cards",
+      "desc_en": "A black card wallet containing credit cards and ID, found in Mokpo.",
+      "reason": "Matches color (black), item type (card wallet), and contains cards/IDs as described by the user."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 50,
+      "name_en": "MagSafe Black Card Wallet",
+      "desc_en": "A black MagSafe card wallet found in Daegu.",
+      "reason": "Matches color (black) and wallet type, but is specifically a MagSafe card wallet."
+     }
+    ]
+   }
+  ],
+  "ja": [
+   {
+    "sec": 5.3,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Brown Card Wallet",
+      "desc_en": "A brown card wallet that does not match the lost item's black color.",
+      "reason": "色が brown であり、紛失した黒色の財布と一致しません。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior Black Wallet",
+      "desc_en": "A black Dior wallet, matching the color and item type.",
+      "reason": "黒色の財布という点が一致しますが、ブランド（Dior）の特定情報が不足しています。"
+     },
+     {
+      "name": "파우치",
+      "grade": 25,
+      "name_en": "Black Pouch",
+      "desc_en": "A black pouch, which differs from the requested wallet type.",
+      "reason": "色は黒ですが、財布ではなくポーチです。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Peach Orange Women's Wallet",
+      "desc_en": "A peach orange wallet that does not match the specified black color.",
+      "reason": "色がピーチオレンジであり、紛失した黒色の財布と一致しません。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "Louis Quatorze Black Card Wallet",
+      "desc_en": "A black Louis Quatorze card wallet that matches the color and general category.",
+      "reason": "黒色でカードなどを入れられる点（カード財布）は類似していますが、ブランド情報があります。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Gray Card Wallet",
+      "desc_en": "A gray card wallet that does not match the lost item's black color.",
+      "reason": "色がグレーであり、紛失した黒色の財布と一致しません。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "Celine Royal Blue Card Wallet",
+      "desc_en": "A royal blue Celine card wallet that does not match the black color.",
+      "reason": "色がロイヤルブルーであり、紛失した黒色の財布と一致しません。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 70,
+      "name_en": "Black Card Wallet",
+      "desc_en": "A black card wallet consistent with holding credit cards.",
+      "reason": "黒色のカード財布で、クレジットカードが入っていた点と適合する可能性があります。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "Black Wallet",
+      "desc_en": "A general black wallet closely matching the lost item description.",
+      "reason": "紛失物である「黒い財布」に最もシンプルに一致するカテゴリと色です。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "Black Folding Wallet",
+      "desc_en": "A black bi-fold wallet that matches the specified color and item type.",
+      "reason": "黒色の二つ折り財布で、一般的な革財布の形状と一致する可能性が高いです。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 75,
+      "name_en": "Black Card Wallet with IDs/Cards",
+      "desc_en": "A black card wallet containing IDs and credit cards.",
+      "reason": "黒色でカード類が入っている点が、クレジットカード数枚入りという記述と合致します。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafe Black Card Wallet",
+      "desc_en": "A black MagSafe card holder wallet for phones.",
+      "reason": "黒色のカード財布ですが、 MagSafe 専用の特殊な形態です。"
+     }
+    ]
+   },
+   {
+    "sec": 5.6,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "brown card case",
+      "desc_en": "Brown card case found in Jongno-gu, Seoul.",
+      "reason": "색상이 브라운으로, 잃어버린 검은색 지갑과 다릅니다."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior black wallet",
+      "desc_en": "Black Dior wallet found with unconfirmed location details.",
+      "reason": "검은색 지갑으로 분실물 조건(검은 가죽 지갑)과 잘 부합합니다."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Black pouch",
+      "desc_en": "Black pouch found, category listed under wallets.",
+      "reason": "검은색이지만 지갑이 아닌 파우치 형태입니다."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "Peach orange women's wallet",
+      "desc_en": "Peach orange women's wallet found in Busan.",
+      "reason": "색상이 피치 오렌지로 분실물 색상과 일치하지 않습니다."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "Louis Quatorze black card case",
+      "desc_en": "Black Louis Quatorze card case found in Yangsan.",
+      "reason": "검은색 지갑/카드지갑으로 일치하나 양산 지역에서 습득되었습니다."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "Gray card case",
+      "desc_en": "Gray card case found with unspecified location.",
+      "reason": "색상이 회색으로 분실물과 일치하지 않습니다."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "Celine royal blue card case",
+      "desc_en": "Royal blue Celine card wallet found.",
+      "reason": "색상이 로열블루로 분실물 색상과 다릅니다."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 65,
+      "name_en": "Black card case",
+      "desc_en": "Black card wallet found in Busan.",
+      "reason": "검은색 카드지갑으로 카드를 넣는 지갑이라는 점에서 일치합니다."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "Black wallet",
+      "desc_en": "Black wallet found in Busan.",
+      "reason": "검은 지갑으로 분실물 설명(검은 가죽 지갑)과 가장 잘 어울립니다."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "Black folding wallet",
+      "desc_en": "Black half-fold wallet found in Ulsan.",
+      "reason": "검은색 반지갑으로 잃어버린 가죽 지갑일 가능성이 있습니다."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 70,
+      "name_en": "Black card wallet with IDs/cards",
+      "desc_en": "Black card holder containing IDs and credit cards, found in Mokpo.",
+      "reason": "검은색 카드지갑에 카드가 들어있다는 점이 분실물과 유사합니다."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "Black MagSafe card wallet",
+      "desc_en": "Black MagSafe card holder found in Daegu.",
+      "reason": "검은색 카드지갑이지만 핸드폰 부착용 맥세이프 특수 유형입니다."
+     }
+    ]
+   }
+  ],
+  "zh-CN": [
+   {
+    "sec": 6.1,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "棕色卡包",
+      "desc_en": "在首尔钟路区拾获的棕色卡包，与失主描述的黑色皮钱包颜色不符。",
+      "reason": "颜色不符（棕色 vs 黑色）。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "迪奥黑色钱包",
+      "desc_en": "黑色迪奥钱包，颜色与品类与失主丢失的黑色皮钱包高度吻合。",
+      "reason": "颜色（黑色）和品类（钱包）吻合，但未注明具体材质和内含物。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "黑色收纳包",
+      "desc_en": "拾获的黑色收纳包，虽然颜色一致但物品种类与皮钱包不完全一致。",
+      "reason": "颜色为黑色，但物品种类为收纳包/收纳袋，与钱包有一定差异。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "桃橙色女士钱包",
+      "desc_en": "釜山拾获的桃橙色女士钱包，颜色与失主描述的黑色完全不同。",
+      "reason": "颜色（桃橙色）与品类均与失主描述不符。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "路易佳缺黑色卡包",
+      "desc_en": "庆南阳山拾获的黑色路易佳缺卡包，颜色吻合，可用于存放信用卡。",
+      "reason": "颜色为黑色，属于钱包类，但明确为卡包且品牌特定。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "灰色卡包",
+      "desc_en": "拾获的灰色卡包，与失主描述的黑色不符。",
+      "reason": "颜色不符（灰色 vs 黑色）。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "赛琳宝蓝色卡包",
+      "desc_en": "赛琳宝蓝色卡包，颜色与失主的黑色皮钱包明显不符。",
+      "reason": "颜色不符（宝蓝色 vs 黑色）。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 70,
+      "name_en": "黑色卡包",
+      "desc_en": "釜山拾获的黑色卡包，颜色一致且适合存放信用卡。",
+      "reason": "颜色（黑色）吻合，卡包功能与内含信用卡相符。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "黑色钱包",
+      "desc_en": "釜山拾获的黑色钱包，与失主描述的黑色钱包基本一致。",
+      "reason": "颜色（黑色）与品类（钱包）高度吻合。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 80,
+      "name_en": "黑色短款钱包",
+      "desc_en": "蔚山拾获的黑色短款/折叠钱包，颜色和种类与失主描述非常契合。",
+      "reason": "黑色皮质折叠钱包的可能性高，颜色与品类吻合。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 85,
+      "name_en": "黑色卡包（含证件卡片）",
+      "desc_en": "木浦拾获的黑色卡包，内部装有卡片和证件，与失主内有信用卡的描述高度一致。",
+      "reason": "颜色（黑色）一致，且明确备注含有卡片，与失主描述极为吻合。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 50,
+      "name_en": "黑色MagSafe磁吸卡包",
+      "desc_en": "大邱拾获的黑色MagSafe磁吸卡包，虽然是黑色且装卡，但属于特殊手机配件。",
+      "reason": "颜色为黑色，但属于具体的MagSafe手机卡包，可能与普通皮钱包有异。"
+     }
+    ]
+   },
+   {
+    "sec": 6.1,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "棕色卡包",
+      "desc_en": "棕色卡包，与失主寻找的黑色皮钱包颜色不一致。",
+      "reason": "颜色为棕色，与失主描述的黑色皮钱包颜色不符。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "黑色迪奥钱包",
+      "desc_en": "黑色迪奥品牌钱包，颜色一致，未注明材质。",
+      "reason": "黑色迪奥钱包，颜色和种类 matches，但缺少材质与具体内容物信息。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "黑色小收纳包",
+      "desc_en": "黑色小包，虽然分类在钱包类，但名称为收纳包。",
+      "reason": "物品种类为收纳包/小包，与钱包类型略有偏差。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "桃橙色女士钱包",
+      "desc_en": "桃橙色女士钱包，与失主丢失的黑色钱包不匹配。",
+      "reason": "颜色为桃橙色，与失主的黑色钱包严重不符。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "黑色瑞卡豆士卡包",
+      "desc_en": "黑色卡包，符合黑色特征，但是特定品牌卡包。",
+      "reason": "黑色卡包，品牌为瑞卡豆士，颜色一致但偏向卡包类型。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "灰色卡包",
+      "desc_en": "灰色卡包，与失主寻找的黑色钱包不匹配。",
+      "reason": "颜色为灰色，与失主描述的黑色不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "皇家蓝赛琳卡包",
+      "desc_en": "蓝色卡包，颜色与失主描述的黑色完全不同。",
+      "reason": "颜色为皇家蓝，与失主的黑色钱包严重不符。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 75,
+      "name_en": "黑色卡包",
+      "desc_en": "黑色卡包，颜色吻合，但未具体说明是否为皮革材质。",
+      "reason": "黑色卡包，颜色一致，但失主描述为皮钱包且含信用卡。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "黑色钱包",
+      "desc_en": "黑色钱包，种类和颜色与失主丢失的物品高度一致。",
+      "reason": "黑色钱包，颜色和种类高度契合失主的黑色皮钱包描述。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "黑色折叠钱包",
+      "desc_en": "黑色对折短钱包，颜色符合，可能为失主丢失的钱包。",
+      "reason": "黑色对折短钱包，颜色一致，款式较为具体。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 85,
+      "name_en": "黑色卡包（含证件和卡）",
+      "desc_en": "黑色卡包，内含卡片和证件，与失主描述的内部有信用卡相符。",
+      "reason": "黑色卡包内含身份证和卡，与失主提到里面有信用卡的特征高度吻合。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 50,
+      "name_en": "黑色MagSafe卡包",
+      "desc_en": "黑色MagSafe磁吸卡包，虽然是黑色且装卡，但属于特定功能卡包。",
+      "reason": "黑色MagSafe磁吸卡包，属于手机配件类卡包，与传统皮钱包有差异。"
+     }
+    ]
+   }
+  ],
+  "zh-TW": [
+   {
+    "sec": 6.2,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "棕色卡包",
+      "desc_en": "拾獲於首爾鍾路區的棕색卡包，與失主說明的黑色不符。",
+      "reason": "顏色為棕색，與失主描述的黑色皮夾顏色不符。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "迪奧黑色皮夾",
+      "desc_en": "黑色Dior錢包，地點不詳，顏色與錢包種類 matches 遺失物。",
+      "reason": "黑色迪奧錢包，顏色與種類一致，但缺乏具體材質資訊。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "黑色收納包",
+      "desc_en": "黑色收納小包，雖為黑色但非標準皮夾。",
+      "reason": "品項為收納包(파우치)，與失主尋找的皮夾品項略有出入。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "桃橙色女用錢包",
+      "desc_en": "釜山拾獲的橙色女用錢包，顏色不符合。",
+      "reason": "顏色為桃橙色，與失主的黑色皮夾完全不符。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 60,
+      "name_en": "Louis Quatorze 黑色卡包",
+      "desc_en": "黑色品牌卡包，顏色吻合，但為特定品牌卡包。",
+      "reason": "黑色Louis Quatorze卡包，顏色符合，但失主未指定品牌且地點較遠。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "灰色卡包",
+      "desc_en": "灰色卡片皮夾，顏色與失物不符。",
+      "reason": "顏色為灰色，與遺失的黑色皮夾不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "CELINE 藍色卡包",
+      "desc_en": "Celine寶藍色卡包，顏色與遺失物不符。",
+      "reason": "顏色為皇家藍，與黑色皮夾顏色不符。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 65,
+      "name_en": "黑色卡包",
+      "desc_en": "釜山拾獲的黑色卡包，顏色與物品種類基本符合。",
+      "reason": "黑色卡包，顏色符合，可能為失主遺失的黑色皮夾/卡夾。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "黑色錢包",
+      "desc_en": "黑色通用錢包，與遺失的黑色皮夾特徵一致。",
+      "reason": "黑色錢包，顏色與品項均高度吻合失主描述。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "黑色對折短夾",
+      "desc_en": "蔚山拾獲的黑色短夾，符合黑色皮夾的特徵。",
+      "reason": "黑色短夾，顏色與錢包類型高度吻合。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 85,
+      "name_en": "黑色卡包（含卡片證件）",
+      "desc_en": "黑色卡包，標註含有證件及卡片，與失主描述的內部物品高度符合。",
+      "reason": "黑色卡包且內含證件與信用卡，與失主提到的「裡面有信用卡」高度吻合。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 50,
+      "name_en": "MagSafe 黑色磁吸卡包",
+      "desc_en": "大邱拾獲的MagSafe黑色卡包，款式較為特殊。",
+      "reason": "MagSafe黑色卡包，為磁吸卡包，與一般皮夾有細微差異。"
+     }
+    ]
+   },
+   {
+    "sec": 5.3,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "棕色卡包",
+      "desc_en": "於首爾鐘路區拾獲的棕色卡包，顏色與遺失物不符。",
+      "reason": "顏色為棕色，與遺失的黑色皮夾顏色不符。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior 黑色皮夾",
+      "desc_en": "黑色Dior皮夾，種類與顏色均符合遺失物特徵。",
+      "reason": "黑色皮夾種類與顏色皆吻合，品牌細節未註明。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "黑色收納包",
+      "desc_en": "黑色收納包，顏色吻合但物品種類與皮夾不同。",
+      "reason": "顏色為黑色，但物品種類為收納包而非皮夾。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "橙色女用皮夾",
+      "desc_en": "於釜山拾獲的桃橙色女用皮夾，顏色不符。",
+      "reason": "顏色為桃橙色，與遺失的黑色皮夾不符。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "Louis Quatorze 黑色卡包",
+      "desc_en": "黑色品牌卡包，顏色符合但地點偏遠。",
+      "reason": "黑色卡包顏色吻合，但地點在慶南陽山且帶品牌。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "灰色卡包",
+      "desc_en": "灰色卡包，顏色與遺失的黑色皮夾不符。",
+      "reason": "顏色為灰色，與遺失的黑色皮夾不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "CELINE 寶藍色卡包",
+      "desc_en": "寶藍色CELINE卡包，顏色不符。",
+      "reason": "顏色為寶藍色，與遺失的黑色皮夾不符。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 60,
+      "name_en": "黑色卡包",
+      "desc_en": "於釜山拾獲 lessen 的黑色卡包，顏色與功能符合。",
+      "reason": "黑色卡片包顏色與種類大致吻合，但地點在釜山。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 70,
+      "name_en": "黑色皮夾",
+      "desc_en": "黑色皮夾，顏色與品項極為符合遺失物描述。",
+      "reason": "黑色皮夾種類與顏色高度吻合，地點在釜山。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 70,
+      "name_en": "黑色短夾",
+      "desc_en": "黑色皮質短夾，顏色與種類均相符。",
+      "reason": "黑色短夾顏色與種類吻合，地點在蔚山。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 80,
+      "name_en": "黑色卡包（含卡片）",
+      "desc_en": "含有證件與信用卡等卡片的黑色卡包，特徵極度吻合。",
+      "reason": "黑色卡包且內含證件與卡片，與遺失物特徵高度吻合。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 50,
+      "name_en": "MagSafe 黑色卡包",
+      "desc_en": "黑色MagSafe磁吸卡包，顏色吻合但款式較為特殊。",
+      "reason": "黑色麥 safe 卡包，屬特殊配件類型與一般皮夾略有差異。"
+     }
+    ]
+   }
+  ],
+  "vi": [
+   {
+    "sec": 5.5,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ màu nâu",
+      "desc_en": "Ví đựng thẻ màu nâu được tìm thấy tại Jongno-gu, Seoul.",
+      "reason": "Màu sắc (nâu) không khớp với ví màu đen bị mất."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 60,
+      "name_en": "Ví Dior màu đen",
+      "desc_en": "Ví hiệu Dior màu đen, không rõ địa điểm nhặt được.",
+      "reason": "Loại vật phẩm (ví) và màu sắc (đen) trùng khớp với mô tả."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Túi nhỏ màu đen",
+      "desc_en": "Túi nhỏ/pouch màu đen, không rõ địa điểm nhặt được.",
+      "reason": "Màu sắc trùng khớp nhưng loại vật phẩm là túi nhỏ (pouch) chứ không phải ví da."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Ví nữ màu cam đào",
+      "desc_en": "Ví nữ màu cam đào được tìm thấy tại Busan.",
+      "reason": "Màu sắc (cam đào) không khớp với ví màu đen bị mất."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 55,
+      "name_en": "Ví đựng thẻ Louis Quatorze màu đen",
+      "desc_en": "Ví đựng thẻ nữ thương hiệu Louis Quatorze màu đen.",
+      "reason": "Ví đựng thẻ màu đen, trùng khớp về màu sắc và loại vật phẩm cơ bản."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ màu xám",
+      "desc_en": "Ví đựng thẻ màu xám, không rõ địa điểm nhặt được.",
+      "reason": "Màu sắc (xám) không khớp với ví màu đen bị mất."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "Ví đựng thẻ Celine màu xanh royal",
+      "desc_en": "Ví đựng thẻ thương hiệu Celine màu xanh royal.",
+      "reason": "Màu sắc (xanh royal) không khớp với ví màu đen bị mất."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 60,
+      "name_en": "Ví đựng thẻ màu đen",
+      "desc_en": "Ví đựng thẻ màu đen được tìm thấy tại Busan.",
+      "reason": "Ví đựng thẻ màu đen, trùng khớp màu sắc và loại vật phẩm."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 65,
+      "name_en": "Ví màu đen",
+      "desc_en": "Ví màu đen được tìm thấy tại Busan.",
+      "reason": "Ví màu đen, trùng khớp hoàn toàn về loại vật phẩm và màu sắc cơ bản."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 65,
+      "name_en": "Ví gập màu đen",
+      "desc_en": "Ví gập (반지갑) màu đen được tìm thấy tại Ulsan.",
+      "reason": "Ví gập màu đen, khả năng cao trùng khớp với ví da màu đen bị mất."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 70,
+      "name_en": "Ví đựng thẻ màu đen (có thẻ/ID)",
+      "desc_en": "Ví đựng thẻ màu đen bên trong có chứa thẻ tín dụng và giấy tờ tùy thân.",
+      "reason": "Ví đựng thẻ màu đen có chứa thẻ và giấy tờ bên trong, rất giống mô tả."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 45,
+      "name_en": "Ví đựng thẻ MagSafe màu đen",
+      "desc_en": "Ví đựng thẻ MagSafe nam màu đen được tìm thấy tại Daegu.",
+      "reason": "Ví đựng thẻ MagSafe màu đen, trùng màu nhưng là loại ví dính lưng điện thoại chuyên dụng."
+     }
+    ]
+   },
+   {
+    "sec": 5.2,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ màu nâu",
+      "desc_en": "Ví đựng thẻ màu nâu được nhặt tại Jongno-gu, Seoul.",
+      "reason": "Màu sắc (nâu) không 일치 với ví đen được 보관."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Ví Dior màu đen",
+      "desc_en": "Ví thương hiệu Dior màu đen, không rõ địa điểm nhặt.",
+      "reason": "Loại vật phẩm (ví) và màu sắc (đen) 일치, 브랜드 정보는 thêm."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Túi nhỏ màu đen",
+      "desc_en": "Túi nhỏ (pouch) màu đen, phân loại thuộc mục ví.",
+      "reason": "Màu sắc (đen) 일치하지만 ví là túi nhỏ (pouch), không hẳn là ví da."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Ví nữ màu cam đào",
+      "desc_en": "Ví nữ màu cam đào được nhặt tại Busan.",
+      "reason": "Màu sắc (cam đào) không 일치."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "Ví đựng thẻ Louis Quatorze màu đen",
+      "desc_en": "Ví đựng thẻ nữ màu đen thương hiệu Louis Quatorze nhặt tại Yangsan.",
+      "reason": "Loại vật phẩm (ví thẻ) và màu sắc (đen) 일치."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ màu xám",
+      "desc_en": "Ví đựng thẻ màu xám, không rõ địa điểm.",
+      "reason": "Màu sắc (xám) không 일치."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "Ví đựng thẻ Celine màu xanh",
+      "desc_en": "Ví đựng thẻ Celine màu xanh royal blue.",
+      "reason": "Màu sắc (xanh royal blue) không 일치."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 80,
+      "name_en": "Ví đựng thẻ màu đen",
+      "desc_en": "Ví đựng thẻ màu đen được nhặt tại Busan.",
+      "reason": "Loại vật phẩm (ví thẻ) và màu sắc (đen) 일치."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 85,
+      "name_en": "Ví màu đen",
+      "desc_en": "Ví màu đen chung chung được nhặt tại Busan.",
+      "reason": "Loại vật phẩm (ví) và màu sắc (đen) 일치하여 가능성 높음."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 80,
+      "name_en": "Ví gập màu đen",
+      "desc_en": "Ví gập (반지갑) màu đen được nhặt tại Ulsan.",
+      "reason": "Loại vật phẩm (ví gập) và màu sắc (đen) 일치."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 85,
+      "name_en": "Ví đựng thẻ màu đen (có ID, thẻ)",
+      "desc_en": "Ví đựng thẻ màu đen bên trong có thẻ tín dụng và giấy tờ.",
+      "reason": "Ví thẻ màu đen có chứa thẻ bên trong, rất 일치 với mô tả."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 60,
+      "name_en": "Ví đựng thẻ MagSafe màu đen",
+      "desc_en": "Ví đựng thẻ MagSafe màu đen dành cho nam nhặt tại Daegu.",
+      "reason": "Loại ví (MagSafe) đặc thù hơn ví da thông thường nhưng màu sắc 일치."
+     }
+    ]
+   }
+  ],
+  "th": [
+   {
+    "sec": 5.9,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าใส่บัตรสีน้ำตาล",
+      "desc_en": "กระเป๋าใส่บัตรสีน้ำตาลที่พบในเขตจงโน กรุงเทพฯ/โซล",
+      "reason": "สีน้ำตาล ไม่ตรงกับกระเป๋าสตางค์สีดำที่ทำหาย"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "กระเป๋าสตางค์ Dior สีดำ",
+      "desc_en": "กระเป๋าสตางค์สีดำแบรนด์ Dior ไม่ระบุสถานที่พบ",
+      "reason": "เป็นกระเป๋าสตางค์สีดำตรงตามที่ระบุ แต่ไม่ระบุแบรนด์ในคำขอ"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "กระเป๋าใบเล็กสีดำ",
+      "desc_en": "กระเป๋าใบเล็กสีดำ ไม่ระบุสถานที่พบ",
+      "reason": "ประเภทเป็นกระเป๋าใบเล็ก (Pouch) ไม่ใช่กระเป๋าสตางค์โดยตรง"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "กระเป๋าสตางค์ผู้หญิงสีส้มพีช",
+      "desc_en": "กระเป๋าสตางค์ผู้หญิงสีส้มพีชที่พบในปูซาน",
+      "reason": "สีส้มพีช ไม่ตรงกับสีดำที่ทำหาย"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 60,
+      "name_en": "กระเป๋าใส่บัตร Louis Quatorze สีดำ",
+      "desc_en": "กระเป๋าใส่บัตรสีดำสำหรับผู้หญิง แบรนด์ Louis Quatorze",
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำ แต่มียี่ห้อ Louis Quatorze และพบที่ยังซาน"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าใส่บัตรสีเทา",
+      "desc_en": "กระเป๋าใส่บัตรสีเทา ไม่ระบุสถานที่พบ",
+      "reason": "สีเทา ไม่ตรงกับสีดำที่ทำหาย"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "กระเป๋าใส่บัตร Celine สีรอยัลบลู",
+      "desc_en": "กระเป๋าใส่บัตรผู้หญิงแบรนด์ Celine สีน้ำเงินรอยัลบลู",
+      "reason": "สีรอยัลบลู ไม่ตรงกับสีดำที่ทำหาย"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 65,
+      "name_en": "กระเป๋าใส่บัตรสีดำ",
+      "desc_en": "กระเป๋าใส่บัตรสีดำที่เก็บได้ในปูซาน",
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำ แต่พบที่ปูซานซึ่งไกลจากรถไฟใต้ดินสาย 2 โซล"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 70,
+      "name_en": "กระเป๋าสตางค์สีดำ",
+      "desc_en": "กระเป๋าสตางค์สีดำทั่วไปที่เก็บได้ในปูซาน",
+      "reason": "ตรงว่าเป็นกระเป๋าสตางค์สีดำ แต่สถานที่เก็บได้คือปูซาน"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 65,
+      "name_en": "กระเป๋าสตางค์ทรงพับสีดำ",
+      "desc_en": "กระเป๋าสตางค์ทรงพับสีดำที่เก็บได้ในอุลซาน",
+      "reason": "เป็นกระเป๋าสตางค์แบบพับสีดำ แต่เก็บได้ที่อุลซาน"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 80,
+      "name_en": "กระเป๋าใส่บัตรสีดำพร้อมบัตร",
+      "desc_en": "กระเป๋าใส่บัตรสีดำที่มีบัตรประชาชนและบัตรเครดิตข้างใน",
+      "reason": "กระเป๋าใส่บัตรสีดำที่มีบัตรเครดิตและบัตรประชาชนอยู่ข้างใน ตรงตามรายละเอียด"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "กระเป๋าใส่บัตร MagSafe สีดำ",
+      "desc_en": "กระเป๋าใส่บัตรแบบ MagSafe สีดำสำหรับผู้ชาย",
+      "reason": "เป็นกระเป๋าใส่บัตร MagSafe สีดำ ซึ่งเป็นเคสเฉพาะทางเกินไป"
+     }
+    ]
+   },
+   {
+    "sec": 5.9,
+    "items": [
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าใส่บัตรสีน้ำตาล",
+      "desc_en": "กระเป๋าใส่บัตรสีน้ำตาล พบที่เขตจงโน กรุงโซล",
+      "reason": "สีน้ำตาล ไม่ตรงกับกระเป๋าสตางค์สีดำที่ทำหาย"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "กระเป๋าสตางค์ Dior สีดำ",
+      "desc_en": "กระเป๋าสตางค์แบรนด์ Dior สีดำ ไม่ระบุสถานที่พบ",
+      "reason": "เป็นกระเป๋าสตางค์สีดำ ตรงตามชนิดและสีที่ระบุ แต่ไม่ทราบแบรนด์เดิม"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "กระเป๋าใบเล็กสีดำ",
+      "desc_en": "กระเป๋าใบเล็ก (Pouch) สีดำ ไม่ระบุสถานที่พบ",
+      "reason": "เป็นกระเป๋าใบเล็ก (Pouch) สีดำ ประเภทไม่ตรงกับกระเป๋าสตางค์โดยตรง"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "กระเป๋าสตางค์ผู้หญิงสีส้มพีช",
+      "desc_en": "กระเป๋าสตางค์ผู้หญิงสีส้มพีช พบที่เมืองปูซาน",
+      "reason": "สีส้มพีช ไม่ตรงกับสีดำที่ระบุ"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "กระเป๋าใส่บัตร Louis Quatorze สีดำ",
+      "desc_en": "กระเป๋าใส่บัตรแบรนด์ Louis Quatorze สีดำ พบที่เมืองยังซัน",
+      "reason": "กระเป๋าใส่บัตรสีดำ ตรงตามสีแต่ขนาดอาจเล็กว่ากระเป๋าสตางค์ทั่วไป"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าใส่บัตรสีเทา",
+      "desc_en": "กระเป๋าใส่บัตรสีเทา ไม่ระบุสถานที่พบ",
+      "reason": "สีเทา ไม่ตรงกับกระเป๋าสตางค์สีดำที่ทำหาย"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 5,
+      "name_en": "กระเป๋าใส่บัตร Celine สีรอยัลบลู",
+      "desc_en": "กระเป๋าใส่บัตรแบรนด์ Celine สีรอยัลบลู ไม่ระบุสถานที่พบ",
+      "reason": "สีรอยัลบลู ไม่ตรงกับสีดำที่ระบุ"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 65,
+      "name_en": "กระเป๋าใส่บัตรสีดำ",
+      "desc_en": "กระเป๋าใส่บัตรสีดำ พบที่เมืองปูซาน",
+      "reason": "กระเป๋าใส่บัตรสีดำ ตรงตามสีแต่อาจเป็นเพียงกระเป๋าใส่บัตร"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 80,
+      "name_en": "กระเป๋าสตางค์สีดำ",
+      "desc_en": "กระเป๋าสตางค์สีดำ พบที่เมืองปูซาน",
+      "reason": "กระเป๋าสตางค์สีดำ ตรงตามประเภทและสีที่ผู้ใช้ทำหายมากที่สุด"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 75,
+      "name_en": "กระเป๋าสตางค์แบบพับสีดำ",
+      "desc_en": "กระเป๋าสตางค์แบบพับสีดำ พบที่เมืองอุลซาน",
+      "reason": "กระเป๋าสตางค์แบบพับสีดำ ตรงตามประเภทและสีที่ระบุ"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 70,
+      "name_en": "กระเป๋าใส่บัตรสีดำ (มีบัตร)",
+      "desc_en": "กระเป๋าใส่บัตรสีดำ บรรจุบัตรประชาชนและบัตรอื่นๆ พบที่เมืองมกโพ",
+      "reason": "กระเป๋าใส่บัตรสีดำที่มีบัตรข้างใน ตรงกับข้อมูลที่มีบัตรเครดิตหลายใบ"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "กระเป๋าใส่บัตร MagSafe สีดำ",
+      "desc_en": "กระเป๋าใส่บัตรแบบ MagSafe สีดำ สำหรับผู้ชาย พบที่เมืองแทกู",
+      "reason": "เป็นกระเป๋าใส่บัตรแบบ MagSafe ติดโทรศัพท์ อาจไม่ใช่กระเป๋าสตางค์หนังทั่วไป"
+     }
+    ]
+   }
+  ]
+ },
+ "tokens": {
+  "calls": 12,
+  "in": 15542,
+  "out": 12321
+ }
+}

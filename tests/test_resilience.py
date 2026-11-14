@@ -33,7 +33,7 @@ def world(monkeypatch):
 
     monkeypatch.setattr(graph.search_mod, "search", lambda q, **k: [dict(c) for c in w["cands"]])
 
-    def fake_grade(text, cands, lang="ko"):
+    def fake_grade(text, cands, lang="ko", **k):
         w["grade_calls"] += 1
         return [{"id": i, "score": 30, "reason": "x"} for i in range(len(cands))] if w["grade_ok"] else []
 

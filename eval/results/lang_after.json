@@ -1,0 +1,1177 @@
+{
+ "tag": "after",
+ "repeat": 2,
+ "langs": {
+  "en": [
+   {
+    "sec": 5.0,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 80,
+      "name_en": "Dior wallet",
+      "desc_en": "Found outside Exit 5 of Sillim Station",
+      "reason": "Matches item type (wallet), color (black), place (subway, Sillim Station on Line 2), and date."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 75,
+      "name_en": "Louis Quatorze card wallet",
+      "desc_en": "Contains ID, cards, etc.",
+      "reason": "Matches color (black), type (card wallet), found on subway, and contains cards."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 60,
+      "name_en": "Card wallet (ID, card)",
+      "desc_en": null,
+      "reason": "Matches color (black), wallet type, and contains cards/ID, but found on a train rather than subway."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 55,
+      "name_en": "Black wallet",
+      "desc_en": null,
+      "reason": "Matches color (black) and wallet type, but found on a train rather than subway."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 55,
+      "name_en": "Black bifold wallet",
+      "desc_en": null,
+      "reason": "Matches color (black) and wallet type (folding wallet), but found on a train rather than subway."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 50,
+      "name_en": "Black card wallet",
+      "desc_en": null,
+      "reason": "Matches color (black) and wallet type, but found on a train rather than subway."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 45,
+      "name_en": "MagSafe card wallet",
+      "desc_en": null,
+      "reason": "Specific wallet type (MagSafe card wallet), matches color (black), but found on a train."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Pouch",
+      "desc_en": "Contains cards, wireless earphone case, cosmetics",
+      "reason": "Item type mismatch (pouch), though it is black and contains cards."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 25,
+      "name_en": "Card wallet",
+      "desc_en": "Contents - Resident registration card, Driver's license, KakaoBank card",
+      "reason": "Color mismatch (brown instead of black), though acquired on the subway."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 20,
+      "name_en": "Card wallet",
+      "desc_en": "Prepaid transit card",
+      "reason": "Color mismatch (grey)."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 20,
+      "name_en": "09-CELINE card wallet",
+      "desc_en": "Contents: cards, cash, etc.",
+      "reason": "Color mismatch (royal blue)."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "Women's wallet",
+      "desc_en": "Seniors transit card (personalized) inside the wallet.",
+      "reason": "Color mismatch (peach orange) and location is Busan."
+     }
+    ]
+   },
+   {
+    "sec": 3.0,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior wallet",
+      "desc_en": "Found outside Exit 5 of Sillim Station",
+      "reason": "Matches the black color, wallet type, acquired on the subway, but brand Dior was not specified by the user."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "Louis Quatorze card wallet",
+      "desc_en": "Contains ID, cards, etc.",
+      "reason": "Matches black card wallet acquired on the subway containing cards, though brand Louis Quatorze was unmentioned."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 60,
+      "name_en": "Black wallet",
+      "desc_en": null,
+      "reason": "Matches black wallet description, but found on a train instead of the subway."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 60,
+      "name_en": "Black bifold wallet",
+      "desc_en": null,
+      "reason": "Matches black folding wallet description, but found on a train instead of the subway."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 55,
+      "name_en": "Black card wallet",
+      "desc_en": null,
+      "reason": "Matches black card wallet type, but found on a train instead of the subway."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "Card wallet (ID, card)",
+      "desc_en": null,
+      "reason": "Matches black card wallet with cards, but found on a train instead of the subway."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafe card wallet",
+      "desc_en": null,
+      "reason": "Matches black color, but it is a MagSafe card wallet found on a train."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Pouch",
+      "desc_en": "Contains cards, wireless earphone case, cosmetics",
+      "reason": "Item is a pouch containing wireless earphone case and cosmetics, not a simple leather wallet."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 25,
+      "name_en": "Card wallet",
+      "desc_en": "Contents - Resident Registration Card, Driver's License, KakaoBank card",
+      "reason": "Different color (brown instead of black) and contents include IDs."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 20,
+      "name_en": "Card wallet",
+      "desc_en": "Prepaid transit card",
+      "reason": "Different color (grey) and contains only a prepaid transit card."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 15,
+      "name_en": "09-CELINE card wallet",
+      "desc_en": "Contents: cards, cash, etc.",
+      "reason": "Different color (royal blue) and specific Celine brand not mentioned."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "Women's wallet",
+      "desc_en": "Contains a senior transit card (personalized) inside the wallet.",
+      "reason": "Different color (peach orange) and contains a specific senior transportation card."
+     }
+    ]
+   }
+  ],
+  "ja": [
+   {
+    "sec": 6.4,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior 財布",
+      "desc_en": "新林駅5番出口の外で拾得",
+      "reason": "黒の財布、地下鉄（2号線 Sillim Station 付近）での拾得で条件によく合致しています。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "Louis Quatorze カードケース",
+      "desc_en": "身分証、カードなど中身あり",
+      "reason": "黒の Louis Quatorze のカードケースで、地下鉄で拾得されカードなどが入っています。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "カードケース（身分証明書、カード）",
+      "desc_en": null,
+      "reason": "黒のカードケース（身分証明書、カード含む）ですが、拾得場所が列車です。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 50,
+      "name_en": "黒の財布",
+      "desc_en": null,
+      "reason": null
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "黒の二つ折り財布",
+      "desc_en": null,
+      "reason": "黒の二つ折り財布ですが、拾得場所が地下鉄ではなく列車です。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 45,
+      "name_en": "黒のカードケース",
+      "desc_en": null,
+      "reason": "黒のカードケースですが、拾得場所が地下鉄ではなく列車です。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafeカードケース",
+      "desc_en": null,
+      "reason": "黒の MagSafe カードケースですが、拾得場所が列車です。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "ポーチ",
+      "desc_en": "カード、ワイヤレスイヤホンケース、化粧品が入っている",
+      "reason": "黒色ですが財布ではなくポーチであり、ワイヤレスイヤホンと化粧品が入っています。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "カードケース",
+      "desc_en": "内容物 - 住民登録証、運転免許証、KakaoBankカード",
+      "reason": "色がブラウンで一致せず、拾得日と地下鉄の場所のみ一致しています。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "カードケース",
+      "desc_en": "プリペイド型交通カード",
+      "reason": "グレーのカードケースで色が一致しません。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "09-CELINE カードケース",
+      "desc_en": "内容物：カード、現金など",
+      "reason": "ロイヤルブルーのカードケースで色が一致しません。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "女性用財布",
+      "desc_en": "財布内に高齢者交通カード（記名式）あり。",
+      "reason": "ピーチオレンジ色の女性用財布で色が一致しません。"
+     }
+    ]
+   },
+   {
+    "sec": 3.2,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 85,
+      "name_en": "Dior 財布",
+      "desc_en": "新林駅5番出口の外側で拾得",
+      "reason": "地下鉄で拾得された黒色のディオール財布で、紛失物と特徴がよく一致します。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 80,
+      "name_en": "Louis Quatorze カードケース",
+      "desc_en": "身分証明書、カードなど在中",
+      "reason": "地下鉄で拾得された黒色のLouis Quatorzeカードケースで、カード類が入っている点が一致します。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "カードケース(身分証明書、カード)",
+      "desc_en": null,
+      "reason": "黒色のカードケースでカード類が入っていますが、拾得場所が列車となっています。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 50,
+      "name_en": "黒のカードケース",
+      "desc_en": null,
+      "reason": "黒色のカードケースですが、拾得場所が列車となっています。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 50,
+      "name_en": "黒の財布",
+      "desc_en": null,
+      "reason": "黒色の財布ですが、拾得場所が列車となっています。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "黒の二つ折り財布",
+      "desc_en": null,
+      "reason": "黒色の二つ折り財布ですが、拾得場所が列車となっています。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 45,
+      "name_en": "MagSafeカードケース",
+      "desc_en": null,
+      "reason": "黒色のMagSafeカードケースですが、拾得場所が列車となっています。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "ポーチ",
+      "desc_en": "カード、ワイヤレスイヤホンケース、化粧品が入っている",
+      "reason": "黒色ですがポーチであり、化粧品やイヤホンケースなどの内容物が一致しません。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "カードケース",
+      "desc_en": "内容物 - 住民登録証、運転免許証、KakaoBankカード",
+      "reason": "色がブラウンで黒色の紛失物と一致しません。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "カードケース",
+      "desc_en": "プリペイド型交通カード",
+      "reason": "色がグレーで黒色の紛失物と一致しません。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "09-CELINE カードケース",
+      "desc_en": "内容物: カード、現金など",
+      "reason": "色がロイヤルブルーで黒色の紛失物と一致しません。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "女性用財布",
+      "desc_en": "財布内に高齢者用交通カード（記名式）あり。",
+      "reason": "色がピーチオレンジで一致せず、内容物も異なります。"
+     }
+    ]
+   }
+  ],
+  "zh-CN": [
+   {
+    "sec": 3.2,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 80,
+      "name_en": "Dior 钱包",
+      "desc_en": "在新林站 5 号出口室外拾获",
+      "reason": "黑色钱包，拾得地点为地铁，与遗失物品特征一致；未注明具体内容物。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 75,
+      "name_en": "Louis Quatorze 卡包",
+      "desc_en": "内有身份证、卡等",
+      "reason": "黑色卡包，拾得地点为地铁，内含身份证件及卡类，特征高度相似。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 65,
+      "name_en": "黑色钱包",
+      "desc_en": null,
+      "reason": "黑色钱包，颜色及种类一致，但拾得地点为火车。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 65,
+      "name_en": "黑色对折钱包",
+      "desc_en": null,
+      "reason": "黑色短款钱包，颜色及种类一致，但拾得地点为火车。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 65,
+      "name_en": "卡包（身份证、卡）",
+      "desc_en": null,
+      "reason": "黑色卡包，内含身份证及卡类，但拾得地点为火车。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 60,
+      "name_en": "黑色卡包",
+      "desc_en": null,
+      "reason": "黑色卡包，颜色及种类一致，但拾得地点为火车。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafe 卡包",
+      "desc_en": null,
+      "reason": "黑色MagSafe卡包，属于特殊款式，但拾得地点为火车。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "收纳包",
+      "desc_en": "内有卡、无线耳机盒、化妆品",
+      "reason": "物品种类为收纳包，内含无线耳机盒和化妆品，与遗失物品不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 20,
+      "name_en": "09-CELINE 卡包",
+      "desc_en": "内容物：卡、现金等",
+      "reason": "颜色为皇家蓝，与遗失的黑色钱包不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "卡包",
+      "desc_en": "内容物 - 居民身份证、驾驶证、KakaoBank 卡",
+      "reason": "颜色为棕色，与遗失的黑色皮钱包不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "卡包",
+      "desc_en": "预付费型交通卡",
+      "reason": "颜色为灰色，且仅内含预付费交通卡，与遗失物品不符。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "女士钱包",
+      "desc_en": "钱包内有老年人交通卡（记名式）。",
+      "reason": "颜色为桃橙色，内含老年交通卡，与遗失物品不符。"
+     }
+    ]
+   },
+   {
+    "sec": 3.0,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 80,
+      "name_en": "Dior钱包",
+      "desc_en": "在新林站5号出口室外拾获",
+      "reason": "黑色钱包，拾得地点为地铁，与遗失物品特征较为一致。"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 75,
+      "name_en": "Louis Quatorze卡包",
+      "desc_en": "内有身份证、卡等",
+      "reason": "Louis Quatorze 黑色卡包，拾得地点为地铁，内含卡片，特征相符。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 55,
+      "name_en": "黑色钱包",
+      "desc_en": null,
+      "reason": "黑色钱包，但拾得地点为火车而非地铁。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "卡包(身份证，卡)",
+      "desc_en": null,
+      "reason": "黑色卡包且内含身份证和卡，但拾得地点为火车而非地铁。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 50,
+      "name_en": "黑色卡包",
+      "desc_en": null,
+      "reason": "黑色卡包，但拾得地点为火车而非地铁。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "黑色短款钱包",
+      "desc_en": null,
+      "reason": "黑色短款钱包，但拾得地点为火车而非地铁。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafe卡包",
+      "desc_en": null,
+      "reason": "黑色 Magsafe 卡包，但拾得地点为火车而非地铁。"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "收纳包",
+      "desc_en": "内有卡、无线耳机盒、化妆品",
+      "reason": "物品为收纳包且内含耳机盒和化妆品，与皮钱包描述不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 20,
+      "name_en": "卡包",
+      "desc_en": "预付费型交通卡",
+      "reason": "颜色为灰色，与遗失的黑色不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 20,
+      "name_en": "09-CELINE卡包",
+      "desc_en": "内容物：卡、现金等",
+      "reason": "颜色为宝蓝色，与遗失的黑色不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "卡包",
+      "desc_en": "内容物 - 居民注册证，驾驶证，KakaoBank卡",
+      "reason": "颜色为棕色，与遗失的黑色皮钱包不符。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "女士钱包",
+      "desc_en": "钱包内有老人交通卡（记名式）。",
+      "reason": "颜色为桃橙色，且内含老人交通卡，与描述完全不符。"
+     }
+    ]
+   }
+  ],
+  "zh-TW": [
+   {
+    "sec": 3.3,
+    "items": [
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 80,
+      "name_en": "Louis Quatorze 卡片夾",
+      "desc_en": "內含身分證、卡片等",
+      "reason": "Louis Quatorze黑色卡包，於地鐵拾得，內含身分證與卡片，與遺失特徵高度相符。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior 錢包",
+      "desc_en": "於新林站 5 號出口外部拾獲",
+      "reason": "黑色皮夾且拾得地點為地鐵，顏色與種類相符；但未註明內部內容物。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 50,
+      "name_en": "卡片夾（身分證、卡片）",
+      "desc_en": null,
+      "reason": "黑色卡包且內含卡片與身分證，但拾得地點為火車而非地鐵。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 45,
+      "name_en": "黑色卡片夾",
+      "desc_en": null,
+      "reason": "黑色卡包，顏色相符，但拾得地點為火車而非地鐵。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 45,
+      "name_en": "黑色錢包",
+      "desc_en": null,
+      "reason": "黑色皮夾，顏色相符，但拾得地點為火車而非地鐵。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 45,
+      "name_en": "黑色短夾",
+      "desc_en": null,
+      "reason": "黑色中折短夾，顏色相符，但拾得地點為火車而非地鐵。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "MagSafe 卡片夾",
+      "desc_en": null,
+      "reason": "黑色MagSafe卡包，顏色相符，但種類較特殊且拾得地點為火車。"
+     },
+     {
+      "name": "파우치",
+      "grade": 35,
+      "name_en": "收納包",
+      "desc_en": "內有卡片、無線耳機盒、化妝品",
+      "reason": "顏色為黑色且於地鐵拾得，但物品種類為收納包，內部含無線耳機盒與化妝品。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "卡片夾",
+      "desc_en": "內容物 - 居民登錄證、駕駛執照、KakaoBank 卡",
+      "reason": "拾得地點為地鐵，但顏色為棕色，與遺失的黑色皮夾不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "卡片夾",
+      "desc_en": "預付型交通卡",
+      "reason": "顏色為灰色，與遺失的黑色皮夾顏色不符。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 10,
+      "name_en": "09-CELINE 卡片夾",
+      "desc_en": "內容物：卡片、現金等",
+      "reason": "顏色為寶藍色，與遺失的黑色皮夾顏色不符。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "女用錢包",
+      "desc_en": "錢包內有長者交通卡（記名式）。",
+      "reason": "顏色為蜜桃橙色，與遺失的黑色皮夾顏色不符。"
+     }
+    ]
+   },
+   {
+    "sec": 4.8,
+    "items": [
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 80,
+      "name_en": "Louis Quatorze 卡片夾",
+      "desc_en": "內有身分證、卡片等",
+      "reason": "黑色 Louis Quatorze 卡片夾，在地鐵拾獲且內含身分證與卡片，特徵高度吻合。"
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "Dior 錢包",
+      "desc_en": "於新林站 5 號出口外部拾獲",
+      "reason": "黑色 Dior 皮夾，在地鐵 Sillim Station 5號出口附近拾獲，顏色與地點類型相符。"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 60,
+      "name_en": "卡片夾（身分證、卡片）",
+      "desc_en": null,
+      "reason": "黑色卡片夾且物品名註明含身分證與卡片，但拾獲地點為火車。"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 55,
+      "name_en": "黑色卡片夾",
+      "desc_en": null,
+      "reason": "黑色卡片夾，地點為火車而非地鐵，未記載詳細內容物。"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 55,
+      "name_en": "黑色錢包",
+      "desc_en": null,
+      "reason": "黑色皮夾，地點為火車而非地鐵，無額外特徵備註。"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 55,
+      "name_en": "黑色短夾",
+      "desc_en": null,
+      "reason": "黑色短夾，地點為火車而非地鐵，無額外特徵備註。"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 45,
+      "name_en": "MagSafe 卡片夾",
+      "desc_en": null,
+      "reason": "黑色 MagSafe 卡片夾，種類較為特殊且拾獲地點為火車。"
+     },
+     {
+      "name": "파우치",
+      "grade": 35,
+      "name_en": "收納包",
+      "desc_en": "內有卡片、無線耳機盒、化妝品",
+      "reason": "黑色收納包而非皮夾，內含卡片、無線耳機盒及化妝品。"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 15,
+      "name_en": "09-CELINE 卡片夾",
+      "desc_en": "內容物：卡片、現金等",
+      "reason": "顏色為皇家藍與遺失的黑色不符。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "卡片夾",
+      "desc_en": "內容物 - 居民登錄證、駕駛執照、KakaoBank 卡",
+      "reason": "顏色為棕色與遺失的黑色不符，且內含身份證件與 Kakao Bank 卡。"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "卡片夾",
+      "desc_en": "預付型交通卡",
+      "reason": "顏色為灰色與遺失的黑色不符，且內含預付型交通卡。"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "女士錢包",
+      "desc_en": "錢包內有長者交通卡（記名式）。",
+      "reason": "顏色為桃橙色與黑色不符，且內含敬老交通卡。"
+     }
+    ]
+   }
+  ],
+  "vi": [
+   {
+    "sec": 3.4,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 70,
+      "name_en": "Ví Dior",
+      "desc_en": "Nhặt được ở bên ngoài Cổng 5 ga Sillim",
+      "reason": "Ví Dior màu đen được tìm thấy ở tàu điện ngầm, khớp về màu sắc và nơi nhặt được."
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 65,
+      "name_en": "Ví đựng thẻ Louis Quatorze",
+      "desc_en": "Bên trong có giấy tờ tùy thân, thẻ, v.v.",
+      "reason": "Ví đựng thẻ Louis Quatorze màu đen nhặt ở tàu điện ngầm, bên trong có chứa thẻ."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "Ví đựng thẻ (giấy tờ tùy thân, thẻ)",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ màu đen chứa thẻ và giấy tờ, nhưng nhặt được trên tàu hỏa."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 50,
+      "name_en": "Ví màu đen",
+      "desc_en": null,
+      "reason": "Ví màu đen, nhưng địa điểm nhặt được ghi là tàu hỏa chứ không phải tàu điện ngầm."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "Ví gập màu đen",
+      "desc_en": null,
+      "reason": "Ví gập màu đen, tuy nhiên nhặt được trên tàu hỏa."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 45,
+      "name_en": "Ví đựng thẻ màu đen",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ màu đen, nhưng địa điểm nhặt được là trên tàu hỏa thay vì tàu điện ngầm."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "Ví đựng thẻ MagSafe",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ MagSafe màu đen nhặt trên tàu hỏa, loại ví có đặc tính riêng biệt."
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "Túi nhỏ",
+      "desc_en": "Bên trong có thẻ, hộp tai nghe không dây, mỹ phẩm",
+      "reason": "Là túi nhỏ (pouch) màu đen chứa cả tai nghe không dây và mỹ phẩm, không phải ví da."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 15,
+      "name_en": "Ví đựng thẻ 09-CELINE",
+      "desc_en": "Bên trong có: Thẻ, tiền mặt, v.v.",
+      "reason": "Ví đựng thẻ Celine màu xanh hoàng gia, không khớp với màu đen."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ",
+      "desc_en": "Bên trong có - Thẻ căn cước công dân, bằng lái xe, thẻ KakaoBank",
+      "reason": "Màu sắc là màu nâu, không khớp với ví màu đen cần tìm."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ",
+      "desc_en": "Thẻ giao thông trả trước",
+      "reason": "Ví màu xám, không khớp với màu đen của vật phẩm bị mất."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Ví nữ",
+      "desc_en": "Bên trong ví có thẻ giao thông dành cho người cao tuổi (ghi đích danh).",
+      "reason": "Màu cam đào, không khớp với chiếc ví màu đen được mô tả."
+     }
+    ]
+   },
+   {
+    "sec": 3.6,
+    "items": [
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 75,
+      "name_en": "Ví đựng thẻ Louis Quatorze",
+      "desc_en": "Bên trong có giấy tờ tùy thân, thẻ, v.v.",
+      "reason": "Ví đựng thẻ Louis Quatorze màu đen tìm thấy ở tàu điện ngầm, bên trong có thẻ và chứng minh thư."
+     },
+     {
+      "name": "디올 지갑",
+      "grade": 70,
+      "name_en": "Ví Dior",
+      "desc_en": "Nhặt được ở bên ngoài Cổng 5 ga Sillim",
+      "reason": "Là ví màu đen nhãn hiệu Dior, tìm thấy ở tàu điện ngầm nhưng không rõ nội dung bên trong."
+     },
+     {
+      "name": "검정지갑",
+      "grade": 55,
+      "name_en": "Ví màu đen",
+      "desc_en": null,
+      "reason": "Ví màu đen nhưng địa điểm nhặt được là trên tàu hỏa và không có thêm ghi chú."
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 55,
+      "name_en": "Ví đựng thẻ (Giấy tờ tùy thân, thẻ)",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ màu đen có thẻ và chứng minh thư bên trong, nhưng tìm thấy trên tàu hỏa."
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "Ví gập đôi màu đen",
+      "desc_en": null,
+      "reason": "Ví gập đôi màu đen nhặt được trên tàu hỏa, không có chi tiết nội dung."
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 45,
+      "name_en": "Ví đựng thẻ màu đen",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ màu đen nhưng tìm thấy trên tàu hỏa thay vì tàu điện ngầm và không có thông tin chi tiết."
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 40,
+      "name_en": "Ví đựng thẻ MagSafe",
+      "desc_en": null,
+      "reason": "Ví đựng thẻ MagSafe màu đen nhặt được trên tàu hỏa, không ghi rõ chi tiết."
+     },
+     {
+      "name": "파우치",
+      "grade": 35,
+      "name_en": "Túi nhỏ",
+      "desc_en": "Bên trong có thẻ, hộp tai nghe không dây, mỹ phẩm",
+      "reason": "Loại vật phẩm là túi nhỏ (pouch) màu đen, có thêm tai nghe không dây và mỹ phẩm không trùng khớp."
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 15,
+      "name_en": "Ví đựng thẻ 09-CELINE",
+      "desc_en": "Bên trong: Thẻ, tiền mặt, v.v.",
+      "reason": "Ví màu xanh hoàng gia (Royal Blue) không khớp với ví màu đen."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ",
+      "desc_en": "Bên trong có - Thẻ căn cước công dân, bằng lái xe, thẻ KakaoBank",
+      "reason": "Màu sắc là màu nâu, không khớp với ví màu đen cần tìm."
+     },
+     {
+      "name": "카드지갑",
+      "grade": 10,
+      "name_en": "Ví đựng thẻ",
+      "desc_en": "Thẻ giao thông trả trước",
+      "reason": "Ví màu xám không khớp với màu đen và chỉ có thẻ giao thông trả trước."
+     },
+     {
+      "name": "여성지갑",
+      "grade": 5,
+      "name_en": "Ví nữ",
+      "desc_en": "Bên trong ví có thẻ giao thông dành cho người cao tuổi (ghi đích danh).",
+      "reason": "Màu sắc cam đào không khớp và chỉ chứa thẻ giao thông cho người cao tuổi."
+     }
+    ]
+   }
+  ],
+  "th": [
+   {
+    "sec": 3.1,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "กระเป๋าสตางค์ Dior",
+      "desc_en": "เก็บได้ที่ด้านนอกทางออก 5 สถานี Sillim",
+      "reason": "เป็นกระเป๋าสตางค์สีดำ เก็บได้ในรถใต้ดินตรงตามที่ระบุ แต่มีการระบุแบรนด์ Dior"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "กระเป๋าใส่บัตร Louis Quatorze",
+      "desc_en": "มีบัตรประจำตัวประชาชน, บัตร ฯลฯ อยู่ข้างใน",
+      "reason": "กระเป๋าใส่บัตรสีดำ เก็บได้ในรถใต้ดิน มีบัตรอยู่ข้างในตรงตามที่ระบุ"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 50,
+      "name_en": "กระเป๋าสตางค์สีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าสตางค์สีดำ แต่สถานที่เก็บได้คือบนรถไฟ ไม่ใช่รถใต้ดิน"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 50,
+      "name_en": "กระเป๋าใส่บัตร (บัตรประจำตัวประชาชน, บัตร)",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำที่มีบัตรอยู่ข้างใน แต่สถานที่เก็บได้คือบนรถไฟ"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 45,
+      "name_en": "กระเป๋าใส่บัตรสีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำ แต่สถานที่เก็บได้คือบนรถไฟ ไม่ใช่รถใต้ดิน"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 45,
+      "name_en": "กระเป๋าสตางค์พับสองตอนสีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าสตางค์แบบพับสีดำ แต่สถานที่เก็บได้คือบนรถไฟ ไม่ใช่รถใต้ดิน"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 35,
+      "name_en": "กระเป๋าใส่บัตร MagSafe",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตร MagSafe สีดำ แต่สถานที่เก็บได้คือบนรถไฟ ไม่ใช่รถใต้ดิน"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "กระเป๋าใบเล็ก",
+      "desc_en": "มีบัตร, เคสหูฟังไร้สาย, เครื่องสำอางอยู่ข้างใน",
+      "reason": "เป็นกระเป๋าใส่ของสีดำ เก็บได้ในรถใต้ดิน แต่มีหูฟังไร้สายและเครื่องสำอางซึ่งไม่ตรงกับที่ระบุ"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 20,
+      "name_en": "กระเป๋าใส่บัตร 09-CELINE",
+      "desc_en": "สิ่งของข้างใน: บัตร, เงินสด ฯลฯ",
+      "reason": "สีรอยัลบลูไม่ตรงกับสีดำที่หาย แม้จะมีบัตรและเงินสดข้างใน"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "กระเป๋าใส่บัตร",
+      "desc_en": "สิ่งของข้างใน - บัตรประจำตัวประชาชน, ใบขับขี่, บัตร KakaoBank",
+      "reason": "สีน้ำตาลไม่ตรงกับสีดำที่หาย แม้จะเก็บได้ในรถใต้ดินและมีบัตรข้างใน"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "กระเป๋าใส่บัตร",
+      "desc_en": "บัตรโดยสารแบบเติมเงิน",
+      "reason": "สีเทาไม่ตรงกับสีดำที่หาย และข้างในมีเพียงบัตรเดินทางแบบเติมเงิน"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าสตางค์ผู้หญิง",
+      "desc_en": "มีบัตรโดยสารสำหรับผู้สูงอายุ (ระบุชื่อ) อยู่ในกระเป๋าสตางค์",
+      "reason": "เป็นกระเป๋าสตางค์สีส้มพีช ซึ่งสีไม่ตรงกับสีดำที่หาย"
+     }
+    ]
+   },
+   {
+    "sec": 3.6,
+    "items": [
+     {
+      "name": "디올 지갑",
+      "grade": 75,
+      "name_en": "กระเป๋าสตางค์ Dior",
+      "desc_en": "เก็บได้ที่ด้านนอกทางออก 5 สถานี Sillim",
+      "reason": "กระเป๋าสตางค์สีดำ พบในรถไฟใต้ดินและวันที่ถูกต้อง แต่อาจเป็นยี่ห้อ Dior ซึ่งไม่ได้ระบุไว้"
+     },
+     {
+      "name": "루이까또즈 카드지갑",
+      "grade": 70,
+      "name_en": "กระเป๋าใส่บัตร Louis Quatorze",
+      "desc_en": "มีบัตรประจำตัวประชาชน, บัตร และอื่นๆ อยู่ข้างใน",
+      "reason": "กระเป๋าใส่บัตรสีดำ พบในรถไฟใต้ดิน มีบัตรอยู่ข้างใน แต่เป็นยี่ห้อ Louis Quatorze"
+     },
+     {
+      "name": "검정지갑",
+      "grade": 55,
+      "name_en": "กระเป๋าสตางค์สีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าสตางค์สีดำและพบในวันที่ถูกต้อง แต่นำส่งจากรถไฟ ไม่ใช่รถไฟใต้ดิน"
+     },
+     {
+      "name": "검정 반지갑",
+      "grade": 50,
+      "name_en": "กระเป๋าสตางค์พับสองตอนสีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าสตางค์แบบพับสองทบสีดำ แต่นำส่งจากรถไฟ ไม่ใช่รถไฟใต้ดิน"
+     },
+     {
+      "name": "카드지갑(신분증,카드)",
+      "grade": 45,
+      "name_en": "กระเป๋าใส่บัตร (บัตรประจำตัวประชาชน, บัตร)",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำที่มีบัตรอยู่ แต่นำส่งจากรถไฟ ไม่ใช่รถไฟใต้ดิน"
+     },
+     {
+      "name": "검정카드지갑",
+      "grade": 40,
+      "name_en": "กระเป๋าใส่บัตรสีดำ",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตรสีดำ แต่นำส่งจากรถไฟ ไม่ใช่รถไฟใต้ดิน และไม่มีข้อมูลเนื้อหาข้างใน"
+     },
+     {
+      "name": "파우치",
+      "grade": 30,
+      "name_en": "กระเป๋าใบเล็ก",
+      "desc_en": "มีบัตร, เคสหูฟังไร้สาย, เครื่องสำอางอยู่ข้างใน",
+      "reason": "สีดำและพบในรถไฟใต้ดิน แต่เป็นกระเป๋าพกพา (Pouch) ที่มีหูฟังไร้สายและเครื่องสำอางข้างใน"
+     },
+     {
+      "name": "맥세이프카드지갑",
+      "grade": 30,
+      "name_en": "กระเป๋าใส่บัตร MagSafe",
+      "desc_en": null,
+      "reason": "เป็นกระเป๋าใส่บัตร MagSafe สีดำ แต่นำส่งจากรถไฟ ไม่ใช่รถไฟใต้ดิน"
+     },
+     {
+      "name": "09-CELINE 카드지갑",
+      "grade": 20,
+      "name_en": "กระเป๋าใส่บัตร 09-CELINE",
+      "desc_en": "ของข้างใน: บัตร, เงินสด และอื่นๆ",
+      "reason": "พบในรถไฟใต้ดินและมีบัตรอยู่ข้างใน แต่เป็นสีรอยัลบลู ยี่ห้อ CELINE ซึ่งสีไม่ตรง"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "กระเป๋าใส่บัตร",
+      "desc_en": "ของข้างใน - บัตรประจำตัวประชาชน, ใบขับขี่, บัตร KakaoBank",
+      "reason": "พบในรถไฟใต้ดิน แต่เป็นกระเป๋าใส่บัตรสีน้ำตาล ไม่ตรงกับกระเป๋าสตางค์สีดำที่หาย"
+     },
+     {
+      "name": "카드지갑",
+      "grade": 15,
+      "name_en": "กระเป๋าใส่บัตร",
+      "desc_en": "บัตรโดยสารแบบเติมเงิน",
+      "reason": "พบในรถไฟใต้ดิน แต่เป็นกระเป๋าใส่บัตรสีเทา ซึ่งสีไม่ตรงกับสีดำที่ระบุ"
+     },
+     {
+      "name": "여성지갑",
+      "grade": 10,
+      "name_en": "กระเป๋าสตางค์สตรี",
+      "desc_en": "มีบัตรโดยสารผู้สูงอายุ (ระบุชื่อ) อยู่ในกระเป๋าสตางค์",
+      "reason": "เป็นกระเป๋าสตางค์สตรีสีส้มพีช ซึ่งสีไม่ตรงกับกระเป๋าสตางค์สีดำที่หาย"
+     }
+    ]
+   }
+  ]
+ },
+ "tokens": {
+  "calls": 26,
+  "in": 29366,
+  "out": 12797
+ },
+ "fixes": [
+  {
+   "lang": "ja",
+   "field": "reason:0",
+   "before": "색상이 브라운으로 불일치하며, 습득일과 지하철 장소만 일치함.",
+   "after": "色がブラウンで一致せず、拾得日と地下鉄の場所のみ一致しています。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:1",
+   "before": "검은색 지갑, 지하철(2호선 Sillim Station 부근) 습득으로 조건이 잘 부합함.",
+   "after": "黒の財布、地下鉄（2号線 Sillim Station 付近）での拾得で条件によく合致しています。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:2",
+   "before": "검은색이지만 지갑이 아닌 파우치이며 무선이어폰과 화장품이 들어있음.",
+   "after": "黒色ですが財布ではなくポーチであり、ワイヤレスイヤホンと化粧品が入っています。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:3",
+   "before": "피치오렌지색 여성지갑으로 색상이 불일치함.",
+   "after": "ピーチオレンジ色の女性用財布で色が一致しません。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:4",
+   "before": "검은색 루이까또즈 카드지갑으로 지하철에서 습득되었고 카드 등이 들어있음.",
+   "after": "黒の Louis Quatorze のカードケースで、地下鉄で拾得されカードなどが入っています。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:5",
+   "before": "회색 카드지갑으로 색상이 불일치함.",
+   "after": "グレーのカードケースで色が一致しません。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:6",
+   "before": "로열블루색 카드지갑으로 색상이 불일치함.",
+   "after": "ロイヤルブルーのカードケースで色が一致しません。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:7",
+   "before": "검은색 카드지갑이나 습득 장소가 지하철이 아닌 기차임.",
+   "after": "黒のカードケースですが、拾得場所が地下鉄ではなく列車です。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:8",
+   "before": "검은색 지갑이지만 습득 장소가 지하철이 아닌 기차임.",
+   "after": null
+  },
+  {
+   "lang": "ja",
+   "field": "reason:9",
+   "before": "검은색 반지갑이지만 습득 장소가 지하철이 아닌 기차임.",
+   "after": "黒の二つ折り財布ですが、拾得場所が地下鉄ではなく列車です。"
+  },
+  {
+   "lang": "ja",
+   "field": "name_en:10",
+   "before": "カードケース（身分증、カード）",
+   "after": "カードケース（身分証明書、カード）"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:10",
+   "before": "검은색 카드지갑(신분증, 카드 포함)이나 습득 장소가 기차임.",
+   "after": "黒のカードケース（身分証明書、カード含む）ですが、拾得場所が列車です。"
+  },
+  {
+   "lang": "ja",
+   "field": "reason:11",
+   "before": "검은색 맥세이프 카드지갑이나 습득 장소가 기차임.",
+   "after": "黒の MagSafe カードケースですが、拾得場所が列車です。"
+  },
+  {
+   "lang": "zh-TW",
+   "field": "reason:0",
+   "before": "顏色為棕색與遺失的黑色不符，且內含身分證件與 Kakao Bank 卡。",
+   "after": "顏色為棕色與遺失的黑色不符，且內含身份證件與 Kakao Bank 卡。"
+  }
+ ]
+}
