@@ -178,4 +178,4 @@ def test_contact_is_email_not_github(path):
     t = client.get(path, headers=KO_BROWSER).text
     assert "mailto:help@lostkorea.com" in t and "github.com/cwal8202/lostkorea/issues" not in t
     if "privacy" in path:
-        assert "mailto:privacy@lostkorea.com" in t
+        assert "mailto:privacy@lostkorea.com" in t and "최장호" in t     # 개인정보 보호책임자 성명(개인정보보호법)
