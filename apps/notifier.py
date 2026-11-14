@@ -123,6 +123,7 @@ KO = {
     "or_type": "버튼이 안 눌리면 이 링크를 여세요: {url}",
     "official": "공식 조회: {lost112} (경찰청 습득물 검색)",
     "footer": "최종 확인·수령은 본인이 진행하세요. 본 메일은 {brand} 자동 알림입니다.",
+    "unsub": "이 신고의 알림 그만 받기",
 }
 # 경찰청 습득물 검색(경찰민원24). 옛 주소 lost112.go.kr은 11/12 기준 응답 없음 → 새 주소로.
 POLICE_FOUND_SEARCH = "https://minwon24.police.go.kr/cvlcpt/cvlcptAply.do?cvlcptId=MW-201"
@@ -250,7 +251,8 @@ def report_link(lost: dict, token: str) -> str:
     return f"{page}#r={lost.get('id')}.{token}" if lost.get("id") and token else site
 
 
-def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "") -> str:
+def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "",
+               unsub: str = "") -> str:
     m = _top(matches)
     head, desc = _intro(lost, weak, S)
     lines = [
@@ -281,7 +283,7 @@ def _text_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         _fill(S["cta_text"], url=link or _site(lost)),
         _fill(S["official"], lost112=POLICE_FOUND_SEARCH),
         f"({S['footer']})",
-    ]
+    ] + ([f"{S['unsub']}: {unsub}"] if unsub else [])
     return "\n".join(lines)
 
 
@@ -325,7 +327,8 @@ def _card_html(m: dict, primary: bool = False, S: dict = KO) -> str:
     )
 
 
-def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "") -> str:
+def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO, link: str = "",
+               unsub: str = "") -> str:
     e = _html.escape
     site = _site(lost)
     cta_href = link or site
@@ -360,11 +363,14 @@ def _html_body(lost: dict, matches: list[dict], weak: bool = False, S: dict = KO
         f'<p style="text-align:center;font-size:12px;color:#6b7280;margin:0 0 16px">'
         f'{_fill(e(S["or_type"]), url=site_link)}</p>'
         '<p style="color:#888;font-size:12px;margin-top:16px;border-top:1px solid #eee;padding-top:12px">'
-        f'{_fill(e(S["official"]), lost112=lost112)} {e(S["footer"])}</p></div>'
+        f'{_fill(e(S["official"]), lost112=lost112)} {e(S["footer"])}'
+        + (f' · <a href="{e(unsub)}" style="color:#6b7280">{e(S["unsub"])}</a>' if unsub else "")
+        + '</p></div>'
     )
 
 
-def build_email(lost: dict, matches: list[dict], weak: bool = False, link: str = "") -> tuple[str, str, str]:
+def build_email(lost: dict, matches: list[dict], weak: bool = False, link: str = "",
+                unsub: str = "") -> tuple[str, str, str]:
     """(제목, 텍스트, HTML) — 신고자 언어(lost['lang'])로. 한국어가 아니면 문구·물품 정보를 번역.
 
     link: 그 신고의 결과로 바로 가는 링크(report_link). 없으면 사이트 첫 화면.
@@ -374,7 +380,7 @@ def build_email(lost: dict, matches: list[dict], weak: bool = False, link: str =
     ms = _localize(matches, lang)
     kind = "weak" if weak else "strong"
     subject = f"[{settings.brand_name}] {S[f'subj_{kind}']} — {_top(ms).get('name')}"
-    return subject, _text_body(lost, ms, weak, S, link), _html_body(lost, ms, weak, S, link)
+    return subject, _text_body(lost, ms, weak, S, link, unsub), _html_body(lost, ms, weak, S, link, unsub)
 
 
 def _new_report_link(lost: dict) -> str:
@@ -387,6 +393,16 @@ def _new_report_link(lost: dict) -> str:
         return _site(lost)
 
 
+def _new_unsub_url(lost: dict) -> str:
+    """'알림 그만 받기' 주소 — 수신 거부 전용 토큰(알림 끄기 외 권한 없음). 실패하면 빈 문자열(링크·헤더 생략)."""
+    try:
+        from apps import store
+        return f"{settings.public_base_url.rstrip('/')}/unsubscribe?r={lost['id']}.{store.new_unsub_token(lost['id'])}"
+    except Exception as e:  # noqa: BLE001
+        _emit(f"[알림] 수신 거부 링크 발급 실패({type(e).__name__}) → 생략")
+        return ""
+
+
 class EmailNotifier:
     """SMTP 이메일 알림(HTML+텍스트). 신고자 언어로 발송. 발송 실패해도 요청을 죽이지 않음(로그 후 진행)."""
 
@@ -396,8 +412,11 @@ class EmailNotifier:
         if not (settings.smtp_user and settings.smtp_password and to) or not matches:
             _emit("[알림] 이메일 설정/수신자/후보 미비 → 발송 생략")
             return
-        subject, text, html = build_email(lost, matches, weak, link=_new_report_link(lost))
-        if self._send(to, subject, text, html, logo=True):
+        unsub = _new_unsub_url(lost)
+        subject, text, html = build_email(lost, matches, weak, link=_new_report_link(lost), unsub=unsub)
+        # 원클릭 수신 거부(RFC 8058) — Gmail·Yahoo가 대량 발송자에게 요구, 소량이어도 스팸 판정에 유리
+        headers = {"List-Unsubscribe": f"<{unsub}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"} if unsub else {}
+        if self._send(to, subject, text, html, logo=True, headers=headers):
             _emit(f"📧 [이메일 알림→{to}, {lost.get('lang') or 'ko'}] '{_top(matches).get('name')}' "
                   f"외 {max(len(matches)-1,0)}건 발송 완료")
 
@@ -410,11 +429,16 @@ class EmailNotifier:
             _emit(f"✉️ [확인 메일→{to}, {lang}] 발송 완료")
 
     @staticmethod
-    def _send(to: str, subject: str, text: str, html: str, logo: bool = False) -> bool:
+    def _send(to: str, subject: str, text: str, html: str, logo: bool = False, headers: dict | None = None) -> bool:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = formataddr((settings.brand_name, settings.smtp_user))
+        # 보내는 주소: SMTP_FROM(예: alerts@lostkorea.com) — 없으면 예전처럼 SMTP 계정 주소
+        msg["From"] = formataddr((settings.brand_name, settings.smtp_from or settings.smtp_user))
         msg["To"] = to
+        if settings.smtp_reply_to:
+            msg["Reply-To"] = settings.smtp_reply_to
+        for k, v in (headers or {}).items():
+            msg[k] = v
         msg.set_content(text)
         msg.add_alternative(html, subtype="html")
         if logo and _LOGO.exists():  # HTML 파트에 로고 인라인 첨부(cid:lk-logo)

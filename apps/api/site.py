@@ -25,7 +25,7 @@ from .config import settings
 router = APIRouter()
 WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
 BRAND = settings.brand_name
-REPO_ISSUES = "https://github.com/cwal8202/lostkorea/issues"
+CONTACT_URL = f"mailto:{settings.contact_email}"  # 문의 = 이메일(Cloudflare Email Routing → 운영자 메일)
 
 _BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|scan|curl|wget|python|httpx|go-http|java/|headless|"
                      r"facebookexternalhit|kakaotalk-scrap|monitor|uptime", re.I)
@@ -179,7 +179,7 @@ T: dict[str, dict[str, str]] = {
         "reset": "초기화", "per_page": "개씩", "loading": "불러오는 중…",
         "f_tagline": "한국에서 잃어버린 물건, AI가 공공 습득물 데이터에서 찾아드려요.",
         "f_service": "서비스", "f_info": "정보", "f_contact": "문의",
-        "f_guide": "", "f_privacy": "개인정보처리방침", "f_terms": "이용약관", "f_issues": "문의하기 (GitHub)",
+        "f_guide": "", "f_privacy": "개인정보처리방침", "f_terms": "이용약관", "f_issues": "문의하기 (이메일)",
         "f_source": "습득물 정보 출처: 경찰청 유실물 통합포털(LOST112) · 공공데이터포털",
         "f_copy": f"© 2026 {BRAND} · 개인이 운영하는 서비스입니다", "f_other_lang": "English",
         "back_home": f"{BRAND} 홈으로",
@@ -284,7 +284,7 @@ T: dict[str, dict[str, str]] = {
         "f_tagline": "Lost something in Korea? AI searches public lost-and-found data for you.",
         "f_service": "Service", "f_info": "Info", "f_contact": "Contact",
         "f_guide": "Guide: lost something in Korea?", "f_privacy": "Privacy Policy", "f_terms": "Terms of Service",
-        "f_issues": "Contact us (GitHub)",
+        "f_issues": "Contact us (email)",
         "f_source": "Found-item data: Korean National Police Agency LOST112 · Public Data Portal",
         "f_copy": f"© 2026 {BRAND} · An independently run service", "f_other_lang": "한국어",
         "back_home": f"Back to {BRAND}",
@@ -428,7 +428,8 @@ def render(page: str, lang: str) -> str:
         **T[lang],
         "BRAND": BRAND, "V": VERSION, "LANG": lang, "VIEW": page,
         "HOME": home, "BROWSE": _url("browse", lang), "GUIDE": "/en/guide",
-        "PRIVACY": _url("privacy", lang), "TERMS": _url("terms", lang), "ISSUES": REPO_ISSUES,
+        "PRIVACY": _url("privacy", lang), "TERMS": _url("terms", lang), "CONTACT": CONTACT_URL,
+        "HELP_EMAIL": settings.contact_email, "PRIVACY_EMAIL": settings.privacy_email,
         "ALT_KO": _url(page, "ko") if "ko" in PAGES[page] else "/", "ALT_EN": _url(page, "en"),
         "OTHER_LANG_URL": (_url(page, other) if other in PAGES[page] else _url("home", other)),
         "OTHER_LANG": other,

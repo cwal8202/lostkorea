@@ -11,7 +11,7 @@
 - **서비스**: **LostKorea**(구 FindIt, 2026-11-09 개명 — 같은 이름의 AI 분실물 앱이 이미 있음). "한국에서 잃어버린 물건 찾기 /
   Lost something in Korea?" — 외국인도 쓸 수 있는 AI 분실물 매칭. 목표는 공모전 데모가 아니라 **실제로 운영하는 서비스**.
 - **현재 국면**: **라이브 운영 중**(수집→색인→검색+지역가점→판정→에이전트→DB→지속 재매칭→이메일 알림→웹사이트).
-  FIND-1~93 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + Cloudflare 프록시 + GitHub Actions(테스트 통과 시 자동배포) + 매일 cron 수집으로
+  FIND-1~94 커밋·푸시. VPS + Docker Compose + Caddy HTTPS + Cloudflare 프록시 + GitHub Actions(테스트 통과 시 자동배포) + 매일 cron 수집으로
   **https://lostkorea.com** 운영(2026-11-09 전환, 옛 주소는 자동 이동). 저장소 https://github.com/cwal8202/lostkorea
 - **동작 흐름**: 자연어/**사진** 신고 → **추출→지역→검색어→검색→판정 실시간 표시**(판정 전 후보 먼저) → 유력 후보 제시(HITL, 자동확정 X) →
   사용자 [내 물건이에요]/[아니에요] → 확인 시 **수령 안내(보관기관·전화·지도·경찰청 원본 글·1330 통역)**.
@@ -1078,6 +1078,20 @@ FindIt의 핵심(외국인 관광객 분실물)을 데이터랩 외국인 방문
 - 스킬이 사람 판단으로 남긴 2곳도 반영: "당신 사진과" → "올린 사진과"(번역투), **삭제 시점 사실 오류** — '믿고 쓸 수 있도록' 칸만
   "알림 기간이 끝나면 자동 삭제"였는데 실제 동작(`purge_old`: 알림 기간 종료 + 30일)과 다른 칸들은 "30일 뒤" → 한·영 모두 정정.
 - 화면 스크립트에 남아 있던 쓰이지 않는 옛 사진 안내 문구(`photoNote1/2`, "당신 사진과" 포함) 삭제.
+
+### 메일 준비: 문의 이메일·보내는 주소 설정·알림 그만 받기 (2026-11-14, FIND-94)
+
+- **받기 완료(운영자 작업)**: Cloudflare Email Routing — MX 3·SPF·DKIM 자동 추가(그전엔 메일 레코드 없음, 구글 소유 확인 TXT만),
+  규칙 `privacy@`·`help@lostkorea.com` → 운영자 Gmail. Cloudflare MX에 RCPT만 시험(본문 발송 없이): privacy·help 250, 없는 주소 550.
+  네이버 → privacy@ 시험 메일 2통은 도착했으나 **Gmail 스팸함**("과거 스팸과 비슷" — 본문 'test' 한 단어, 전달 인증 실패 아님).
+- **사이트 문의 = 이메일**: 바닥글·처리방침(개인정보는 privacy@, 그 밖은 help@)·약관의 GitHub Issues 링크 교체(`CONTACT_EMAIL`·`PRIVACY_EMAIL` 설정).
+- **보내기 준비**: Cloudflare Email Sending은 사용자에게 보내려면 Workers Paid(월 $5) 필요([요금](https://developers.cloudflare.com/email-service/platform/pricing/))
+  → **Maileroo 무료(월 3,000통)**로 결정. 코드: `SMTP_FROM`(보내는 주소, 없으면 예전처럼 SMTP 계정)·`SMTP_REPLY_TO`.
+- **알림 그만 받기**: 알림 메일마다 수신 거부 전용 토큰(신고 열람·삭제 권한 없음, `link_hashes`에 `u:` 접두어, 최근 10개) →
+  본문 링크 + `List-Unsubscribe`·`List-Unsubscribe-Post: One-Click`(RFC 8058) 헤더. `GET /unsubscribe`는 확인 버튼 화면만
+  (메일 보안 스캐너가 미리 열어도 안 꺼지게), `POST`가 그 신고의 이메일을 지움. 토큰이 틀려도 같은 화면.
+- 확인 메일 안내에 "메일이 안 보이면 스팸함도 확인" 추가. 쓰지 않던 옛 바닥글 문구(app.js) 제거.
+- 테스트 208 → 216개.
 
 ### 늦은 등록 채우기: 공공 API 429로 11시간 반 → 최근 90일만·거절 시 중단 (2026-11-14, FIND-93)
 

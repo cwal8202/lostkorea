@@ -65,12 +65,19 @@ bash /root/migrate_rename.sh </dev/null
 
 ### 2-3. 개인정보 보호책임자 명시
 개인정보보호법상 처리방침에는 **개인정보 보호책임자의 성명(또는 담당 부서)·연락처**가 들어가야 한다.
-지금은 "운영자(개인) · GitHub Issues"라 실서비스 기준으로 부족. 이름(또는 직함)과 연락용 이메일을 정해 주시면 반영.
-이제 `privacy@lostkorea.com` 같은 주소를 만들 수 있다 — Cloudflare 이메일 라우팅(무료)으로 받은 메일을 Gmail로 전달.
+**✅ 연락처는 완료(11/14)**: Cloudflare Email Routing(무료)으로 `privacy@`·`help@lostkorea.com` → 운영자 Gmail 전달,
+처리방침·약관·바닥글의 문의를 GitHub Issues → 이메일로. Gmail에서 두 주소는 "스팸으로 보내지 않음" 필터 권장
+(첫 시험 메일 'test'가 내용 때문에 스팸 분류됨 — 전달 자체는 정상).
+**남은 것**: 보호책임자 **성명(또는 직함)**만 정해 주시면 처리방침에 반영.
 
 ### 2-4. 알림 메일 발송 방식
-지금은 개인 Gmail SMTP — 하루 발송 한도(약 500통)가 있고, 개인 주소에서 오는 자동 메일은 스팸함에 가기 쉽다.
-도메인이 생겼으니 발송 서비스(Resend·Amazon SES 등, 소량 무료)로 바꾸고 SPF/DKIM을 설정하는 게 정석. 코드는 `EmailNotifier` 한 곳만 바꾸면 됨.
+지금은 개인 Gmail SMTP — 하루 발송 한도(약 500통)가 있고, 개인 주소가 보내는 사람으로 노출된다.
+**결정(11/14)**: **Maileroo 무료(월 3,000통·카드 불필요·하루 제한 없음)** — Cloudflare Email Sending은 사용자에게 보내려면
+Workers Paid(월 $5) 필요해서 제외. 코드는 준비 완료(FIND-94): `SMTP_FROM`(예: alerts@lostkorea.com)·`SMTP_REPLY_TO`(help@),
+알림 메일에 '알림 그만 받기' 링크 + 원클릭 수신 거부 헤더(RFC 8058).
+**남은 것**: ① Maileroo 가입·도메인 추가 → DNS 레코드를 **원클릭으로 넣지 말고** 먼저 보여 주기(루트 SPF는 하나여야 해서
+기존 `v=spf1 include:_spf.mx.cloudflare.net ~all`에 합쳐야 함) ② DMARC(`_dmarc` TXT, `p=none`부터) ③ 서버 `.env`에
+`SMTP_HOST·PORT·USER·PASSWORD·FROM·REPLY_TO`, `NOTIFY_EMAIL_TO`(운영 알림 받을 Gmail) ④ 처리방침의 메일 발송 위탁(Gmail → Maileroo) 수정 ⑤ 시험 발송·인증 결과(spf/dkim/dmarc pass) 확인.
 
 ### 2-5. 사업자 등록 — 지금은 불필요
 수익(광고·후원·유료 기능)이 없으면 의무 아님. 다만 **카카오 알림톡**(한국 사용자 알림의 사실상 표준)·기관 제휴 계약·후원을 하려면 필요.

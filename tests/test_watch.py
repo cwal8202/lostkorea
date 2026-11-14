@@ -220,3 +220,50 @@ def test_alerts_without_email_field_keep_current_email(fake):
     assert store.get(lid)["email"] == "me@x.com" and fake.verify_links == []      # 기간만 바꿔도 알림 유지
     client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": ""})
     assert store.get(lid)["email"] == ""                                           # ""는 알림 끄기
+
+
+# ── 알림 그만 받기(수신 거부) + 보내는 주소 ──
+
+def test_unsubscribe_turns_off_alerts_only_with_unsub_token():
+    lid, token = _report(email="me@x.com")
+    store._run("UPDATE lost_items SET email_verified=1 WHERE id=?", (lid,))
+    u = store.new_unsub_token(lid)
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": u}).status_code == 404  # 신고를 열 권한은 없음
+    assert "Stop alerts" in client.get("/unsubscribe", params={"r": f"{lid}.{u}"}).text
+    assert store.get(lid)["email"] == "me@x.com"                               # GET은 아무것도 안 바꿈(스캐너 대비)
+    r = client.post("/unsubscribe", params={"r": f"{lid}.wrong"}, data={"List-Unsubscribe": "One-Click"})
+    assert r.status_code == 200 and store.get(lid)["email"] == "me@x.com"      # 틀린 토큰 — 같은 화면, 변화 없음
+    r = client.post("/unsubscribe", params={"r": f"{lid}.{u}"}, data={"List-Unsubscribe": "One-Click"})
+    assert r.status_code == 200 and store.get(lid)["email"] == ""              # 원클릭으로 알림 꺼짐
+    link = store.new_link_token(lid)                                          # 수신 거부 토큰이 결과 링크 토큰을 밀어내지 않음
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": link}).status_code == 200
+
+
+def test_alert_email_has_sender_reply_to_and_one_click_unsubscribe(monkeypatch):
+    import smtplib
+
+    from apps import notifier as N
+    sent = []
+
+    class FakeSMTP:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def starttls(self): pass
+        def login(self, *a): pass
+        def send_message(self, msg): sent.append(msg)
+
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    for k, v in (("smtp_user", "acct"), ("smtp_password", "pw"), ("smtp_from", "alerts@lostkorea.com"),
+                 ("smtp_reply_to", "help@lostkorea.com")):
+        monkeypatch.setattr(N.settings, k, v)
+    monkeypatch.setattr(N.gemini, "translate_strings", lambda *a: {})
+    lid, _ = _report(email="me@x.com")
+    lost = store.get(lid)
+    N.EmailNotifier().notify(lost, [{"atc_id": "A_1", "name": "지갑", "color": "검정", "grade": 90}])
+    m = sent[0]
+    assert "alerts@lostkorea.com" in m["From"] and m["Reply-To"] == "help@lostkorea.com"
+    assert m["List-Unsubscribe"].startswith("<") and "/unsubscribe?r=" + lid in m["List-Unsubscribe"]
+    assert m["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+    html = m.get_body(("html",)).get_content()
+    assert "/unsubscribe?r=" in html and "알림 그만 받기" in html

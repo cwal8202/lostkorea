@@ -222,13 +222,41 @@ def check_token(row: dict | None, token: str | None) -> bool:
 LINK_KEEP = 10  # 신고당 유효한 메일 링크 토큰 수(오래된 메일의 링크부터 만료)
 
 
+def _add_hash(lid: str, h: str, unsub: bool) -> None:
+    """link_hashes에 추가 — 결과 링크용(접두어 없음)·수신 거부용('u:' 접두어) 각각 최근 LINK_KEEP개만."""
+    row = get(lid) or {}
+    cur = row.get("link_hashes") or []
+    links = [x for x in cur if not str(x).startswith("u:")]
+    unsubs = [x for x in cur if str(x).startswith("u:")]
+    if unsub:
+        unsubs = unsubs[-(LINK_KEEP - 1):] + ["u:" + h]
+    else:
+        links = links[-(LINK_KEEP - 1):] + [h]
+    _run("UPDATE lost_items SET link_hashes=? WHERE id=?", (json.dumps(links + unsubs), lid))
+
+
 def new_link_token(lid: str) -> str:
     """알림 메일에 넣을 신고 전용 링크 토큰 발급 — 원문은 메일에만, 서버엔 해시만(최근 LINK_KEEP개) 저장."""
     token = secrets.token_urlsafe(24)
-    row = get(lid) or {}
-    hashes = (row.get("link_hashes") or [])[-(LINK_KEEP - 1):] + [hash_token(token)]
-    _run("UPDATE lost_items SET link_hashes=? WHERE id=?", (json.dumps(hashes), lid))
+    _add_hash(lid, hash_token(token), unsub=False)
     return token
+
+
+def new_unsub_token(lid: str) -> str:
+    """'알림 그만 받기' 전용 토큰 — 주소창(쿼리)에 실려 서버 기록에 남을 수 있어 알림 끄기 말고는 아무 권한 없음."""
+    token = secrets.token_urlsafe(24)
+    _add_hash(lid, hash_token(token), unsub=True)
+    return token
+
+
+def check_unsub(row: dict | None, token: str | None) -> bool:
+    if not row or not token:
+        return False
+    h = "u:" + hash_token(token)
+    ok = False
+    for x in row.get("link_hashes") or []:
+        ok |= hmac.compare_digest(str(x), h)
+    return ok
 
 
 def update_match(lid: str, best_match: dict, best_grade: int, status: str,

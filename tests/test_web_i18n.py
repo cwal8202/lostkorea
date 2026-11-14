@@ -171,3 +171,11 @@ def test_browse_page_has_photo_filter_and_sort(path, photo, sort):
     body = client.get(path, headers=KO_BROWSER).text
     assert 'id="bphoto"' in body and photo in body and 'value="with"' in body and 'value="without"' in body
     assert 'id="bsort"' in body and sort in body and 'value="old"' in body
+
+
+@pytest.mark.parametrize("path", ["/ko", "/en", "/privacy", "/terms", "/en/privacy", "/en/terms"])
+def test_contact_is_email_not_github(path):
+    t = client.get(path, headers=KO_BROWSER).text
+    assert "mailto:help@lostkorea.com" in t and "github.com/cwal8202/lostkorea/issues" not in t
+    if "privacy" in path:
+        assert "mailto:privacy@lostkorea.com" in t

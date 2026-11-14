@@ -466,6 +466,49 @@ m.textContent=r.ok?"확인됐어요! 이제 새 습득물이 들어오면 알려
 catch(e){{m.textContent="네트워크 오류 · Network error";b.disabled=false}}}}</script></body></html>"""
 
 
+def _unsub_page(body: str) -> str:
+    """'알림 그만 받기' 화면(한·영 함께 — 메일 링크라 화면 언어를 알 수 없음)."""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{settings.brand_name} — 알림 그만 받기 / Stop alerts</title>
+<meta name="robots" content="noindex"><link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/fonts/pretendard/pretendard.css?v={site.VERSION}">
+<link rel="stylesheet" href="/static/css/site.css?v={site.VERSION}">
+<style>body{{background:var(--bg-soft)}}.c{{max-width:480px;margin:56px auto;text-align:center}}
+.c .brand{{justify-content:center;margin-bottom:18px}}.c p{{color:#475569;margin:10px 0}}</style></head><body>
+<div class="container"><div class="card c">
+<a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span class="wordmark">Lost<span>Korea</span></span></a>
+{body}<p class="small"><a href="/">{settings.brand_name} 홈 · Home</a></p></div></div></body></html>"""
+
+
+@app.get("/unsubscribe", include_in_schema=False)
+def unsubscribe_page(r: str = Query("", max_length=200)) -> HTMLResponse:
+    """알림 메일의 '알림 그만 받기' → 확인 버튼 화면. GET은 아무것도 바꾸지 않음(메일 보안 스캐너가 링크를 미리 열어도 안 꺼지게)."""
+    import html as _h
+
+    body = (f'<p>이 분실물 신고의 이메일 알림을 끌까요?<br>Turn off email alerts for this lost-item report?</p>'
+            f'<form method="post" action="/unsubscribe?r={_h.escape(r, quote=True)}">'
+            f'<button class="btn btn-primary btn-lg" type="submit">알림 그만 받기 · Stop alerts</button></form>')
+    return HTMLResponse(_unsub_page(body), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/unsubscribe", include_in_schema=False)
+def unsubscribe(request: Request, r: str = Query("", max_length=200)) -> HTMLResponse:
+    """수신 거부 — 확인 화면의 버튼 + 메일 앱의 원클릭(RFC 8058, 'List-Unsubscribe=One-Click' POST).
+
+    그 신고의 알림 이메일을 지움(신고·결과는 남음 — 다시 받으려면 결과 화면에서 이메일 입력).
+    토큰이 틀려도 같은 화면(어떤 신고가 있는지 알려 주지 않음). 메일 업체 서버가 대신 보낼 수 있어 IP 한도는 넉넉히.
+    """
+    limiter.hit(f"unsub:{client_ip(request)}", 120, _HOUR)
+    lid, _, token = r.partition(".")
+    row = store.get(lid) if lid else None
+    if store.check_unsub(row, token) and row.get("email"):
+        store.set_pending_email(lid, "", None, None)
+        store.bump("unsubscribe")
+    body = ("<p><b>이메일 알림을 껐어요.</b> 다시 받으려면 결과 화면의 '알림 설정'에서 이메일을 입력하세요.<br>"
+            "<b>Email alerts are off.</b> To turn them back on, enter your email under Alert settings.</p>")
+    return HTMLResponse(_unsub_page(body), headers={"Cache-Control": "no-store"})
+
+
 @app.get("/email/verify", include_in_schema=False)
 def verify_email_page() -> HTMLResponse:
     """확인 메일 링크 → 버튼 페이지(GET은 상태를 바꾸지 않음: 메일 보안 스캐너의 링크 선열람으로 자동 확인 방지)."""
