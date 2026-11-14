@@ -323,6 +323,8 @@ def main() -> None:
                     help="대조한 오래된 구간에서 늦게 등록돼 빠진 습득물을 출처당 최대 N건 수집(0=끔)")
     ap.add_argument("--catch-up-max-docs", type=int, default=600_000,
                     help="색인이 이 건수 이상이면 늦은 등록 수집을 건너뜀(서버 메모리 보호)")
+    ap.add_argument("--catch-up-days", type=int, default=90,
+                    help="늦은 등록 채우기는 최근 N일 습득분만(30일씩 돌아가며) — 보관 기간이 곧 끝날 옛 물건은 채우지 않음")
     args = ap.parse_args()
     args.reconcile = args.reconcile or args.reconcile_only
 
@@ -331,11 +333,21 @@ def main() -> None:
     total = indexed = errors = 0
     sample = None
 
-    def collect(src: str, items: list[dict]) -> None:
-        """배치마다 상세 → (임베딩·색인) — 끊겨도 앞 배치는 보존."""
+    def collect(src: str, items: list[dict], stop_fail_ratio: float = 0.0) -> None:
+        """배치마다 상세 → (임베딩·색인) — 끊겨도 앞 배치는 보존.
+
+        stop_fail_ratio>0: 한 배치의 상세 실패 비율이 이 이상이면 멈춤(공공 API가 거절 중 — 계속하면 재시도 대기로 몇 시간).
+        """
         nonlocal total, indexed, errors, sample
         for i in range(0, len(items), BATCH):
-            docs = enrich_docs(src, items[i : i + BATCH], args.enrich)
+            batch = items[i : i + BATCH]
+            docs = enrich_docs(src, batch, args.enrich)
+            if stop_fail_ratio and batch and (len(batch) - len(docs)) / len(batch) >= stop_fail_ratio:
+                print(f"  ! {src} 상세 실패가 {len(batch) - len(docs)}/{len(batch)}건 — 공공 API가 거절 중이라 오늘 채우기 중단",
+                      flush=True)
+                stop = True
+            else:
+                stop = False
             for d in docs:  # 구/시 해석해 색인에 저장(둘러보기 지역 필터·집계용, 비용 0)
                 d["region"] = region_resolver.resolve(d.get("dep_place", ""))
             total += len(docs)
@@ -345,10 +357,13 @@ def main() -> None:
                 indexed += res["count"]
                 errors += res["errors"]
                 print(f"  {src} 배치 {i // BATCH + 1}: {res['count']}건 색인 (누적 {indexed})", flush=True)
+            if stop:
+                return
 
     for src in sources:
         print(f"[{src}] 수집 {args.start}~{args.end} (max {args.max}, enrich={args.enrich})")
         listed = o_listed = None
+        o_start = o_end = None
         o_complete = False
         if args.reconcile:
             listed, complete = list_all(src, args.start, args.end, args.rows, args.max)
@@ -367,9 +382,23 @@ def main() -> None:
                           skip_existing=indexing and not args.refresh_existing, listed=listed)
         collect(src, items)
 
-        # 늦게 등록된 습득물: 수집 창(7일)이 지난 뒤 등록돼 영영 빠지던 것 — 오늘 대조한 오래된 구간에서 채움.
+        # 늦게 등록된 습득물: 수집 창(7일)이 지난 뒤 등록돼 영영 빠지던 것.
         # 11/12 실측: 10/20 습득분은 보관 중 2,195건 중 1,293건이 색인에 없었음(부산유실물센터 등 한꺼번에 늦게 등록).
         # 11/13 측정: 50만 건이어도 768차원 벡터 ~1.6GB(서버 여유 ~4GB) → 출처당 하룻밤 상한 + 색인 상한으로 천천히.
+        # 11/14: 첫 실행이 수집 시작 전 구간(6~7월)을 통째로 채우려다 공공 API 429로 11시간 반 → 최근 N일만(30일씩 순환),
+        #   실패가 몰리면 그날 중단.
+        if args.catch_up and indexing:
+            c_start, c_end = older_range(date.today(), args.catch_up_days, args.reconcile_chunk_days)
+            if (c_start, c_end) == (o_start if o_listed else None, o_end if o_listed else None):
+                c_listed, c_complete = o_listed, o_complete
+            else:
+                c_listed, c_complete = list_all(src, c_start, c_end, args.rows, 500_000)
+                if c_complete:  # 받은 김에 이 구간도 종결 정리
+                    try:
+                        _print_reconcile(reconcile(src, c_start, c_end, c_listed, c_complete), False)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  ! 정리 실패: {type(e).__name__}: {e}")
+            o_start, o_end, o_listed, o_complete = c_start, c_end, c_listed, c_complete
         if args.catch_up and indexing and o_listed and o_complete:
             try:
                 count = _os(f"/{settings.opensearch_index}/_count", method="GET").get("count", 0)
@@ -382,7 +411,7 @@ def main() -> None:
                 late = new_items(src, o_start, o_end, args.rows, len(o_listed), skip_existing=True, listed=o_listed)
                 print(f"  [늦은 등록] {src} {o_start}~{o_end}: 빠진 {len(late)}건 중 {min(len(late), args.catch_up)}건 수집",
                       flush=True)
-                collect(src, late[: args.catch_up])
+                collect(src, late[: args.catch_up], stop_fail_ratio=0.5)
 
     print(f"\n총 정규화 {total}건")
     if sample:

@@ -258,3 +258,43 @@ def test_catch_up_stops_when_index_is_large(monkeypatch):
     got = _catch_up_env(monkeypatch, count=600_000)
     run.main()
     assert got == ["W"]                      # 색인 상한(기본 60만)이면 늦은 등록 수집 안 함 — 서버 메모리 보호
+
+
+def test_catch_up_stops_when_public_api_refuses(monkeypatch):
+    """한 배치의 상세 절반 이상이 실패(공공 API 429 등)하면 그날 채우기 중단 — 11/14 첫 실행은 재시도 대기로 11시간 반."""
+    got = _catch_up_env(monkeypatch, count=181_874)
+    monkeypatch.setattr(run, "BATCH", 1)
+    monkeypatch.setattr(sys, "argv", ["run", "--source", "police", "--start", "20261106", "--end", "20261112",
+                                      "--enrich", "--reconcile", "--catch-up", "3"])
+    monkeypatch.setattr(run, "enrich_docs", lambda src, items, enrich: [] if items[0]["atcId"] == "O1" else [
+        {"atc_id": li["atcId"], "name": "지갑", "color": "", "category": "", "dep_place": "", "found_place": "",
+         "description": ""} for li in items])
+    run.main()
+    assert got == ["W"]                      # O1에서 전부 실패 → O2·O3은 시도 안 함(수집 창 W는 그대로)
+
+
+def test_catch_up_targets_recent_days_only():
+    from datetime import date, timedelta
+    today = date(2026, 11, 14)
+    for k in range(6):
+        a, b = run.older_range(today + timedelta(days=k), keep_days=90, chunk_days=30)
+        d = today + timedelta(days=k)
+        assert a >= (d - timedelta(days=90)).strftime("%Y%m%d") and b <= (d - timedelta(days=8)).strftime("%Y%m%d")
+
+
+def test_client_waits_longer_on_429(monkeypatch):
+    import urllib.error
+
+    from apps.collector import client
+    sleeps = []
+    monkeypatch.setattr(client.time, "sleep", lambda s: sleeps.append(s))
+
+    def refuse(*a, **k):
+        raise urllib.error.HTTPError("u", 429, "Too Many Requests", {}, None)
+
+    monkeypatch.setattr(client.urllib.request, "urlopen", refuse)
+    try:
+        client._get("http://x", {}, max_retry=3)
+    except RuntimeError:
+        pass
+    assert sleeps == [20, 40]                # 2·4초가 아니라 20·40초 — 속도를 늦추라는 신호

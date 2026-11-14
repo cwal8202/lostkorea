@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import http.client
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -45,7 +46,10 @@ def _get(url: str, params: dict, max_retry: int = 4, timeout: int = 15) -> ET.El
                 return ET.fromstring(r.read())
         except (OSError, http.client.HTTPException, ET.ParseError) as e:
             if attempt < max_retry - 1:
-                time.sleep(2 * (attempt + 1))
+                # 429(요청 너무 많음)는 공공 API가 속도를 늦추라는 뜻 — 2~6초 뒤 재시도하면 또 거절됨(11/14 실측 8,290건 실패,
+                # 재시도 대기로 수집 11시간 반). 20·40·60초 쉬고 다시.
+                rate_limited = isinstance(e, urllib.error.HTTPError) and e.code == 429
+                time.sleep((20 if rate_limited else 2) * (attempt + 1))
                 continue
             raise RuntimeError(f"data.go.kr 요청 실패: {e}") from e
     raise RuntimeError("재시도 소진")
