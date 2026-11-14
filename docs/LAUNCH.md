@@ -77,8 +77,8 @@ Workers Paid(월 $5) 필요해서 제외, Brevo 무료는 메일에 로고가 �
 알림 메일에 '알림 그만 받기' 링크 + 원클릭 수신 거부 헤더(RFC 8058).
 **진행(11/14)**: ✅ Maileroo 가입·`lostkorea.com` 인증(Active) — SPF는 기존 줄에 합침(`v=spf1 include:_spf.mx.cloudflare.net include:_spf.maileroo.com ~all`),
 DKIM `mta._domainkey`(2048비트), DMARC `v=DMARC1; p=none` / ✅ 보내는 주소 `LostKorea <notify@lostkorea.com>`(답장은 Email Routing으로 Gmail)
-/ ✅ 처리방침 위탁·국외이전 갱신(Gmail → Maileroo, Cloudflare 추가, 시행일 11/14) / ⏳ 서버 `.env`(운영자 입력) → 시험 발송·인증 결과 확인
-→ 끝나면 **Gmail 앱 비밀번호 삭제**. 무료는 **시간당 30통**(월 3,000통) — 알림이 몰리면 나눠 보내기·한도 상향 필요.
+/ ✅ 처리방침 위탁·국외이전 갱신(Gmail → Maileroo, Cloudflare 추가, 시행일 11/14) / ✅ 서버 `.env` 전환·시험 발송(spf·dkim·dmarc pass)
+/ ✅ 운영 알림 주소(`NOTIFY_EMAIL_TO`)가 예시 문구였던 것 고침 / ⏳ **Maileroo 열람·링크 추적 끄기**(도메인 Settings). 무료는 **시간당 30통**(월 3,000통) — 알림이 몰리면 나눠 보내기·한도 상향 필요.
 
 ### 2-5. 사업자 등록 — 지금은 불필요
 수익(광고·후원·유료 기능)이 없으면 의무 아님. 다만 **카카오 알림톡**(한국 사용자 알림의 사실상 표준)·기관 제휴 계약·후원을 하려면 필요.
