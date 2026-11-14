@@ -21,8 +21,9 @@ import random
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
+from apps import store
 from apps.api import gemini
 from apps.api.config import settings
 from apps.api.region import resolver as region_resolver
@@ -119,10 +120,21 @@ def prune_old(days: int | None = None, today: date | None = None) -> int:
     """습득일이 days일보다 오래된 습득물 삭제 — 유실물법상 소유자가 찾아갈 수 있는 기간(6개월)이 지난 것.
 
     안 지우면 색인이 하루 ~3,700건씩 끝없이 늘어 벡터 검색 메모리·디스크가 서버를 넘어선다(10월 기준 17만 건·3GB).
+
+    지우기 전에 '보관 기간 끝(retention_end)'으로 기록 — 경찰 목록엔 아직 보관중인 물건이 많다(11/15 확인: 습득 204일 지난
+    하루치가 경찰서 1,151·기관 1,404건 보관중). 이 기록이 없으면 이탈 분석에서 '끝까지 안 빠진 물건'이 사라진다.
+    기록이 실패하면 오늘은 지우지 않음(다음 수집 때 다시).
     """
     days = days or settings.found_retention_days
     cutoff = ((today or date.today()) - timedelta(days=days)).isoformat()
-    body = json.dumps({"query": {"range": {"found_at": {"lt": cutoff}}}}).encode()
+    query = {"range": {"found_at": {"lt": cutoff}}}
+    try:
+        docs = _scan_docs(query, _REC_FIELDS)
+        _record_before_delete({"retention_end": docs}, "retention")
+    except Exception as e:  # noqa: BLE001
+        _record_failed("보관 기간 경과분", e)
+        return 0
+    body = json.dumps({"query": query}).encode()
     req = urllib.request.Request(
         f"{settings.opensearch_url}/{settings.opensearch_index}/_delete_by_query?conflicts=proceed",
         body, {"Content-Type": "application/json"}, method="POST",
@@ -154,15 +166,14 @@ def _os(path: str, body: dict | None = None, method: str = "POST", timeout: int 
         return json.load(r)
 
 
-def indexed_in_range(source: str, start: str, end: str) -> dict[str, str]:
-    """색인된 문서 {_id: image_url} — 출처·습득일 구간(YYYYMMDD) 전부(scroll)."""
-    body = {"size": 5000, "_source": ["image_url"], "sort": ["_doc"], "query": {"bool": {"filter": [
-        {"term": {"source": source}}, {"range": {"found_at": {"gte": _ymd_iso(start), "lte": _ymd_iso(end)}}}]}}}
+def _scan_docs(query: dict, fields: list[str]) -> dict[str, dict]:
+    """질의에 맞는 색인 문서 전부 {_id: _source(fields만)} — scroll."""
+    body = {"size": 5000, "_source": fields, "sort": ["_doc"], "query": query}
     res = _os(f"/{settings.opensearch_index}/_search?scroll=2m", body)
     sid, out = res.get("_scroll_id"), {}
     try:
-        while res["hits"]["hits"]:
-            out.update({h["_id"]: (h.get("_source") or {}).get("image_url", "") for h in res["hits"]["hits"]})
+        while (res.get("hits") or {}).get("hits"):
+            out.update({h["_id"]: h.get("_source") or {} for h in res["hits"]["hits"]})
             res = _os("/_search/scroll", {"scroll": "2m", "scroll_id": sid})
             sid = res.get("_scroll_id", sid)
     finally:
@@ -172,6 +183,83 @@ def indexed_in_range(source: str, start: str, end: str) -> dict[str, str]:
             except Exception:  # noqa: BLE001 — 정리 못 해도 2분 뒤 자동 만료
                 pass
     return out
+
+
+def indexed_in_range(source: str, start: str, end: str) -> dict[str, str]:
+    """색인된 문서 {_id: image_url} — 출처·습득일 구간(YYYYMMDD) 전부(scroll)."""
+    query = {"bool": {"filter": [
+        {"term": {"source": source}}, {"range": {"found_at": {"gte": _ymd_iso(start), "lte": _ymd_iso(end)}}}]}}
+    return {i: s.get("image_url", "") for i, s in _scan_docs(query, ["image_url"]).items()}
+
+
+# ── 이탈 기록: 지우거나(종결·보관 기간 끝) 사진을 바꾸기(내려감) 전에 store.found_closures에 남김 ──
+# 공공 습득물 정보 중 분석에 필요한 칸만(물품 이름·특이사항 원문·연락처는 안 남김). 기록이 실패하면 그날 삭제·갱신을 보류.
+_REC_FIELDS = ["source", "category_top", "category_sub", "color", "region", "dep_place", "found_place", "image_url",
+               "description", "found_at", "indexed_at"]
+_STATE = {"store_ready": False, "alerted": False}
+
+
+def _real_photo(url: str) -> bool:
+    """실제 사진인가 — 경찰청 '사진 없음' 그림(no_img)·빈값 제외(검색·메일과 같은 기준)."""
+    return bool(url) and url.startswith("http") and "no_img" not in url
+
+
+def _kst_today() -> str:
+    return datetime.now(store.KST).date().isoformat()
+
+
+def _mget_docs(ids: list[str], chunk: int = 1000) -> dict[str, dict]:
+    """문서 id → 기록용 칸(지우기 전 내용). 이미 없는 문서는 빠짐."""
+    out: dict[str, dict] = {}
+    for i in range(0, len(ids), chunk):
+        res = _os(f"/{settings.opensearch_index}/_mget?_source_includes={','.join(_REC_FIELDS)}",
+                  {"ids": ids[i : i + chunk]})
+        out.update({d["_id"]: d.get("_source") or {} for d in res.get("docs", []) if d.get("found")})
+    return out
+
+
+def closure_rows(kind: str, docs: dict[str, dict], window: str, ours: dict[str, str], today: str) -> list[dict]:
+    """색인 문서 → found_closures 행. has_desc는 경찰 상투 문장을 걷어낸 특이사항이 남는지(메일·화면과 같은 기준)."""
+    from apps.notifier import _clean_desc
+
+    return [{
+        "item_id": i, "kind": kind, "source": s.get("source", ""),
+        "category_top": s.get("category_top", ""), "category_sub": s.get("category_sub", ""),
+        "color": s.get("color", ""), "region": s.get("region", ""), "dep_place": s.get("dep_place", ""),
+        "found_place": s.get("found_place", ""), "has_photo": int(_real_photo(s.get("image_url", ""))),
+        "has_desc": int(bool(_clean_desc(s.get("description")))), "found_at": s.get("found_at", ""),
+        "first_seen": s.get("indexed_at") or None, "detected_at": today, "check_window": window,
+        "our_report": ours.get(i, ""),
+    } for i, s in docs.items()]
+
+
+def _record_before_delete(groups: dict[str, list[str] | dict[str, dict]], window: str) -> int:
+    """{kind: 문서 id 목록 또는 이미 읽은 {id: 내용}} → 지우기 전 내용을 기록. 실패하면 예외(호출부가 보류)."""
+    if not any(groups.values()):
+        return 0
+    if not _STATE["store_ready"]:
+        store.init()  # 수집은 별도 일회성 컨테이너 — 표가 없으면 만들고 시작
+        _STATE["store_ready"] = True
+    ours, today, rows = store.report_item_keys(), _kst_today(), []
+    for kind, docs in groups.items():
+        if docs and not isinstance(docs, dict):
+            docs = _mget_docs(list(docs))
+        rows += closure_rows(kind, docs or {}, window, ours, today)
+    return store.record_closures(rows)
+
+
+def _record_failed(what: str, e: Exception) -> None:
+    """기록 실패 → 삭제 보류 + 관리자 알림(하룻밤 1번). 계속 실패하면 종결된 물건이 사이트에 남으니 알아야 함."""
+    msg = f"{what} 이탈 기록 실패({type(e).__name__}: {e}) — 오늘은 삭제·사진 갱신 보류"
+    print(f"  ! {msg}", flush=True)
+    if _STATE["alerted"]:
+        return
+    _STATE["alerted"] = True
+    try:
+        from apps import ops
+        ops.alert("습득물 이탈 기록 실패 — 정리 보류", msg + "\n로그: /root/lostkorea/daily_collect.log")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _bulk_actions(actions: list[str], chunk: int = 1000) -> int:
@@ -192,7 +280,11 @@ def _bulk_actions(actions: list[str], chunk: int = 1000) -> int:
 
 
 def _closed_confirmed(source: str, ids: list[str]) -> bool:
-    """지울 대상 표본을 상세 조회 — 하나라도 '보관중'이면 False(목록 누락 의심). 확인된 게 하나도 없어도 False."""
+    """지울 대상 표본을 상세 조회 — 하나라도 '보관중'이면 False(목록 누락 의심). 확인된 게 하나도 없어도 False.
+
+    상태가 비었거나 응답이 빈 경우는 확인 실패로 침(예전엔 빈 응답도 '종결 확인'으로 세어, 공공 API가 잠깐 빈 응답을 주면
+    목록 누락을 종결로 오인할 수 있었음 — 외부 리뷰 지적, 11/15).
+    """
     confirmed = 0
     for i in ids:
         atc, _, sn = i.rpartition("_")
@@ -200,16 +292,24 @@ def _closed_confirmed(source: str, ids: list[str]) -> bool:
             d = client.get_detail(source, atc, sn or "1")
         except Exception:  # noqa: BLE001
             continue
-        if (d.get("csteSteNm") or "").strip() == "보관중":
+        state = (d.get("csteSteNm") or "").strip()
+        if not state:
+            continue
+        if state == "보관중":
             return False
         confirmed += 1
     return confirmed > 0
 
 
-def reconcile(source: str, start: str, end: str, listed: list[dict], complete: bool, dry_run: bool = False) -> dict:
-    """색인(출처·습득일 구간)을 경찰 목록과 대조 → 목록에 없는 것(종결) 삭제, 사진 주소가 바뀐 것 갱신."""
+def reconcile(source: str, start: str, end: str, listed: list[dict], complete: bool, dry_run: bool = False,
+              window: str = "recent") -> dict:
+    """색인(출처·습득일 구간)을 경찰 목록과 대조 → 목록에 없는 것(종결) 삭제, 사진 주소가 바뀐 것 갱신.
+
+    지우거나 바꾸기 전에 이탈 기록(종결·사진 내려감)을 남기고, 기록이 실패하면 이번엔 아무것도 바꾸지 않음.
+    window: 이 대조가 어느 구간인지(recent·older·catchup) — 기록에 함께 남겨 감지일의 오차를 알 수 있게.
+    """
     stat = {"source": source, "range": f"{start}~{end}", "listed": len(listed), "indexed": 0,
-            "closed": 0, "photo": 0, "skipped": ""}
+            "closed": 0, "photo": 0, "photo_removed": 0, "skipped": ""}
     if not complete:
         stat["skipped"] = "목록을 끝까지 받지 못함"
         return stat
@@ -221,11 +321,19 @@ def reconcile(source: str, start: str, end: str, listed: list[dict], complete: b
         stat["skipped"] = "목록이 비었음(장애 의심) — 삭제 보류"
         gone = []
     elif gone and not _closed_confirmed(source, random.sample(gone, min(CLOSED_SAMPLE, len(gone)))):
-        stat["skipped"] = "표본 중 보관중이 있음(목록 누락 의심) — 삭제 보류"
+        stat["skipped"] = "표본에서 종결 확인 못 함(보관중 또는 빈 응답 — 목록 누락 의심) — 삭제 보류"
         gone = []
     changed = {i: now[i] for i in have if i in now and now[i] and now[i] != have[i]}
-    stat["closed"], stat["photo"] = len(gone), len(changed)
+    removed = [i for i, url in changed.items() if _real_photo(have[i]) and not _real_photo(url)]
+    stat["closed"], stat["photo"], stat["photo_removed"] = len(gone), len(changed), len(removed)
     if not dry_run and (gone or changed):
+        try:
+            stat["recorded"] = _record_before_delete({"closed": gone, "photo_removed": removed}, window)
+        except Exception as e:  # noqa: BLE001
+            _record_failed(f"{source} {start}~{end}", e)
+            stat["skipped"] = "이탈 기록 실패 — 삭제·사진 갱신 보류"
+            stat["closed"] = stat["photo"] = stat["photo_removed"] = 0
+            return stat
         idx = settings.opensearch_index
         actions = [json.dumps({"delete": {"_index": idx, "_id": i}}) for i in gone]
         actions += [json.dumps({"update": {"_index": idx, "_id": i}}) + "\n" + json.dumps({"doc": {"image_url": url}})
@@ -250,7 +358,8 @@ def older_range(today: date, keep_days: int, chunk_days: int = 30, recent_days: 
 def _print_reconcile(stat: dict, dry_run: bool) -> None:
     head = "[정리·시험]" if dry_run else "[정리]"
     print(f"  {head} {stat['source']} {stat['range']}: 경찰 목록 {stat['listed']}건 · 색인 {stat['indexed']}건 → "
-          f"종결 삭제 {stat['closed']}건 · 사진 갱신 {stat['photo']}건"
+          f"종결 삭제 {stat['closed']}건 · 사진 갱신 {stat['photo']}건(내려감 {stat.get('photo_removed', 0)}건)"
+          + (f" · 기록 {stat['recorded']}건" if stat.get("recorded") else "")
           + (f" · 오류 {stat['errors']}건" if stat.get("errors") else "")
           + (f" ({stat['skipped']})" if stat["skipped"] else ""), flush=True)
 
@@ -275,8 +384,21 @@ def fetch(source: str, start: str, end: str, rows: int, max_items: int, enrich: 
     return enrich_docs(source, new_items(source, start, end, rows, max_items, skip_existing), enrich)
 
 
+def _ensure_indexed_at_mapping() -> None:
+    """'처음 본 날'(indexed_at) 칸을 날짜로 매핑(한 번만, 이미 같으면 그대로). 실패해도 색인은 계속(자동 매핑도 날짜로 잡힘)."""
+    if _STATE.get("mapping"):
+        return
+    _STATE["mapping"] = True
+    try:
+        _os(f"/{settings.opensearch_index}/_mapping",
+            {"properties": {"indexed_at": {"type": "date", "format": "yyyy-MM-dd"}}}, method="PUT", timeout=30)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! indexed_at 매핑 확인 실패({type(e).__name__}) — 색인은 계속")
+
+
 def embed_and_index(docs: list[dict]) -> dict:
     """한 배치 임베딩 → _bulk 색인."""
+    _ensure_indexed_at_mapping()
     vecs = gemini.embed_texts([embed_text(d) for d in docs])
     for d, v in zip(docs, vecs):
         d["embedding"] = v
@@ -348,8 +470,10 @@ def main() -> None:
                 stop = True
             else:
                 stop = False
+            seen_day = _kst_today()
             for d in docs:  # 구/시 해석해 색인에 저장(둘러보기 지역 필터·집계용, 비용 0)
                 d["region"] = region_resolver.resolve(d.get("dep_place", ""))
+                d["indexed_at"] = seen_day  # 처음 본 날(이탈 기록의 first_seen) — 새로 색인하는 문서부터
             total += len(docs)
             sample = sample or (docs[0] if docs else None)
             if indexing and docs:
@@ -372,8 +496,8 @@ def main() -> None:
                                  not indexing)
                 o_start, o_end = older_range(date.today(), settings.found_retention_days, args.reconcile_chunk_days)
                 o_listed, o_complete = list_all(src, o_start, o_end, args.rows, 500_000)
-                _print_reconcile(reconcile(src, o_start, o_end, o_listed, o_complete, dry_run=not indexing),
-                                 not indexing)
+                _print_reconcile(reconcile(src, o_start, o_end, o_listed, o_complete, dry_run=not indexing,
+                                           window="older"), not indexing)
             except Exception as e:  # noqa: BLE001 — 정리 실패가 수집·재매칭을 막지 않게
                 print(f"  ! 정리 실패: {type(e).__name__}: {e}")
             if args.reconcile_only:
@@ -395,7 +519,7 @@ def main() -> None:
                 c_listed, c_complete = list_all(src, c_start, c_end, args.rows, 500_000)
                 if c_complete:  # 받은 김에 이 구간도 종결 정리
                     try:
-                        _print_reconcile(reconcile(src, c_start, c_end, c_listed, c_complete), False)
+                        _print_reconcile(reconcile(src, c_start, c_end, c_listed, c_complete, window="catchup"), False)
                     except Exception as e:  # noqa: BLE001
                         print(f"  ! 정리 실패: {type(e).__name__}: {e}")
             o_start, o_end, o_listed, o_complete = c_start, c_end, c_listed, c_complete

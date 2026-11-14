@@ -144,6 +144,9 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 | 주간 요약(방문·신고·알림·오류·수집) | 월요일 수집 후 `apps.ops weekly` | 서버 cron |
 - 수동 확인: `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.ops weekly --days 30`
 - 통계는 `metrics` 테이블(일·종류별 횟수만, 개인정보 없음). 봇 접속은 방문 수에서 제외.
+- 습득물 이탈 기록은 `found_closures` 테이블(공공 습득물 정보만 — 이름·특이사항 원문 없음). 수집기가 색인에서 지우기 전에 씀.
+  `[정리]` 로그 줄에 "기록 N건"이 붙고, 기록이 실패하면 그날 정리를 보류하고 "습득물 이탈 기록 실패" 메일이 옴. 확인:
+  `docker exec lostkorea-postgres psql -U lostkorea -d lostkorea -c "select detected_at, kind, check_window, count(*) from found_closures group by 1,2,3 order by 1 desc"`
 - **공개 레포는 60일간 커밋이 없으면 GitHub가 예약 워크플로(uptime)를 멈춘다** → Actions 탭에서 다시 켜기.
 
 > 자동배포는 `backend`·`caddy`만 재빌드(코드/웹 변경분). OpenSearch·Postgres는 데이터 보존 위해 건드리지 않음.

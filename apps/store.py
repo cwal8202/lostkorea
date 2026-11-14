@@ -132,6 +132,29 @@ def init() -> None:
             PRIMARY KEY (day, kind)
         )
     """)
+    # 습득물 이탈 기록 — 매일 경찰 목록과 대조해 색인에서 지우거나(종결) 사진을 바꾸기(내려감) **전에** 남김.
+    # 공공 습득물 정보만(물품 이름·특이사항 원문·연락처는 저장 안 함 — 이름에 주인 이름이 섞일 수 있음). 개인정보 없음.
+    _run("""
+        CREATE TABLE IF NOT EXISTS found_closures (
+            item_id TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            source TEXT,
+            category_top TEXT,
+            category_sub TEXT,
+            color TEXT,
+            region TEXT,
+            dep_place TEXT,
+            found_place TEXT,
+            has_photo INTEGER,
+            has_desc INTEGER,
+            found_at TEXT,
+            first_seen TEXT,
+            detected_at TEXT,
+            check_window TEXT,
+            our_report TEXT,
+            PRIMARY KEY (item_id, kind)
+        )
+    """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
@@ -354,6 +377,56 @@ def report_counts() -> dict[str, int]:
                  "SUM(CASE WHEN email_verified=1 THEN 1 ELSE 0 END) AS verified FROM lost_items GROUP BY status")
     out = {r["status"]: int(r["n"]) for r in rows}
     out["email_verified"] = sum(int(r["verified"] or 0) for r in rows)
+    return out
+
+
+# ── 습득물 이탈 기록(found_closures) ──
+# kind: closed(경찰 목록에서 빠짐 = 종결 — 주인 반환뿐 아니라 이관·폐기 등도 포함) /
+#       photo_removed(실제 사진 → '사진 없음') / retention_end(우리 보관 기간 185일 끝 — 마지막 대조 때까지 보관중, 관찰 종료).
+# check_window: 감지한 대조 — recent(최근 7일, 매일) / older(오래된 구간, 며칠마다 순환) / catchup / retention.
+#   감지일은 '이날 처음 빠진 것을 봤다'는 뜻 — older는 앞선 확인 뒤 며칠 사이 어느 날 빠졌는지 모름.
+CLOSURE_COLS = ("item_id", "kind", "source", "category_top", "category_sub", "color", "region", "dep_place",
+                "found_place", "has_photo", "has_desc", "found_at", "first_seen", "detected_at", "check_window",
+                "our_report")
+
+
+def record_closures(rows: list[dict]) -> int:
+    """이탈 기록 저장(한 연결·한 커밋). 같은 (item_id, kind)는 처음 것만 남김. 실패는 예외로 — 호출부가 삭제를 보류."""
+    if not rows:
+        return 0
+    sql = _q(f"INSERT INTO found_closures ({','.join(CLOSURE_COLS)}) VALUES ({','.join('?' * len(CLOSURE_COLS))}) "
+             "ON CONFLICT (item_id, kind) DO NOTHING")
+    conn = _conn()
+    try:
+        cur = conn.cursor()
+        cur.executemany(sql, [tuple(r.get(c) for c in CLOSURE_COLS) for r in rows])
+        conn.commit()
+    finally:
+        conn.close()
+    return len(rows)
+
+
+def closure_counts_since(day_from: str) -> dict[str, int]:
+    """day_from(포함, KST 날짜) 이후 감지한 이탈 기록 종류별 건수(주간 요약용)."""
+    rows = _rows("SELECT kind, COUNT(*) AS n FROM found_closures WHERE detected_at >= ? GROUP BY kind", (day_from,))
+    return {r["kind"]: int(r["n"]) for r in rows}
+
+
+def report_item_keys() -> dict[str, str]:
+    """우리 신고가 짚은 습득물 {atc_id_fd_sn: 'confirmed'|'candidate'} — 이탈 기록에 '우리 서비스와 연결' 표시용.
+
+    confirmed = 신고자가 '내 물건이에요'를 누름, candidate = 유력 후보로 제시함. 신고 내용·이메일은 꺼내지 않음.
+    """
+    out: dict[str, str] = {}
+    for r in _rows("SELECT status, best_match FROM lost_items "
+                   "WHERE status IN ('confirmed', 'candidate') AND best_match IS NOT NULL"):
+        try:
+            m = json.loads(r["best_match"]) or {}
+        except (TypeError, ValueError):
+            continue
+        key = f"{m.get('atc_id', '')}_{m.get('fd_sn') or '1'}"
+        if m.get("atc_id") and out.get(key) != "confirmed":
+            out[key] = r["status"]
     return out
 
 

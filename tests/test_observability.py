@@ -79,6 +79,16 @@ def test_weekly_summary(mails):
     assert "디스크:" in body
 
 
+def test_weekly_summary_counts_found_item_exits(mails):
+    store._run("DELETE FROM found_closures")
+    row = {"source": "police", "detected_at": "2026-11-07", "check_window": "recent"}
+    store.record_closures([dict(row, item_id="W1_1", kind="closed"), dict(row, item_id="W2_1", kind="closed"),
+                           dict(row, item_id="W3_1", kind="photo_removed"),
+                           dict(row, item_id="W4_1", kind="closed", detected_at="2026-10-01")])   # 기간 밖
+    body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 1, "latest_found_at": "2026-11-08"})
+    assert "습득물 이탈 기록: 종결 2 · 사진 내려감 1 · 보관 기간 끝 0건" in body
+
+
 def test_weekly_summary_reports_measured_ai_cost(mails):
     store.bump_many({"ai_calls": 10, "ai_in": 1_000_000, "ai_out": 200_000}, day="2026-11-08")
     body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 1, "latest_found_at": "2026-11-08"})

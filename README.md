@@ -76,6 +76,8 @@
   결과창 **알림 설정**에서 이메일·**알림 기간(7~180일, 기본 30일 — 지나면 재매칭 중단)**·**약한 후보(grade 50~79) '참고' 알림** 옵트인을 변경
 - **매일 수집(cron 00:00 KST)**: 습득물은 며칠에 걸쳐 등록되므로 **최근 7일 창을 매일 재조회**, 이미 색인된 항목은 건너뛰고
   새 항목만 상세 조회·임베딩 → 색인 → 재매칭. (기존 '어제분'만 조회 시 새 데이터 99% 누락 → 수정, [PROGRESS](docs/PROGRESS.md) 참고)
+  경찰 목록과 대조해 종결된 습득물은 지우고 내려간 사진은 반영 — **지우기 전에 이탈 기록**(`found_closures`: 분류·색·장소·사진/특이사항 유무·
+  습득일·처음 본 날, 이름·원문 제외)을 남겨 어떤 물건이 얼마나 빨리 목록에서 빠지는지 볼 수 있게.
 - **데이터랩 결합 분석**(`eval/datalab/`): 한국관광 데이터랩 외국인 방문자수 × 습득물 10.6만 건(2026.8) → 외국인 방문 상위 20개 시군구(8.7%)에
   **외국인 방문 59.2%·습득물 38.1%** 집중, 분실 지역 ≠ 보관 지역(역·유실물센터 등 거점) 확인 → 경유 지역 확장 검색의 근거
 - **보안·개인정보**: 신고마다 관리 토큰(등록 응답으로 1회, 서버엔 해시만) — 확인·제외·알림 설정은 토큰이 있어야 가능.
@@ -95,7 +97,7 @@
 → 의미 임베딩이 주력 랭커(한글↔영문·번역·오타 커버). **지역 가점**은 밀집 군집(검정지갑 193건 등)에서
 묻힌 정답을 MRR 0.084→0.857로 끌어올림(덧셈 소프트 w≈0.05, eval 검증). dep→구/시 gazetteer+지오코딩 커버 **95%**.
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 217개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·메일 결과 링크·실시간 스트림·다국어 메일·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 225개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -122,13 +124,13 @@ eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, O
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩
-tests/       pytest 217개 (외부 서비스 목킹)
+tests/       pytest 225개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)
 apps/agent/     매칭 에이전트 (LangGraph: extract→route→fanout→search→grade, 단계 스트림) + rematch(지속 재매칭·알림 기간)
 apps/collector/ 수집기 (data.go.kr 목록 → 기존 항목 스킵 → 새 항목 상세 enrich → 임베딩 → 색인, --rematch)
-apps/store.py   분실물 저장소 (PostgreSQL/SQLite 이중 백엔드, DATABASE_URL로 선택, 누락 컬럼 자동 마이그레이션)
+apps/store.py   분실물 저장소 (PostgreSQL/SQLite 이중 백엔드, DATABASE_URL로 선택, 누락 컬럼 자동 마이그레이션) + 익명 통계 + 습득물 이탈 기록
 apps/notifier.py 알림 (Notifier 인터페이스 + Console/Email, 유력·약한 후보 문구 구분, 신고자 언어 13개)
 apps/ops.py     운영 점검·알림 (오류 메일·데이터 정체·주간 요약·AI 토큰 실사용)
 apps/api/site.py  웹 페이지(홈·전체 습득물·가이드·방침·약관·robots·sitemap) — 언어별 서버 렌더링

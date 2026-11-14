@@ -118,9 +118,21 @@ def test_client_retries_remote_disconnected(monkeypatch):
     assert len(calls) == 3
 
 
-def test_prune_old_deletes_items_past_holding_period(monkeypatch):
+def _closures(item_id: str | None = None) -> list[dict]:
+    from apps import store
+    store.init()
+    rows = store._rows("SELECT * FROM found_closures ORDER BY item_id, kind")
+    return [r for r in rows if item_id is None or r["item_id"] == item_id]
+
+
+def test_prune_old_records_then_deletes_items_past_holding_period(monkeypatch):
+    """185일 지난 습득물은 지우기 전에 '보관 기간 끝(retention_end)'으로 기록 — 끝까지 안 빠진 물건도 분석 분모에 남게."""
     from datetime import date
     seen = {}
+    monkeypatch.setattr(run, "_scan_docs", lambda q, f: (seen.setdefault("scan", q), {
+        "OLD1_1": {"source": "police", "category_top": "지갑", "color": "블랙(검정)", "region": "서울특별시 강남구",
+                   "dep_place": "강남경찰서", "image_url": "https://p/img02_no_img.gif", "description": "",
+                   "found_at": "2026-05-01"}})[1])
 
     def fake_urlopen(req, timeout=0):
         seen["url"], seen["body"] = req.full_url, json.loads(req.data)
@@ -128,8 +140,21 @@ def test_prune_old_deletes_items_past_holding_period(monkeypatch):
 
     monkeypatch.setattr(run.urllib.request, "urlopen", fake_urlopen)
     assert run.prune_old(days=185, today=date(2026, 11, 9)) == 42
+    assert seen["scan"] == {"range": {"found_at": {"lt": "2026-05-08"}}}
     assert "_delete_by_query" in seen["url"]
     assert seen["body"] == {"query": {"range": {"found_at": {"lt": "2026-05-08"}}}}
+    (r,) = _closures("OLD1_1")
+    assert r["kind"] == "retention_end" and r["check_window"] == "retention" and r["has_photo"] == 0
+    assert r["category_top"] == "지갑" and r["first_seen"] is None   # 처음 본 날은 새로 색인한 문서부터
+
+
+def test_prune_old_keeps_items_when_recording_fails(monkeypatch):
+    monkeypatch.setattr(run, "_scan_docs", lambda q, f: {"OLD2_1": {"found_at": "2026-05-01"}})
+    monkeypatch.setattr(run.store, "record_closures", lambda rows: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setitem(run._STATE, "alerted", True)          # 알림 메일은 따로 확인
+    monkeypatch.setattr(run.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("기록 실패인데 삭제하면 안 됨")))
+    assert run.prune_old(days=185) == 0
 
 
 def test_existing_ids_treats_docs_without_detail_as_missing(monkeypatch):
@@ -143,11 +168,14 @@ def test_existing_ids_treats_docs_without_detail_as_missing(monkeypatch):
 
 # ── 정리: 경찰 목록과 대조(종결 삭제·사진 갱신) ──
 
-def _reconcile_env(monkeypatch, indexed: dict, detail_state: str = "종결"):
+def _reconcile_env(monkeypatch, indexed: dict, detail_state: str = "종결", docs: dict | None = None):
+    """indexed = 색인 {id: image_url}. docs = 지우기 전에 읽을 문서 내용(없으면 image_url만)."""
     sent = []
     monkeypatch.setattr(run, "indexed_in_range", lambda *a: dict(indexed))
     monkeypatch.setattr(run, "_bulk_actions", lambda lines: sent.extend(lines) or 0)
-    monkeypatch.setattr(run.client, "get_detail", lambda *a: {"csteSteNm": detail_state})
+    monkeypatch.setattr(run.client, "get_detail", lambda *a: {"csteSteNm": detail_state} if detail_state else {})
+    full = {i: dict({"image_url": u, "found_at": "2026-11-05"}, **(docs or {}).get(i, {})) for i, u in indexed.items()}
+    monkeypatch.setattr(run, "_mget_docs", lambda ids: {i: full[i] for i in ids if i in full})
     return sent
 
 
@@ -179,9 +207,81 @@ def test_reconcile_skips_incomplete_or_empty_lists(monkeypatch):
 
 
 def test_reconcile_dry_run_changes_nothing(monkeypatch):
-    sent = _reconcile_env(monkeypatch, {"C_1": ""})
+    sent = _reconcile_env(monkeypatch, {"DRY_1": ""})
     stat = run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True, dry_run=True)
-    assert stat["closed"] == 1 and sent == []
+    assert stat["closed"] == 1 and sent == [] and _closures("DRY_1") == []
+
+
+# ── 이탈 기록: 지우기·사진 바꾸기 전에 남김 ──
+
+def test_reconcile_records_closed_and_photo_removed_before_changing_index(monkeypatch):
+    """종결(목록에서 빠짐)·사진 내려감은 색인을 바꾸기 전에 found_closures에 기록 — 분류·색·장소·사진·특이사항 유무·
+    습득일·처음 본 날·감지 구간·우리 신고 연결. 물품 이름·특이사항 원문은 남기지 않음."""
+    from apps import store
+    store.init()
+    store.add("검정 지갑", {}, [], [], {"atc_id": "RC", "fd_sn": "1", "name": "지갑"}, 90, status="confirmed")
+    docs = {"RC_1": {"source": "police", "category_top": "지갑", "category_sub": "남성용 지갑", "color": "블랙(검정)",
+                     "region": "서울특별시 강남구", "dep_place": "강남경찰서", "found_place": "강남역",
+                     "description": "내용 강남경찰서에서는 ... 특이사항 : 신한카드 2장", "indexed_at": "2026-11-06"},
+            "RP_1": {"category_top": "가방"}}
+    sent = _reconcile_env(monkeypatch, {"RA_1": "", "RC_1": "https://p/x.jpg", "RP_1": "https://p/y.jpg"}, docs=docs)
+    listed = [_li("RA"), dict(_li("RP"), fdFilePathImg="https://p/img02_no_img.gif")]   # RC는 종결, RP는 사진 내려감
+    stat = run.reconcile("police", "20261104", "20261110", listed, complete=True, window="older")
+    assert stat["closed"] == 1 and stat["photo_removed"] == 1 and stat["recorded"] == 2 and sent
+
+    (c,) = _closures("RC_1")
+    assert c["kind"] == "closed" and c["check_window"] == "older" and c["our_report"] == "confirmed"
+    assert (c["category_top"], c["color"], c["region"], c["found_place"]) == ("지갑", "블랙(검정)", "서울특별시 강남구", "강남역")
+    assert c["has_photo"] == 1 and c["has_desc"] == 1 and c["first_seen"] == "2026-11-06" and c["detected_at"]
+    assert "name" not in c and "description" not in c                  # 이름·특이사항 원문은 저장 안 함
+    (p,) = _closures("RP_1")
+    assert p["kind"] == "photo_removed" and p["has_photo"] == 1 and p["our_report"] == ""
+
+
+def test_reconcile_police_boilerplate_is_not_a_description(monkeypatch):
+    docs = {"RB_1": {"description": "내용 강남경찰서에서는 [2026.11.05] 지갑을 습득/보관 하였습니다. 특이사항 : 없음"}}
+    _reconcile_env(monkeypatch, {"RB_1": ""}, docs=docs)
+    run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True)
+    assert _closures("RB_1")[0]["has_desc"] == 0
+
+
+def test_reconcile_changes_nothing_when_recording_fails(monkeypatch):
+    """기록이 실패하면 그날은 지우지도 사진을 바꾸지도 않음 — 다음 대조에서 다시 감지해 기록 후 정리."""
+    sent = _reconcile_env(monkeypatch, {"RF_1": "", "RG_1": "https://p/g.jpg"})
+    monkeypatch.setattr(run.store, "record_closures", lambda rows: (_ for _ in ()).throw(RuntimeError("db down")))
+    alerts = []
+    monkeypatch.setitem(run._STATE, "alerted", False)
+    monkeypatch.setattr("apps.ops.alert", lambda subject, body="": alerts.append(subject))
+    listed = [dict(_li("RG"), fdFilePathImg="https://p/img02_no_img.gif")]
+    stat = run.reconcile("police", "20261104", "20261110", listed, complete=True)
+    assert sent == [] and stat["closed"] == 0 and "기록 실패" in stat["skipped"]
+    assert len(alerts) == 1                                              # 관리자에게 한 번 알림
+
+
+def test_reconcile_photo_swap_is_not_a_removal(monkeypatch):
+    """다른 실제 사진으로 바뀐 건 갱신만 — '사진 내려감' 기록 아님."""
+    sent = _reconcile_env(monkeypatch, {"RS_1": "https://p/old.jpg"})
+    stat = run.reconcile("police", "20261104", "20261110", [dict(_li("RS"), fdFilePathImg="https://p/new.jpg")],
+                         complete=True)
+    assert stat["photo"] == 1 and stat["photo_removed"] == 0 and sent and _closures("RS_1") == []
+
+
+def test_empty_detail_is_not_counted_as_closed(monkeypatch):
+    """표본 상세가 빈 응답·상태 없음이면 종결 확인으로 치지 않음 → 삭제 보류(예전엔 빈 응답도 종결로 셈)."""
+    sent = _reconcile_env(monkeypatch, {"A_1": "", "RE_1": ""}, detail_state="")
+    stat = run.reconcile("police", "20261104", "20261110", [_li("A")], complete=True)
+    assert stat["closed"] == 0 and stat["skipped"] and sent == [] and _closures("RE_1") == []
+
+
+def test_collected_docs_get_first_seen_day(monkeypatch):
+    got = []
+    monkeypatch.setattr(sys, "argv", ["run", "--source", "police", "--start", "20261110", "--end", "20261112"])
+    monkeypatch.setattr(run, "new_items", lambda *a, **k: [_li("N1")])
+    monkeypatch.setattr(run, "embed_and_index", lambda docs: got.extend(docs) or {"count": len(docs), "errors": 0})
+    monkeypatch.setattr(run, "prune_old", lambda: 0)
+    monkeypatch.setattr(run.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(b'{"count": 1}'))
+    run.main()
+    assert got and got[0]["indexed_at"] == run._kst_today()
 
 
 def test_list_all_reports_whether_the_list_was_complete(monkeypatch):

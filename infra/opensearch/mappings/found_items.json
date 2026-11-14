@@ -48,6 +48,7 @@
         "type": "date",
         "format": "yyyy-MM-dd||yyyy-MM-dd HH:mm:ss||epoch_millis"
       },
+      "indexed_at": { "type": "date", "format": "yyyy-MM-dd" },
 
       "embedding": {
         "type": "knn_vector",

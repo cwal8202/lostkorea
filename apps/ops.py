@@ -113,6 +113,16 @@ def _disk_percent(path: str = "/") -> int:
     return round(u.used * 100 / u.total) if u.total else 0
 
 
+def _closure_line(store, since: str) -> str:
+    """주간 요약 한 줄 — 이 기간에 기록한 습득물 이탈(종결·사진 내려감·보관 기간 끝)."""
+    try:
+        c = store.closure_counts_since(since)
+    except Exception as e:  # noqa: BLE001
+        return f"습득물 이탈 기록: 조회 실패({type(e).__name__})"
+    return (f"습득물 이탈 기록: 종결 {c.get('closed', 0):,} · 사진 내려감 {c.get('photo_removed', 0):,}"
+            f" · 보관 기간 끝 {c.get('retention_end', 0):,}건")
+
+
 def weekly(days: int = 7, today: date | None = None, status: dict | None = None) -> str:
     """지난 days일 운영 요약 → 관리자 메일. 본문을 반환."""
     from apps import store
@@ -131,6 +141,7 @@ def weekly(days: int = 7, today: date | None = None, status: dict | None = None)
               f"  찾는 중 {rc.get('open', 0)} · 유력 후보 {rc.get('candidate', 0)} · 확인 {rc.get('confirmed', 0)}"
               f" · 만료 {rc.get('expired', 0)} · 이메일 확인됨 {rc.get('email_verified', 0)}",
               "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}",
+              _closure_line(store, since),
               f"디스크: {_disk_percent()}% 사용"]
     calls, tin, tout = m.get("ai_calls", 0), m.get("ai_in", 0), m.get("ai_out", 0)
     usd = (tin * settings.ai_price_in_per_m + tout * settings.ai_price_out_per_m) / 1_000_000
