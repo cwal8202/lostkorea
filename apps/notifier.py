@@ -432,7 +432,7 @@ class EmailNotifier:
     def _send(to: str, subject: str, text: str, html: str, logo: bool = False, headers: dict | None = None) -> bool:
         msg = EmailMessage()
         msg["Subject"] = subject
-        # 보내는 주소: SMTP_FROM(예: alerts@lostkorea.com) — 없으면 예전처럼 SMTP 계정 주소
+        # 보내는 주소: SMTP_FROM(예: notify@lostkorea.com) — 없으면 예전처럼 SMTP 계정 주소
         msg["From"] = formataddr((settings.brand_name, settings.smtp_from or settings.smtp_user))
         msg["To"] = to
         if settings.smtp_reply_to:

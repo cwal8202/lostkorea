@@ -73,11 +73,12 @@ bash /root/migrate_rename.sh </dev/null
 ### 2-4. 알림 메일 발송 방식
 지금은 개인 Gmail SMTP — 하루 발송 한도(약 500통)가 있고, 개인 주소가 보내는 사람으로 노출된다.
 **결정(11/14)**: **Maileroo 무료(월 3,000통·카드 불필요·하루 제한 없음)** — Cloudflare Email Sending은 사용자에게 보내려면
-Workers Paid(월 $5) 필요해서 제외. 코드는 준비 완료(FIND-94): `SMTP_FROM`(예: alerts@lostkorea.com)·`SMTP_REPLY_TO`(help@),
+Workers Paid(월 $5) 필요해서 제외, Brevo 무료는 메일에 로고가 붙을 수 있어 제외. 코드는 준비 완료(FIND-94): `SMTP_FROM`·`SMTP_REPLY_TO`,
 알림 메일에 '알림 그만 받기' 링크 + 원클릭 수신 거부 헤더(RFC 8058).
-**남은 것**: ① Maileroo 가입·도메인 추가 → DNS 레코드를 **원클릭으로 넣지 말고** 먼저 보여 주기(루트 SPF는 하나여야 해서
-기존 `v=spf1 include:_spf.mx.cloudflare.net ~all`에 합쳐야 함) ② DMARC(`_dmarc` TXT, `p=none`부터) ③ 서버 `.env`에
-`SMTP_HOST·PORT·USER·PASSWORD·FROM·REPLY_TO`, `NOTIFY_EMAIL_TO`(운영 알림 받을 Gmail) ④ 처리방침의 메일 발송 위탁(Gmail → Maileroo) 수정 ⑤ 시험 발송·인증 결과(spf/dkim/dmarc pass) 확인.
+**진행(11/14)**: ✅ Maileroo 가입·`lostkorea.com` 인증(Active) — SPF는 기존 줄에 합침(`v=spf1 include:_spf.mx.cloudflare.net include:_spf.maileroo.com ~all`),
+DKIM `mta._domainkey`(2048비트), DMARC `v=DMARC1; p=none` / ✅ 보내는 주소 `LostKorea <notify@lostkorea.com>`(답장은 Email Routing으로 Gmail)
+/ ✅ 처리방침 위탁·국외이전 갱신(Gmail → Maileroo, Cloudflare 추가, 시행일 11/14) / ⏳ 서버 `.env`(운영자 입력) → 시험 발송·인증 결과 확인
+→ 끝나면 **Gmail 앱 비밀번호 삭제**. 무료는 **시간당 30통**(월 3,000통) — 알림이 몰리면 나눠 보내기·한도 상향 필요.
 
 ### 2-5. 사업자 등록 — 지금은 불필요
 수익(광고·후원·유료 기능)이 없으면 의무 아님. 다만 **카카오 알림톡**(한국 사용자 알림의 사실상 표준)·기관 제휴 계약·후원을 하려면 필요.

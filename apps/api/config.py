@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""            # 발신 계정(Gmail 주소)
     smtp_password: str = ""        # 앱 비밀번호(2단계 인증 후 발급)
-    smtp_from: str = ""            # 보내는 주소(예: alerts@lostkorea.com — 발송 서비스에서 도메인 인증 필요). 비우면 smtp_user
+    smtp_from: str = ""            # 보내는 주소(예: notify@lostkorea.com — 발송 서비스에서 도메인 인증 필요). 비우면 smtp_user
     smtp_reply_to: str = ""        # 답장 받을 주소(예: help@lostkorea.com). 비우면 넣지 않음
     contact_email: str = "help@lostkorea.com"      # 사이트·약관의 일반 문의(Cloudflare Email Routing → 운영자 메일)
     privacy_email: str = "privacy@lostkorea.com"   # 개인정보 문의
