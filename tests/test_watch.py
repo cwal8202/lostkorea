@@ -267,3 +267,18 @@ def test_alert_email_has_sender_reply_to_and_one_click_unsubscribe(monkeypatch):
     assert m["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
     html = m.get_body(("html",)).get_content()
     assert "/unsubscribe?r=" in html and "알림 그만 받기" in html
+
+
+def test_email_link_open_is_counted_anonymously():
+    """메일 업체의 열람·링크 추적은 끄고, 메일의 '결과 보기'로 들어온 횟수만 우리가 셈(누가 열었는지는 안 남김)."""
+    from datetime import datetime
+
+    from apps.store import KST
+    lid, token = _report()
+    link = store.new_link_token(lid)
+    day = datetime.now(KST).date().isoformat()
+    before = {r["kind"]: r["n"] for r in store._rows("SELECT kind, n FROM metrics WHERE day=?", (day,))}.get("email_link_open", 0)
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": link}, params={"via": "email"}).status_code == 200
+    assert client.get(f"/lost-items/{lid}", headers={"X-Report-Token": token}).status_code == 200   # '내 신고'에서 연 건 안 셈
+    after = {r["kind"]: r["n"] for r in store._rows("SELECT kind, n FROM metrics WHERE day=?", (day,))}.get("email_link_open", 0)
+    assert after == before + 1

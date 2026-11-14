@@ -539,12 +539,13 @@ async function alertsOff() {
 
 // 알림 메일 링크(#r=신고id.링크토큰)나 '내 신고'의 [결과 보기] → 저장된 그 신고의 결과를 다시 보여 줌.
 // 메일 링크 토큰도 관리 권한이 있어서 다른 기기에서 열어도 후보 확인·'내 물건이에요'·알림 설정이 됨.
-async function openReport(id, token) {
+async function openReport(id, token, viaEmail = false) {
   _token = token;
   $("result").innerHTML = `<span class="muted">${t('loading')}</span>`;
   $("resultCard").hidden = false;
   try {
-    const res = await fetch(`/lost-items/${encodeURIComponent(id)}`, { headers: { "X-Report-Token": token } });
+    const res = await fetch(`/lost-items/${encodeURIComponent(id)}${viaEmail ? "?via=email" : ""}`,
+      { headers: { "X-Report-Token": token } });  // 메일 링크로 왔으면 익명 횟수만 셈(메일 업체 추적 대신)
     if (!res.ok) throw new Error(res.status);
     const r = await res.json();
     const gone = new Set(r.dismissed || []);
@@ -573,7 +574,7 @@ function openReportFromLink() {
   const m = /^#r=([^.]+)\.(.+)$/.exec(location.hash || "");
   if (!m) return;
   history.replaceState(null, "", location.pathname + location.search);  // 토큰이 주소창·방문 기록·공유 링크에 남지 않게
-  openReport(decodeURIComponent(m[1]), decodeURIComponent(m[2]));
+  openReport(decodeURIComponent(m[1]), decodeURIComponent(m[2]), true);
 }
 
 // ── 실시간 진행: 서버가 단계마다 보내는 SSE(event: 단계명, data: JSON)를 읽어 패널을 갱신 ──

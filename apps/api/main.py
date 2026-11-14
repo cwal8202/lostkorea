@@ -402,9 +402,16 @@ def my_lost_items(req: MineRequest) -> list[dict]:
 
 
 @app.get("/lost-items/{lid}")
-def get_lost_item(lid: str, x_report_token: str | None = Header(None)) -> dict:
-    """신고 상세 — 관리 토큰(또는 알림 메일 링크 토큰)을 가진 신고자만. 이메일은 가린 형태로만."""
+def get_lost_item(lid: str, x_report_token: str | None = Header(None),
+                  via: str = Query("", max_length=10)) -> dict:
+    """신고 상세 — 관리 토큰(또는 알림 메일 링크 토큰)을 가진 신고자만. 이메일은 가린 형태로만.
+
+    via=email: 알림 메일의 '결과 보기' 링크로 들어온 것 → 익명 통계(email_link_open) 1 — 메일 업체의 열람·링크 추적 대신
+    우리 사이트에서 직접 셈(누가 열었는지는 남기지 않고 횟수만).
+    """
     item = _owned(lid, x_report_token)
+    if via == "email":
+        store.bump("email_link_open")
     out = {k: v for k, v in item.items() if k not in _PRIVATE_FIELDS}
     out["email_masked"] = _mask_email(item.get("email") or "")
     return out
