@@ -683,3 +683,13 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .doc th { background: var(--surface); color: var(--navy); }
 .doc .tip { background: var(--brand-50); border: 1px solid var(--brand-100); border-radius: var(--r-sm); padding: 14px 16px; margin: 14px 0; }
 .doc .doc-cta { margin: 20px 0; }
+
+/* 수령 진행(성과) 버튼 — 수령 안내 아래 */
+.outcome { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-soft); }
+.outcome-head { font-size: 14.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.outcome-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.outcome .oc-btn.on { box-shadow: 0 0 0 2px var(--brand-600); }
+.outcome .btn-outline.oc-btn.on { border-color: var(--brand); color: var(--brand); }
+@media (max-width: 480px) { .outcome-btns { display: grid; grid-template-columns: 1fr 1fr; }
+  .outcome-btns .btn { white-space: normal; text-align: center; line-height: 1.25; } }
+

@@ -78,6 +78,15 @@ const I18N = {
     claimHow:"수령 방법", claimStep1:"보관기관에 전화로 문의", claimStep2:"여권·신분증 지참해 직접 방문(본인 확인)",
     claimStep3:"지도로 위치 확인", claimTimeline:"습득물은 보통 일정 기간(최대 6개월) 보관 후 처리될 수 있어요 — 되도록 빨리 문의하세요.",
     claimNote:"※ 신분 확인 등 기관 절차에 따라 본인이 수령하세요. LostKorea는 안내만 제공합니다.",
+    outcomeHead:"찾으러 가셨나요? 진행 상황을 알려 주세요",
+    outcomeSub:"누르시면 이 서비스로 실제로 물건을 찾는지 확인하는 데만 써요(신고를 지워도 날짜·언어·물품 분류만 남는 익명 통계).",
+    oc_contacted:"연락했어요", oc_visited:"방문했어요", oc_found:"찾았어요!", oc_not_mine:"내 물건이 아니었어요",
+    ocThanks_contacted:"고마워요. 물건을 받으시면 '찾았어요!'를 눌러 주세요.",
+    ocThanks_visited:"고마워요. 물건을 받으셨으면 '찾았어요!'를 눌러 주세요.",
+    ocThanks_found:"다행이에요! 알려 주셔서 고마워요.",
+    ocThanks_not_mine:"알려 주셔서 고마워요. 이 후보는 빼고 계속 찾을게요.",
+    ocLbl_contacted:"연락함", ocLbl_visited:"방문함", ocLbl_found:"찾음", ocLbl_not_mine:"다른 물건",
+    actFail:"저장하지 못했어요. 잠시 후 다시 눌러 주세요.",
     alertTitle:"알림 설정",
     alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
     alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
@@ -153,6 +162,15 @@ const I18N = {
     claimHow:"How to retrieve", claimStep1:"Call the holding office", claimStep2:"Visit in person with your passport/ID (identity check)",
     claimStep3:"Check the location on the map", claimTimeline:"Found items are usually held for a limited time (up to ~6 months) before disposal — contact them soon.",
     claimNote:"※ Retrieval follows the office's own identity-check procedure. LostKorea only provides guidance.",
+    outcomeHead:"Did you go to get it? Tell us how it went",
+    outcomeSub:"We only use this to check whether LostKorea really helps people get items back (anonymous: date, language and item type remain even after you delete the report).",
+    oc_contacted:"I contacted them", oc_visited:"I visited", oc_found:"Got it back!", oc_not_mine:"It wasn't mine",
+    ocThanks_contacted:"Thanks! Tap “Got it back!” once you have it.",
+    ocThanks_visited:"Thanks! Tap “Got it back!” if you picked it up.",
+    ocThanks_found:"So glad you got it back! Thanks for letting us know.",
+    ocThanks_not_mine:"Thanks for letting us know. We'll drop this one and keep searching.",
+    ocLbl_contacted:"Contacted", ocLbl_visited:"Visited", ocLbl_found:"Got it back", ocLbl_not_mine:"Not mine",
+    actFail:"Couldn't save. Please try again shortly.",
     alertTitle:"Alert settings",
     alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
     alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
@@ -393,26 +411,54 @@ async function errText(res) {  // 서버 오류 → 사람이 읽을 문구(429�
   return res.status === 429 ? t('tooMany') : t('serverErr') + res.status;
 }
 
+// 확인·제외는 서버가 받았을 때만 화면을 바꿈 — 예전엔 실패(네트워크·500)를 무시하고 넘어가 화면과 서버 상태가 어긋났음
+async function postReport(path, body) {
+  try {
+    const res = await fetch(`/lost-items/${_lid}/${path}`, { method:"POST", headers: authHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { alert(await errText(res)); return null; }
+    return await res.json();
+  } catch (e) { alert(t('actFail')); return null; }
+}
+
 async function confirmMatch(idx) {
   const m = _matches[idx];
-  try {
-    await fetch(`/lost-items/${_lid}/confirm`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ atc_id: m.atc_id }) });
-  } catch (e) {}
-  $("result").innerHTML = claimGuide(m);
+  if (!await postReport("confirm", { atc_id: m.atc_id })) return;
+  $("result").innerHTML = claimGuide(m, null);
   loadMine();
+}
+
+// 수령 진행(성과) — '내 물건이에요' 뒤 연락·방문·찾음·내 물건 아님. '내 물건 아님'이면 서버가 그 후보를 빼고 다시 찾는 중으로.
+const OUTCOMES = ["contacted", "visited", "found", "not_mine"];
+function outcomeBox(stage) {
+  const btn = (s) => `<button type="button" class="btn btn-sm ${s === "found" ? "btn-success" : "btn-outline"} oc-btn${stage === s ? " on" : ""}"
+    data-stage="${s}" aria-pressed="${stage === s}" onclick="sendOutcome('${s}')">${t('oc_' + s)}</button>`;
+  return `<div class="outcome" id="outcomeBox">
+    <div class="outcome-head">${ic('check', 'ic ic-sm')} <b>${t('outcomeHead')}</b></div>
+    <div class="outcome-btns">${OUTCOMES.map(btn).join("")}</div>
+    <div class="muted small" id="outcomeMsg">${stage ? t('ocThanks_' + stage) : t('outcomeSub')}</div>
+  </div>`;
+}
+
+async function sendOutcome(stage) {
+  const r = await postReport("outcome", { stage });
+  if (!r) return;
+  document.querySelectorAll("#outcomeBox .oc-btn").forEach(b => {
+    const on = b.dataset.stage === stage; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+  });
+  $("outcomeMsg").textContent = t('ocThanks_' + stage);
+  loadMine();
+  if (stage === "not_mine") setTimeout(() => openMine(_lid), 1500);  // 다시 찾는 중 → 남은 후보 화면으로
 }
 
 async function dismissMatch(idx) {
   const m = _matches[idx];
-  try {
-    await fetch(`/lost-items/${_lid}/dismiss`, { method:"POST", headers: authHeaders(), body: JSON.stringify({ atc_id: m.atc_id }) });
-  } catch (e) {}
+  if (!await postReport("dismiss", { atc_id: m.atc_id })) return;
   const card = document.querySelector(`#result .match[data-idx="${idx}"]`);
   if (card) card.remove();
   loadMine();
 }
 
-function claimGuide(m) {
+function claimGuide(m, stage = null) {
   const img = validImg(m.image_url);
   const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
   return `<div class="banner matched">${ic('check')}<span>${t('claimDone')}</span></div>
@@ -435,6 +481,7 @@ function claimGuide(m) {
         ${origUrl(m) ? `<div style="margin-top:8px; font-size:13px">${origLink(m)} ${t('lost112')}</div>` : ""}
       </div>
     </div>
+    ${outcomeBox(stage)}
     <p class="muted small" style="margin-top:10px">${ic('clock', 'ic ic-sm')} ${t('claimTimeline')}</p>
     <p class="muted" style="font-size:13px">${t('claimNote')}</p>`;
 }
@@ -567,7 +614,8 @@ async function openReport(id, token, viaEmail = false) {
     if (r.status === "confirmed" && r.best_match) {
       _lid = id; _matches = [r.best_match];
       saveMineRef(id, token);
-      $("result").innerHTML = claimGuide(r.best_match);
+      const oc = r.outcome && r.outcome.atc_id === r.best_match.atc_id ? r.outcome.stage : null;
+      $("result").innerHTML = claimGuide(r.best_match, oc);
       loadMine();
     } else {
       renderResult(Object.assign({}, r, { id, token, matches, count: matches.length, email_pending: false,
@@ -793,11 +841,12 @@ function mineItem(it) {
     : (it.status === "candidate" || it.status === "matched") ? t("stCandidate")
     : it.status === "expired" ? t("stExpired") : t("stOpen");
   const watch = it.status === "open" && it.watch_until ? " · " + t("watchTo", it.watch_until.slice(0, 10)) : "";
+  const oc = it.status === "confirmed" && it.outcome ? " · " + t("ocLbl_" + it.outcome) : "";
   return `<div class="mine-item">
     <div style="display:flex; justify-content:space-between; gap:10px">
       <div style="min-width:0">
         <div>${esc(it.text)}</div>
-        <div class="m-meta">${when}${bm ? " · " + t("bestMatch") + ": " + esc(bm.name) + " (grade " + (it.best_grade ?? "-") + ")" : ""}${watch}</div>
+        <div class="m-meta">${when}${bm ? " · " + t("bestMatch") + ": " + esc(bm.name) + " (grade " + (it.best_grade ?? "-") + ")" : ""}${watch}${oc}</div>
       </div>
       <div style="text-align:right; flex:0 0 auto">
         <span class="status ${it.status === "matched" ? "candidate" : it.status}">${stLabel}</span>

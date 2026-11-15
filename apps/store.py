@@ -29,7 +29,7 @@ else:
     from apps.api.config import settings
 
 _JSON_COLS = ("extracted", "region_set", "queries", "best_match", "dismissed", "weak_notified", "matches", "graded_ids",
-              "link_hashes", "alert_pending")
+              "link_hashes", "alert_pending", "outcome")
 
 
 KST = timezone(timedelta(hours=9))
@@ -120,6 +120,7 @@ def init() -> None:
             graded_ids TEXT,
             link_hashes TEXT,
             alert_pending TEXT,
+            outcome TEXT,
             created_at TEXT,
             matched_at TEXT
         )
@@ -156,12 +157,28 @@ def init() -> None:
             PRIMARY KEY (item_id, kind)
         )
     """)
+    # 수령 진행(성과) 익명 기록 — 신고자가 '연락했어요·방문했어요·찾았어요·내 물건이 아니었어요'를 누르면 남김.
+    # 신고를 지워도 회수율을 잴 수 있게 신고와 따로 둠. 신고 id는 해시로만(되돌릴 수 없음), 신고 문장·이메일·물품 이름 없음.
+    _run("""
+        CREATE TABLE IF NOT EXISTS outcomes (
+            report_key TEXT NOT NULL,
+            stage TEXT NOT NULL,
+            at TEXT,
+            report_day TEXT,
+            lang TEXT,
+            item_category TEXT,
+            item_source TEXT,
+            item_grade INTEGER,
+            days_from_report INTEGER,
+            PRIMARY KEY (report_key, stage)
+        )
+    """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
              "token_hash": "TEXT", "email_verified": "INTEGER DEFAULT 0", "verify_hash": "TEXT",
              "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT", "link_hashes": "TEXT",
-             "alert_pending": "TEXT"}
+             "alert_pending": "TEXT", "outcome": "TEXT"}
     if _PG:
         for col, typ in added.items():
             _run(f"ALTER TABLE lost_items ADD COLUMN IF NOT EXISTS {col} {typ}")
@@ -446,6 +463,43 @@ def report_item_keys() -> dict[str, str]:
         if m.get("atc_id") and out.get(key) != "confirmed":
             out[key] = r["status"]
     return out
+
+
+OUTCOME_STAGES = ("contacted", "visited", "found", "not_mine")
+
+
+def record_outcome(row: dict, stage: str, match: dict | None) -> tuple[dict, bool]:
+    """수령 진행 기록 — 신고에는 현재 단계, outcomes 표에는 익명 기록(같은 신고·단계는 처음 것만).
+    (갱신된 outcome, 이 단계를 처음 누른 것인지) 반환 — 같은 버튼을 여러 번 눌러도 통계는 한 번.
+
+    익명 기록 칸: 신고 날짜(KST)·언어·물품 대분류·출처·판정 점수·신고 뒤 며칠 — 신고가 지워져도 개인을 알 수 없음.
+    """
+    now = datetime.now(timezone.utc)
+    prev = row.get("outcome") or {}
+    hist = [h for h in (prev.get("history") or []) if h.get("stage") != stage] + [{"stage": stage, "at": now.isoformat()}]
+    outcome = {"stage": stage, "at": now.isoformat(), "atc_id": (match or {}).get("atc_id"), "history": hist}
+    _run("UPDATE lost_items SET outcome=? WHERE id=?", (json.dumps(outcome, ensure_ascii=False), row["id"]))
+    created = row.get("created_at") or now.isoformat()
+    try:
+        days = (now - datetime.fromisoformat(created)).days
+    except ValueError:
+        days = None
+    cat = ((match or {}).get("category") or "").split(">")[0].strip()
+    key = hashlib.sha256(("outcome:" + row["id"]).encode()).hexdigest()
+    if _one("SELECT 1 AS x FROM outcomes WHERE report_key=? AND stage=?", (key, stage)):
+        return outcome, False
+    _run("INSERT INTO outcomes (report_key, stage, at, report_day, lang, item_category, item_source, item_grade, "
+         "days_from_report) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT (report_key, stage) DO NOTHING",
+         (key, stage, now.isoformat(),
+          datetime.fromisoformat(created).astimezone(KST).date().isoformat() if created else None,
+          row.get("lang") or "ko", cat, (match or {}).get("source"), (match or {}).get("grade"), days))
+    return outcome, True
+
+
+def outcome_counts_since(day_from: str) -> dict[str, int]:
+    """day_from(포함) 이후 누른 수령 진행 단계별 신고 수(주간 요약·성과 집계)."""
+    rows = _rows("SELECT stage, COUNT(*) AS n FROM outcomes WHERE at >= ? GROUP BY stage", (day_from,))
+    return {r["stage"]: int(r["n"]) for r in rows}
 
 
 def delete(lid: str) -> None:

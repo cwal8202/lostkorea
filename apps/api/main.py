@@ -43,6 +43,7 @@ from .models import (
     LostItemRequest,
     MatchResponse,
     MineRequest,
+    OutcomeRequest,
     SearchResponse,
     VerifyRequest,
 )
@@ -394,6 +395,7 @@ def _public_item(it: dict) -> dict:
         "status": it.get("status"),
         "best_match": {"name": bm.get("name")} if bm else None,
         "best_grade": it.get("best_grade"),
+        "outcome": (it.get("outcome") or {}).get("stage"),
         "created_at": it.get("created_at"),
         "watch_until": it.get("watch_until"),
         "email_verified": it.get("email_verified", False),
@@ -578,6 +580,26 @@ def confirm_lost_item(lid: str, req: ConfirmRequest, x_report_token: str | None 
     store.confirm(lid, match)
     store.bump("confirm")
     return {"ok": True, "status": "confirmed"}
+
+
+@app.post("/lost-items/{lid}/outcome")
+def lost_item_outcome(lid: str, req: OutcomeRequest, x_report_token: str | None = Header(None)) -> dict:
+    """수령 진행 — '내 물건이에요' 뒤에 신고자가 누름: 연락했어요·방문했어요·찾았어요·내 물건이 아니었어요.
+
+    '찾았어요'가 실제 회수 기록(서비스가 확인한 게 아니라 신고자가 알려 준 것). '내 물건이 아니었어요'는 그 후보를 빼고 다시 찾음.
+    """
+    item = _owned(lid, x_report_token)
+    if item.get("status") != "confirmed" or not item.get("best_match"):
+        raise HTTPException(status_code=400, detail="'내 물건이에요'를 누른 신고에서만 알릴 수 있어요")
+    match = item["best_match"]
+    outcome, first = store.record_outcome(item, req.stage, match)
+    if first:  # 같은 버튼을 여러 번 눌러도 통계는 한 번
+        store.bump(f"outcome_{req.stage}")
+    status = "confirmed"
+    if req.stage == "not_mine":  # 기관에 확인해 보니 다른 물건 → 그 후보 빼고 다시 찾는 중
+        store.dismiss(lid, match.get("atc_id"))
+        status = "open"
+    return {"ok": True, "stage": req.stage, "status": status, "outcome": outcome}
 
 
 @app.post("/lost-items/{lid}/dismiss")

@@ -74,6 +74,10 @@ class ConfirmRequest(BaseModel):
     atc_id: str = Field(max_length=64)  # '내 물건이에요' 한 후보 — 서버가 저장한 후보에서 찾음(클라이언트 데이터 불신)
 
 
+class OutcomeRequest(BaseModel):
+    stage: str = Field(pattern="^(contacted|visited|found|not_mine)$")  # 연락했어요·방문했어요·찾았어요·내 물건이 아니었어요
+
+
 class DismissRequest(BaseModel):
     atc_id: str = Field(max_length=64)  # 사용자가 '아니에요' 한 후보
 

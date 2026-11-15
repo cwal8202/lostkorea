@@ -102,7 +102,8 @@ _KIND_LABELS = [
     ("view_ko", "방문(한국어)"), ("view_en", "방문(영어)"), ("view_guide", "영어 가이드 방문"),
     ("report_text", "신고(글)"), ("report_image", "신고(사진)"), ("report_invalid", "신고 아님(잡담 등)"),
     ("email_given", "이메일 입력"), ("email_verified", "이메일 확인"), ("alert_sent", "알림 메일 발송(업체 접수)"), ("alert_failed", "알림 메일 실패(재발송 대기)"), ("alert_gaveup", "알림 메일 재발송 포기"), ("verify_mail_failed", "확인 메일 실패"),
-    ("confirm", "'내 물건이에요'"), ("dismiss", "'아니에요'"), ("delete", "신고 삭제"),
+    ("confirm", "'내 물건이에요'"), ("outcome_contacted", "수령 진행: 연락했어요"), ("outcome_visited", "수령 진행: 방문했어요"),
+    ("outcome_found", "수령 진행: 찾았어요"), ("outcome_not_mine", "수령 진행: 내 물건이 아니었어요"), ("dismiss", "'아니에요'"), ("delete", "신고 삭제"),
     ("browse", "둘러보기 조회"), ("unsubscribe", "알림 수신 거부"), ("email_link_open", "메일 링크로 결과 열람"), ("search_api", "검색 API"), ("rate_limited", "요청 제한(429)"), ("error", "오류"),
     ("ai_lang_retry", "결과 언어 다시 쓰기(칸)"), ("ai_lang_fail", "결과 언어 실패 → 원문 표시(칸)"),
 ]
