@@ -55,6 +55,29 @@ app = FastAPI(title=f"{settings.brand_name} API", version="1.0.0",
 store.init()  # 분실물 테이블 생성(멱등)
 
 
+def _alert_retry_loop() -> None:
+    """실패한 알림 메일을 15분마다 다시 보냄(15분·1시간·6시간·24시간 뒤) — 밤 재매칭까지 하루를 기다리지 않게."""
+    import time
+
+    from apps.agent.rematch import retry_pending_alerts
+
+    while True:
+        time.sleep(settings.alert_retry_check_minutes * 60)
+        try:
+            retry_pending_alerts(verbose=True)
+        except Exception as e:  # noqa: BLE001 — 재발송 실패가 서버를 멈추지 않게
+            print(f"[알림 재발송] 실패: {type(e).__name__}: {e}")
+
+
+@app.on_event("startup")
+def _start_background() -> None:
+    if settings.app_env == "production":  # 로컬·테스트에선 돌지 않음
+        import threading
+
+        threading.Thread(target=_alert_retry_loop, name="alert-retry", daemon=True).start()
+        print(f"[알림 재발송] {settings.alert_retry_check_minutes}분마다 재발송 대기열 확인 시작", flush=True)
+
+
 _WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
 _is_bot = site.is_bot
 
@@ -155,7 +178,10 @@ def _send_verification(lid: str, email: str, lang: str) -> None:
     token = store.new_token()
     expires = (datetime.now(timezone.utc) + timedelta(hours=settings.verify_hours)).isoformat()
     store.set_pending_email(lid, email, store.hash_token(token), expires)
-    notifier.verify(email, lang, f"{settings.public_base_url}/email/verify?token={token}")
+    if not notifier.verify(email, lang, f"{settings.public_base_url}/email/verify?token={token}"):
+        store.bump("verify_mail_failed")  # 이메일은 '확인 대기'로 저장됨 — 알림 설정에서 다시 저장하면 다시 보냄
+        raise HTTPException(status_code=502, detail="확인 메일을 보내지 못했어요. 잠시 뒤 알림 설정에서 다시 저장해 주세요. "
+                                                    "(We couldn't send the confirmation email — please try again shortly.)")
 
 
 def _persist_and_respond(text: str, result: dict, email: str,
@@ -536,12 +562,8 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
     level = alert_level(top.get("grade"), row.get("notify_weak", False)) if top else None
     sent = False
     if level and row.get("status") in ("open", "candidate"):
-        from apps.notifier import notifier
-        notifier.notify(row, matches, weak=(level == "weak"))
-        if level == "weak":
-            store.mark_weak_notified(row["id"], top.get("atc_id"))
-        store.bump("alert_sent")
-        sent = True
+        from apps.agent.rematch import send_alert
+        sent = send_alert(row, matches, weak=(level == "weak"))  # 실패하면 재발송 대기 — 응답은 그대로
     return {"ok": True, "sent_results": sent}
 
 

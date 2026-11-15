@@ -27,9 +27,11 @@ class FakeNotifier:
 
     def notify(self, lost, matches, weak=False):
         self.sent.append(lost.get("email"))
+        return True                     # 메일 업체가 받음
 
     def verify(self, to, lang, link):
         self.verify_links.append(link)
+        return True
 
 
 @pytest.fixture(autouse=True)

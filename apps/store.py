@@ -29,7 +29,7 @@ else:
     from apps.api.config import settings
 
 _JSON_COLS = ("extracted", "region_set", "queries", "best_match", "dismissed", "weak_notified", "matches", "graded_ids",
-              "link_hashes")
+              "link_hashes", "alert_pending")
 
 
 KST = timezone(timedelta(hours=9))
@@ -119,6 +119,7 @@ def init() -> None:
             matches TEXT,
             graded_ids TEXT,
             link_hashes TEXT,
+            alert_pending TEXT,
             created_at TEXT,
             matched_at TEXT
         )
@@ -159,7 +160,8 @@ def init() -> None:
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
              "token_hash": "TEXT", "email_verified": "INTEGER DEFAULT 0", "verify_hash": "TEXT",
-             "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT", "link_hashes": "TEXT"}
+             "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT", "link_hashes": "TEXT",
+             "alert_pending": "TEXT"}
     if _PG:
         for col, typ in added.items():
             _run(f"ALTER TABLE lost_items ADD COLUMN IF NOT EXISTS {col} {typ}")
@@ -208,6 +210,22 @@ def add(text: str, extracted: dict, region_set: list, queries: list,
 
 def list_open() -> list[dict]:
     return [_to_dict(r) for r in _rows("SELECT * FROM lost_items WHERE status='open'")]
+
+
+def list_watching() -> list[dict]:
+    """매일 재매칭할 신고 — 찾는 중(open) + 유력 후보(candidate). 후보가 틀렸을 수 있어 사용자가 '내 물건이에요'·삭제하거나
+    알림 기간이 끝날 때까지 계속 찾음(예전엔 candidate가 되면 재매칭이 멈췄음 — 운영 신고 44건 중 33건)."""
+    return [_to_dict(r) for r in _rows("SELECT * FROM lost_items WHERE status IN ('open', 'candidate')")]
+
+
+def set_alert_pending(lid: str, pending: dict | None) -> None:
+    """알림 메일 재발송 대기 — {"weak", "tries", "next"(ISO)} 또는 None(없음)."""
+    _run("UPDATE lost_items SET alert_pending=? WHERE id=?",
+         (json.dumps(pending, ensure_ascii=False) if pending else None, lid))
+
+
+def list_alert_pending() -> list[dict]:
+    return [_to_dict(r) for r in _rows("SELECT * FROM lost_items WHERE alert_pending IS NOT NULL")]
 
 
 def all_items() -> list[dict]:

@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     collect_workers: int = 4          # 상세 조회 동시 요청 수(공공 API 예의 — 너무 올리지 말 것)
     retention_days: int = 30          # 알림 기간이 끝난 뒤 이 일수가 지나면 신고 자동 삭제(개인정보 보유 기간)
     verify_hours: int = 48             # 이메일 확인 링크 유효 시간
+    alert_retry_check_minutes: int = 15  # 실패한 알림 메일 재발송 대기열을 서버가 확인하는 간격
 
     # 남용 방지 — IP별 레이트리밋 + 하루 전체 AI 사용량 상한(단일 프로세스 메모리 카운터, 재시작 시 초기화)
     limit_report_10min: int = 5        # 텍스트 신고(추출·임베딩·판정 LLM)

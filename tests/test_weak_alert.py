@@ -18,9 +18,11 @@ class FakeNotifier:
 
     def notify(self, lost, matches, weak=False):
         self.sent.append((matches[0]["atc_id"], weak))
+        return True
 
     def verify(self, to, lang, link):
         self.verified.append(to)
+        return True
 
 
 @pytest.fixture(autouse=True)

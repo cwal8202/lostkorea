@@ -69,8 +69,8 @@ def _events(body: str) -> list[tuple[str, dict]]:
 def quiet_notifier(monkeypatch):
     sent = []
     monkeypatch.setattr("apps.notifier.notifier",
-                        type("N", (), {"notify": lambda self, lost, ms, weak=False: sent.append(weak),
-                                       "verify": lambda self, to, lang, link: sent.append("verify")})())
+                        type("N", (), {"notify": lambda self, lost, ms, weak=False: sent.append(weak) or True,
+                                       "verify": lambda self, to, lang, link: sent.append("verify") or True})())
     return sent
 
 

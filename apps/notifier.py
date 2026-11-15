@@ -10,6 +10,7 @@ import html as _html
 import re
 import smtplib
 import sys
+import time
 from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
@@ -36,14 +37,20 @@ def _emit(msg: str) -> None:
 
 
 class Notifier(Protocol):
-    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> None:
+    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> bool:
         """matches: grade 내림차순 후보 리스트(matches[0]=최고 매칭).
         weak=True: 임계 미만 '약한 후보' 참고 알림(신고자 옵트인 시에만) — 문구를 낮춰 기대치 조정."""
         ...
 
-    def verify(self, to: str, lang: str, link: str) -> None:
-        """이메일 확인(double opt-in) 메일 — 고정 문구 + 확인 링크만(사용자 입력 미포함 → 스팸 릴레이 불가)."""
+    def verify(self, to: str, lang: str, link: str) -> bool:
+        """이메일 확인(double opt-in) 메일 — 고정 문구 + 확인 링크만(사용자 입력 미포함 → 스팸 릴레이 불가). 보냈으면 True."""
         ...
+
+
+def _mask(email: str) -> str:
+    """로그용 이메일 가림(m•••@example.com) — 서버 로그에 주소가 그대로 남지 않게."""
+    name, _, domain = (email or "").partition("@")
+    return f"{name[:1]}•••@{domain}" if domain else "•••"
 
 
 def _top(matches: list[dict]) -> dict:
@@ -53,7 +60,7 @@ def _top(matches: list[dict]) -> dict:
 class ConsoleNotifier:
     """개발/데모용 — 콘솔로 매칭 알림 출력."""
 
-    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> None:
+    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> bool:
         m = _top(matches)
         who = lost.get("user_id", "anon")
         text = (lost.get("text") or "")[:30]
@@ -66,9 +73,11 @@ class ConsoleNotifier:
             f"지역:{m.get('region') or '-'} | 습득일:{m.get('found_at')}"
             + (f"\n    (외 비슷한 후보 {extra}건)" if extra else "")
         )
+        return True
 
-    def verify(self, to: str, lang: str, link: str) -> None:
+    def verify(self, to: str, lang: str, link: str) -> bool:
         _emit(f"✉️ [확인 메일→{to}, {lang}] {link}")
+        return True
 
 
 def _valid_img(url: str) -> str:
@@ -386,27 +395,36 @@ def _new_unsub_url(lost: dict) -> str:
 class EmailNotifier:
     """SMTP 이메일 알림(HTML+텍스트). 신고자 언어로 발송. 발송 실패해도 요청을 죽이지 않음(로그 후 진행)."""
 
-    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> None:
+    def notify(self, lost: dict, matches: list[dict], weak: bool = False) -> bool:
+        """보냈으면 True(메일 업체가 받음 — 받은편지함 도착까지는 모름). 실패·생략이면 False → 호출부가 재발송 대기."""
         # 수신자 = 신고자가 확인한 이메일만(관리자 주소로 대신 보내지 않음 — 남의 신고 내용이 새지 않게)
         to = (lost.get("email") or "").strip()
         if not (settings.smtp_user and settings.smtp_password and to) or not matches:
             _emit("[알림] 이메일 설정/수신자/후보 미비 → 발송 생략")
-            return
+            return False
         unsub = _new_unsub_url(lost)
         subject, text, html = build_email(lost, matches, weak, link=_new_report_link(lost), unsub=unsub)
         # 원클릭 수신 거부(RFC 8058) — Gmail·Yahoo가 대량 발송자에게 요구, 소량이어도 스팸 판정에 유리
         headers = {"List-Unsubscribe": f"<{unsub}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"} if unsub else {}
         if self._send(to, subject, text, html, logo=True, headers=headers):
-            _emit(f"📧 [이메일 알림→{to}, {lost.get('lang') or 'ko'}] '{_top(matches).get('name')}' "
-                  f"외 {max(len(matches)-1,0)}건 발송 완료")
+            # 로그엔 주소를 가리고 물품명·신고 문장은 남기지 않음(외부 리뷰 지적 — 로그 보존이 DB 삭제와 따로 놂)
+            _emit(f"📧 [이메일 알림→{_mask(to)}, {lost.get('lang') or 'ko'}] 후보 {len(matches)}건 발송 완료")
+            return True
+        return False
 
-    def verify(self, to: str, lang: str, link: str) -> None:
+    def verify(self, to: str, lang: str, link: str) -> bool:
+        """확인 메일 — 신고자가 화면 앞에서 기다리므로 그 자리에서 3번까지(2·4초 간격). 끝내 실패면 False(화면에 알림)."""
         if not (settings.smtp_user and settings.smtp_password and to):
             _emit("[알림] 이메일 설정/수신자 미비 → 확인 메일 생략")
-            return
+            return False
         subject, text, html = build_verify_email(lang, link)
-        if self._send(to, subject, text, html):
-            _emit(f"✉️ [확인 메일→{to}, {lang}] 발송 완료")
+        for attempt in range(3):
+            if self._send(to, subject, text, html):
+                _emit(f"✉️ [확인 메일→{_mask(to)}, {lang}] 발송 완료")
+                return True
+            if attempt < 2:
+                time.sleep(2 * (attempt + 1))
+        return False
 
     @staticmethod
     def _send(to: str, subject: str, text: str, html: str, logo: bool = False, headers: dict | None = None) -> bool:
