@@ -1,11 +1,13 @@
 /* LostKorea 사이트 스타일 (FIND-89 새 디자인)
    구조: GOV.UK·TfL(단계 안내) / 스타일: 토스 타이포·애플 여백 / 상호작용: 에어비앤비 검색 한 줄 + 필터 칩
-   원칙: 큰 제목·짧은 문장·화면당 강조 버튼 하나, 테두리·그림자 대신 옅은 회색 면, 터치 44px 이상, 남색·파랑 한 가지 강조색 */
+   원칙: 큰 제목·짧은 문장·화면당 강조 버튼 하나, 테두리·그림자 대신 옅은 회색 면, 터치 44px 이상, 남색·파랑 한 가지 강조색
+   접근성: 글자 4.5:1, 초점 테두리·입력칸 경계 3:1 이상 — 입력칸만은 회색 면에 --field-edge 경계선을 둔다 */
 
 :root {
   --brand: #1d4ed8; --brand-600: #2563eb; --brand-700: #1e40af; --brand-900: #1e3a8a;
   --brand-50: #eff6ff; --brand-100: #dbeafe;
-  --navy: #0f172a; --ink: #1e293b; --body: #334155; --sub: #64748b; --muted: #94a3b8;
+  --navy: #0f172a; --ink: #1e293b; --body: #334155; --sub: #5b6b80; --muted: #94a3b8;
+  --field-edge: #7c8799; /* 입력칸 경계: 흰 바탕 3.6:1 · 회색 바탕 3.4:1 (--sub는 회색 바탕에서도 5.0:1) */
   --line: #e7ebf0; --line-strong: #cfd6df; --surface: #f4f6f9; --surface-2: #eceff4; --bg-soft: #f4f6f9; --bg: #ffffff;
   --green: #15803d; --green-50: #f0fdf4; --amber: #b45309; --amber-50: #fffbeb; --gray: #94a3b8; --red: #b91c1c;
   --r-sm: 12px; --r: 16px; --r-lg: 24px; --r-xl: 28px;
@@ -29,7 +31,8 @@ p { margin: 0; }
 .muted { color: var(--sub); }
 .small { font-size: 14px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
-:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; border-radius: 8px; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 8px; }
+.cta-band :focus-visible, .site-footer :focus-visible { outline-color: #93c5fd; } /* 어두운 띠에선 연한 파랑이 3:1 이상 */
 .skip-link { position: absolute; left: 12px; top: -48px; background: var(--brand); color: #fff; padding: 8px 14px;
              border-radius: 8px; z-index: 100; }
 .skip-link:focus { top: 10px; }
@@ -60,10 +63,11 @@ p { margin: 0; }
 .btn-sm { padding: 8px 14px; min-height: 40px; font-size: 14.5px; border-radius: 12px; }
 .btn-xs { padding: 9px 14px; min-height: 44px; font-size: 14.5px; border-radius: 12px; }
 
-/* ── 입력: 테두리 대신 회색 면, 누르면 흰 바탕 + 파란 테두리 ── */
+/* ── 입력: 회색 면 + 3:1 경계선(--field-edge), 누르면 흰 바탕 + 파란 테두리.
+      감싸는 칸(.date-field·.filter-main·.fchip·.lang-wrap) 안의 입력은 border: 0, 경계는 감싸는 칸이 그린다 ── */
 .input, textarea, input[type=date], select { font: inherit; font-size: 16px; color: var(--ink); background: var(--surface);
-       border: 1.5px solid transparent; border-radius: 14px; padding: 11px 14px; min-height: 48px; }
-textarea { width: 100%; resize: none; min-height: 128px; line-height: 1.6; padding: 16px 18px; border-radius: 18px; font-size: 17px; }
+       border: 1px solid var(--field-edge); border-radius: 14px; padding: 11px 14px; min-height: 48px; }
+textarea { width: 100%; resize: none; min-height: 112px; line-height: 1.6; padding: 16px 18px; border-radius: 18px; font-size: 17px; }
 textarea::placeholder, .input::placeholder { color: #8a94a6; }
 .input:focus, textarea:focus, input[type=date]:focus, select:focus { outline: none; background: #fff; border-color: var(--brand);
        box-shadow: 0 0 0 4px rgba(37, 99, 235, .14); }
@@ -84,7 +88,7 @@ textarea::placeholder, .input::placeholder { color: #8a94a6; }
 .nav-links a:hover { color: var(--navy); text-decoration: none; }
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .lang-wrap { display: inline-flex; align-items: center; gap: 4px; color: var(--sub); background: var(--surface);
-             border-radius: 999px; padding: 0 6px 0 12px; min-height: 40px; }
+             border: 1px solid var(--field-edge); border-radius: 999px; padding: 0 6px 0 12px; min-height: 40px; }
 .lang-select { border: 0; background: transparent; padding: 6px 4px; min-height: 0; font-size: 14px; font-weight: 600;
                color: var(--ink); cursor: pointer; }
 .lang-select:focus { box-shadow: none; background: transparent; }
@@ -110,24 +114,22 @@ body { top: 0 !important; }
 .goog-text-highlight { background: none !important; box-shadow: none !important; }
 
 /* ── 첫 화면: 가운데 정렬, 큰 제목 하나, 입력창 하나 ── */
-.hero { background: linear-gradient(180deg, #f3f7ff 0%, #fff 62%); padding: clamp(48px, 7vw, 88px) 0 clamp(48px, 6vw, 72px); }
+.hero { background: linear-gradient(180deg, #f3f7ff 0%, #fff 62%); padding: clamp(40px, 5vw, 64px) 0 clamp(48px, 6vw, 72px); }
 .hero-inner { text-align: center; }
-.eyebrow { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--brand-100);
-           color: var(--brand-700); font-size: 14px; font-weight: 700; border-radius: 999px; padding: 7px 14px; }
-.eyebrow .ic { width: 16px; height: 16px; }
-.hero-title { font-size: clamp(38px, 6.2vw, 66px); font-weight: 800; line-height: 1.12; letter-spacing: -0.045em;
+/* 노트북(1280×800) 첫 화면에 제목·소개·검색 버튼까지 다 들어오게 맞춘 크기 */
+.hero-title { font-size: clamp(36px, 5.4vw, 60px); font-weight: 800; line-height: 1.12; letter-spacing: -0.045em;
               margin: 22px auto 18px; max-width: 900px; }
 .hero .lede { color: #4b5563; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.6; max-width: 640px; margin: 0 auto;
                text-wrap: balance; }
 .hero-title, .section-head h2 { text-wrap: balance; }
 .data-band + .section { padding-top: clamp(48px, 6vw, 88px); }
 
-.search-card { text-align: left; max-width: 760px; margin: 40px auto 0; background: #fff; border: 1px solid var(--line);
+.search-card { text-align: left; max-width: 760px; margin: 32px auto 0; background: #fff; border: 1px solid var(--line);
                border-radius: var(--r-xl); box-shadow: var(--shadow-card); padding: 24px; }
 .search-label { display: block; font-size: 17px; font-weight: 800; color: var(--navy); margin: 2px 4px 12px; }
 .search-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
-.search-row .count { margin-left: auto; font-size: 13px; color: var(--muted); }
-.date-field { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 14px;
+.search-row .count { margin-left: auto; font-size: 13px; color: var(--sub); }
+.date-field { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--field-edge); border-radius: 14px;
               padding: 0 6px 0 14px; min-height: 48px; font-size: 14.5px; font-weight: 600; color: var(--sub); }
 .date-field input { background: transparent; border: 0; min-height: 44px; padding: 8px 6px; font-size: 15px; }
 .date-field input:focus { box-shadow: none; background: transparent; }
@@ -255,7 +257,7 @@ details.how-searched > div { margin-top: 10px; }
 .page-head h1 { font-size: clamp(30px, 4vw, 44px); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 8px; }
 .page-head .lede { color: var(--sub); font-size: 17px; }
 .filters { margin-bottom: 18px; }
-.filter-main { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line-strong);
+.filter-main { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--field-edge);
                border-radius: 999px; padding: 6px 6px 6px 18px; box-shadow: 0 6px 20px rgba(15, 23, 42, .06); }
 .filter-main:focus-within { border-color: var(--brand); box-shadow: 0 0 0 4px rgba(37, 99, 235, .14); }
 .filter-main > .ic { color: var(--sub); }
@@ -263,7 +265,7 @@ details.how-searched > div { margin-top: 10px; }
 .filter-main .input:focus { box-shadow: none; background: transparent; }
 .filter-main .btn { border-radius: 999px; min-height: 48px; padding: 10px 22px; }
 .filter-chips { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-.fchip { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid var(--line-strong);
+.fchip { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid var(--field-edge);
          border-radius: 999px; padding: 0 8px 0 14px; min-height: 44px; font: inherit; font-size: 14.5px; font-weight: 600;
          color: var(--body); cursor: pointer; }
 .fchip:focus-within { border-color: var(--brand); }
@@ -330,7 +332,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 
 /* 이렇게 찾아드려요 — 왼쪽 단계 목록(누르면 그 장면으로), 오른쪽 휴대폰 틀 속 시연(장식) */
 .flow-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(36px, 7vw, 96px); align-items: center; }
-.flow-copy .eyebrow { margin-bottom: 18px; }
 .flow-steps { list-style: none; padding: 0; margin: 30px 0 0; display: grid; gap: 4px; counter-reset: f; }
 .flow-steps li { counter-increment: f; --p: 0; }
 .flow-steps button { width: 100%; text-align: left; display: grid; grid-template-columns: 34px 1fr; column-gap: 14px; align-items: start;
@@ -349,7 +350,7 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .flow-steps .is-on button::after { opacity: 1; }
 .flow-ctrl { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
 .flow-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.flow-tag { font-size: 13px; font-weight: 700; color: var(--sub); background: var(--surface); border-radius: 999px; padding: 5px 14px; }
+.flow-caption { font-size: 14px; font-weight: 600; color: var(--sub); }
 
 /* 휴대폰 틀 */
 .phone { width: 316px; height: 648px; border-radius: 50px; background: #0b1220; padding: 11px;
@@ -358,10 +359,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
   font-size: 13px; line-height: 1.5; color: var(--body); letter-spacing: -0.01em; user-select: none; }
 .device-screen::after { content: ""; position: absolute; inset: 0; background: #fff; opacity: var(--wash); pointer-events: none; z-index: 9; }
 .fd-ic { width: 15px; height: 15px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.fd-status { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 26px 0 30px; font-size: 13.5px; color: var(--navy); }
-.fd-island { width: 92px; height: 26px; border-radius: 14px; background: #0b1220; }
-.fd-status i { width: 22px; height: 11px; border: 1.5px solid var(--navy); border-radius: 3px; position: relative; }
-.fd-status i::after { content: ""; position: absolute; inset: 1.5px 5px 1.5px 1.5px; background: var(--navy); border-radius: 1px; }
 .fd-bar { display: flex; align-items: center; gap: 8px; padding: 6px 18px 10px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--navy); }
 .fd-bar b span { color: var(--brand); }
 .fd-logo { width: 24px; height: 24px; border-radius: 7px; background: var(--brand); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
@@ -369,7 +366,7 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 
 .fd-l { position: absolute; left: 16px; right: 16px; top: 104px; bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
 .fd-h { margin: 4px 0 0; font-size: 19px; font-weight: 800; color: var(--navy); letter-spacing: -0.03em; }
-.fd-ta, .fd-email { position: relative; background: var(--surface); border: 1.5px solid transparent; border-radius: 14px; padding: 12px 13px; color: var(--ink); }
+.fd-ta, .fd-email { position: relative; background: var(--surface); border: 1px solid var(--field-edge); border-radius: 14px; padding: 12px 13px; color: var(--ink); }
 .fd-ta { min-height: 104px; font-size: 14px; }
 .fd-ph { color: var(--muted); }
 .fd-caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--brand); vertical-align: -2px; margin-left: 1px; }
@@ -477,8 +474,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
   overflow: hidden; box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 40px 80px -30px rgba(30, 58, 138, .3); }
 .browser .device-screen { border-radius: 0; font-size: 14px; }
 .fd-chrome { height: 46px; display: flex; align-items: flex-end; gap: 6px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
-.fd-dots { display: flex; gap: 6px; align-self: center; margin-right: 8px; }
-.fd-dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--line-strong); }
 .fd-tab { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 16px; border-radius: 10px 10px 0 0;
   font-size: 12.5px; font-weight: 600; color: var(--sub); }
 .fd-tab .fd-logo { width: 16px; height: 16px; border-radius: 4px; }
@@ -486,11 +481,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .fd-tab .fd-ic { width: 14px; height: 14px; }
 .fd-tab-site, .in-mail .fd-tab-mail { background: #fff; color: var(--navy); }
 .in-mail .fd-tab-site { background: transparent; color: var(--sub); }
-.fd-url { margin-left: auto; align-self: center; width: 42%; height: 30px; border-radius: 999px; background: #fff; border: 1px solid var(--line);
-  display: flex; align-items: center; padding: 0 14px; font-size: 12.5px; color: var(--sub); }
-.fd-url b { font-weight: 500; }
-.fd-url-mail, .in-mail .fd-url-site { display: none; }
-.in-mail .fd-url-mail { display: inline; }
 .browser .fd-bar { padding: 12px 28px; font-size: 16px; }
 .browser .fd-nav { display: inline; margin-left: 24px; font-size: 13.5px; font-weight: 600; color: var(--body); }
 .browser .fd-bar b + .fd-nav { margin-left: 34px; }
@@ -529,22 +519,21 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .step h3 { font-size: 21px; font-weight: 800; margin-bottom: 10px; }
 .step p { color: var(--sub); font-size: 15.5px; line-height: 1.7; }
 
-/* 특징 — 2×2 큰 카드 */
-.features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-.feature { background: var(--surface); border-radius: var(--r-lg); padding: 32px 30px; }
-.icon-tile { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px;
-             background: #fff; color: var(--brand); }
-.icon-tile .ic { width: 26px; height: 26px; }
-.feature h3 { font-size: 21px; font-weight: 800; margin: 20px 0 8px; }
-.feature p { color: var(--sub); font-size: 15.5px; line-height: 1.7; }
+/* 특징 — 2×2 목록: 아이콘은 제목 옆, 카드 면 대신 가는 위 선 (둥근 타일 아이콘 카드는 AI 템플릿 티) */
+.features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px 64px; }
+.feature { display: grid; grid-template-columns: 28px 1fr; column-gap: 14px; align-items: start;
+           padding-top: 28px; border-top: 1px solid var(--line-strong); }
+.icon-tile { grid-row: 1; display: inline-flex; align-items: center; width: 28px; height: 28px; margin-top: 1px; color: var(--brand); }
+.icon-tile .ic { width: 24px; height: 24px; }
+.feature h3 { grid-column: 2; grid-row: 1; font-size: 21px; font-weight: 800; margin: 0 0 8px; }
+.feature p { grid-column: 2; grid-row: 2; color: var(--sub); font-size: 15.5px; line-height: 1.7; }
 
-/* 신뢰 — 체크 목록 */
-.trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-.trust-item { display: flex; gap: 16px; align-items: flex-start; background: #fff; border-radius: var(--r-lg); padding: 28px 24px; }
-.check { flex: 0 0 40px; height: 40px; border-radius: 50%; background: var(--green-50); color: var(--green);
-         display: inline-flex; align-items: center; justify-content: center; }
+/* 신뢰 — 체크 목록: 카드 면·초록 동그라미 없이 가는 위 선 + 작은 체크 */
+.trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; }
+.trust-item { display: flex; gap: 12px; align-items: flex-start; padding-top: 28px; border-top: 1px solid var(--line-strong); }
+.check { flex: 0 0 22px; height: 22px; margin-top: 2px; color: var(--green); display: inline-flex; align-items: center; }
 .check .ic { width: 20px; height: 20px; stroke-width: 2.6; }
-.trust-item h3 { font-size: 18.5px; font-weight: 800; margin: 6px 0 8px; }
+.trust-item h3 { font-size: 18.5px; font-weight: 800; margin: 0 0 8px; }
 .trust-item p { color: var(--sub); font-size: 15px; line-height: 1.7; }
 
 /* FAQ — 넓은 줄, 누르기 쉬운 크기 */
@@ -589,7 +578,7 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
   .flow-grid { grid-template-columns: 1fr; gap: 0; justify-items: center; }
   .flow-copy { display: contents; }
   .flow-copy > * { order: 0; }
-  .flow-copy > .eyebrow, .flow-copy > h2, .flow-copy > .sub { justify-self: center; text-align: center; }
+  .flow-copy > h2, .flow-copy > .sub { justify-self: center; text-align: center; }
   .flow-steps { order: 1; width: 100%; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 36px; }
   .flow-steps button { grid-template-columns: 1fr; row-gap: 6px; height: 100%; align-content: start; padding: 14px 14px 20px; }
   .flow-steps button::before { grid-row: auto; }
@@ -605,7 +594,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
   .flow-grid { grid-template-columns: 1fr; gap: 0; }
   .flow-copy { display: contents; }
   .flow-copy > * { order: 0; }
-  .flow-copy > .eyebrow { justify-self: start; }
   .flow-stage { order: 1; margin-top: 28px; }
   .flow-steps { order: 2; }
   .flow-ctrl { order: 3; }

@@ -74,11 +74,10 @@
   function build() {
   desk = wide.matches;
   device.className = "device " + (desk ? "browser" : "phone");
+  // 창틀을 흉내 내는 장식(신호등 점·주소창·휴대폰 시계줄)은 두지 않는다 — 사이트↔메일 탭만 남겨 화면 전환을 보여 줌
   const top = desk
-    ? `<div class="fd-chrome"><span class="fd-dots"><i></i><i></i><i></i></span>
-         <span class="fd-tab fd-tab-site">${logo}LostKorea</span><span class="fd-tab fd-tab-mail">${svg(IC.mail)}${S.mailTab}</span>
-         <span class="fd-url"><b class="fd-url-site">lostkorea.com</b><b class="fd-url-mail">mail.example.com</b></span></div>`
-    : `<div class="fd-status"><b>9:41</b><span class="fd-island"></span><i></i></div>`;
+    ? `<div class="fd-chrome"><span class="fd-tab fd-tab-site">${logo}LostKorea</span><span class="fd-tab fd-tab-mail">${svg(IC.mail)}${S.mailTab}</span></div>`
+    : "";
   screen.innerHTML = `${top}
     <div class="fd-bar">${logo}<b>Lost<span>Korea</span></b>${S.nav.map(n => `<span class="fd-nav">${n}</span>`).join("")}</div>
     <div class="fd-l fd-input">

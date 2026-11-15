@@ -43,7 +43,7 @@ const I18N = {
     exLabel:"예시로 바로 해보기:",
     mineLead:"딱 맞는 게 없어도 신고는 저장돼요. <b>새 습득물이 들어오면 자동으로 다시 찾아</b> 이메일로 알려드려요. 내 신고는 이 브라우저에서만 보여요.",
     heroStat:(n, d)=>`지금 <b>${n}</b>건의 습득물에서 찾는 중 · 최신 습득물 <b>${d}</b> · 매일 <b>00시(KST)</b> 자동 갱신`,
-    catPrefix:"분류:", zoom:"클릭하면 크게 보기", searching:"찾는 중…",
+    catPrefix:"분류:", zoom:"클릭하면 크게 보기", zoomBtn:"사진 크게 보기", yourPhoto:"내가 올린 사진", searching:"찾는 중…",
     naverMap:"네이버 지도", googleMap:"구글 지도",
     helpline:"외국인이라 통화가 어렵다면 <b>1330 관광통역안내전화</b>(24시간)로 전화하면 보관기관과의 통화를 통역해줘요.",
     lost112:"(경찰민원24 · 경찰청 습득물 원본)",
@@ -129,7 +129,7 @@ const I18N = {
     exLabel:"Try an example:",
     mineLead:"No exact match yet? Your report is saved. <b>We re-check every day as new items arrive</b> and email you. Your reports are visible only in this browser.",
     heroStat:(n, d)=>`Searching <b>${n}</b> found items · newest <b>${d}</b> · updated daily at midnight (KST)`,
-    catPrefix:"Category: ", zoom:"Click to enlarge", searching:"Searching…",
+    catPrefix:"Category: ", zoom:"Click to enlarge", zoomBtn:"Enlarge photo", yourPhoto:"Your photo", searching:"Searching…",
     naverMap:"Naver Map", googleMap:"Google Maps",
     helpline:"Don't speak Korean? Call <b>1330 (Korea Travel Helpline, 24/7)</b> — they can interpret your call with the holding office. From a foreign phone: +82-2-1330.",
     lost112:"(Korean National Police Minwon24, Korean only)",
@@ -359,17 +359,33 @@ const validImg = (u) => (u && u.startsWith('http') && !u.includes('no_img')) ? u
 const thumbUrl = (u) => u.startsWith('https://minwon24.police.go.kr/') ? '/thumb.jpg?u=' + encodeURIComponent(u) : u;
 const cleanDesc = (s) => (s||'').replace(/^\s*내용\s*/,'').replace(/\s+/g,' ').trim();
 
-function openLightbox(url){ $("lightboxImg").src = url; $("lightbox").hidden = false; }
-function closeLightbox(){ $("lightbox").hidden = true; $("lightboxImg").src = ""; }
+// 크게 보기: 마우스 클릭·키보드(Enter·Space) 모두. 열면 창으로 초점, 닫으면 누른 사진으로 초점을 되돌린다
+let lightboxFrom = null;
+function openLightbox(url){
+  lightboxFrom = document.activeElement;
+  const box = $("lightbox");
+  $("lightboxImg").src = url; box.setAttribute("aria-label", t('zoomBtn')); box.hidden = false; box.focus();
+}
+function closeLightbox(){
+  const box = $("lightbox");
+  if (box.hidden) return;
+  box.hidden = true; $("lightboxImg").src = "";
+  if (lightboxFrom && document.contains(lightboxFrom)) lightboxFrom.focus();
+  lightboxFrom = null;
+}
 document.addEventListener('click', e => { const t = e.target.closest('.thumb'); if (t && t.dataset.full) openLightbox(t.dataset.full); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') return closeLightbox();
+  const th = (e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.thumb');
+  if (th && th.dataset.full) { e.preventDefault(); openLightbox(th.dataset.full); }
+});
 
 // preview=true: 진행 중(아직 저장 전 — 신고 id 없음) 후보 미리보기 → 확인/아니에요 버튼 숨김
 function matchCard(m, idx, preview = false) {
   const g = m.grade;
   const img = validImg(m.image_url);
   const thumb = img
-    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"
+    ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" tabindex="0" role="button" aria-label="${t('zoomBtn')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"
          title="${t('zoom')}"
          style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 56px;cursor:zoom-in" />`
     : '';
@@ -469,7 +485,7 @@ async function dismissMatch(idx) {
 
 function claimGuide(m, stage = null) {
   const img = validImg(m.image_url);
-  const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
+  const thumb = img ? `<img class="thumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" tabindex="0" role="button" aria-label="${t('zoomBtn')}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;flex:0 0 72px;cursor:zoom-in" />` : '';
   return `<div class="banner matched">${ic('check')}<span>${t('claimDone')}</span></div>
     <div class="match">
       ${thumb}
@@ -512,7 +528,7 @@ function renderResult(d, userPhoto, timing = "") {
     : `<div class="banner open">${ic('clock')}<span>${t('bannerOpen')}</span></div>`;
   const photoBlock = userPhoto
     ? `<div style="margin-bottom:10px; display:flex; gap:10px; align-items:center">
-         <img src="${userPhoto}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />
+         <img src="${userPhoto}" alt="${t('yourPhoto')}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />
          <div class="muted" style="font-size:12px">${t('photoRead')}</div>
        </div>` : "";
   // 판정한 후보는 모두 그리되 7번째부터는 접어 둠 — 예전엔 '후보 12건'이라 해 놓고 6건만 보여 7~12위는 볼 수 없었음
@@ -564,7 +580,7 @@ function alertPanel(d) {
       ${email ? `<div class="alert-cur" id="alertCur">${t('alertTo', esc(email), d.email_verified)}
         <button type="button" class="linkish" onclick="alertsOff()">${t('alertOff')}</button></div>` : ""}
       <div class="row">
-        <input id="alertEmail" type="email" class="input" value="" placeholder="${email ? t('emailPhChange') : t('emailPh2')}" />
+        <input id="alertEmail" type="email" name="email" autocomplete="email" spellcheck="false" class="input" value="" placeholder="${email ? t('emailPhChange') : t('emailPh2')}" />
         <label class="date-lbl">${t('alertPeriod')} <select id="alertDays" class="input">${opts}</select></label>
         <button class="btn btn-primary" onclick="saveAlerts()">${t('save')}</button>
       </div>
@@ -1025,7 +1041,7 @@ function browseItem(m) {
   const img = validImg(m.image_url);
   // 작은 사진(서버가 줄인 ~20KB)을 화면에 보일 때만 불러옴(loading=lazy). 누르면 원본(data-full)
   const thumb = img
-    ? `<img class="thumb bthumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" loading="lazy" decoding="async"
+    ? `<img class="thumb bthumb" data-full="${esc(img)}" src="${esc(thumbUrl(img))}" alt="" tabindex="0" role="button" aria-label="${t('zoomBtn')}" loading="lazy" decoding="async"
          referrerpolicy="no-referrer" title="${t('zoom')}" />`
     : noPhotoBox();
   const links = [
