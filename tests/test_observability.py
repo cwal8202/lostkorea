@@ -106,6 +106,9 @@ def test_backup_scripts_parse():
 
     import pytest
     bash = shutil.which("bash")
+    if bash and "system32" in bash.lower():  # Windows PowerShell에선 WSL bash가 잡혀 Windows 경로를 못 읽음 → Git Bash로
+        git_bash = Path(r"C:\Program Files\Gitinash.exe")
+        bash = str(git_bash) if git_bash.exists() else None
     if not bash:
         pytest.skip("bash 없음")
     root = Path(__file__).resolve().parents[1] / "scripts"
