@@ -88,6 +88,7 @@ const I18N = {
     ocLbl_contacted:"연락함", ocLbl_visited:"방문함", ocLbl_found:"찾음", ocLbl_not_mine:"다른 물건",
     actFail:"저장하지 못했어요. 잠시 후 다시 눌러 주세요.",
     pagerCap:"결과가 많아 앞쪽 1만 건까지만 볼 수 있어요. 지역·날짜·키워드로 좁혀 보세요.",
+    moreCands:(n)=>`후보 ${n}건 더 보기`,
     alertTitle:"알림 설정",
     alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
     alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
@@ -173,6 +174,7 @@ const I18N = {
     ocLbl_contacted:"Contacted", ocLbl_visited:"Visited", ocLbl_found:"Got it back", ocLbl_not_mine:"Not mine",
     actFail:"Couldn't save. Please try again shortly.",
     pagerCap:"Only the first 10,000 results can be shown. Narrow it down by region, date or keyword.",
+    moreCands:(n)=>`Show ${n} more`,
     alertTitle:"Alert settings",
     alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
     alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
@@ -422,9 +424,14 @@ async function postReport(path, body) {
   } catch (e) { alert(t('actFail')); return null; }
 }
 
+function showMoreCands(btn) {
+  document.querySelectorAll("#result .more-cand").forEach(el => { el.hidden = false; });
+  btn.remove();
+}
+
 async function confirmMatch(idx) {
   const m = _matches[idx];
-  if (!await postReport("confirm", { atc_id: m.atc_id })) return;
+  if (!await postReport("confirm", { atc_id: m.atc_id, fd_sn: String(m.fd_sn || "1") })) return;
   $("result").innerHTML = claimGuide(m, null);
   loadMine();
 }
@@ -454,7 +461,7 @@ async function sendOutcome(stage) {
 
 async function dismissMatch(idx) {
   const m = _matches[idx];
-  if (!await postReport("dismiss", { atc_id: m.atc_id })) return;
+  if (!await postReport("dismiss", { atc_id: m.atc_id, fd_sn: String(m.fd_sn || "1") })) return;
   const card = document.querySelector(`#result .match[data-idx="${idx}"]`);
   if (card) card.remove();
   loadMine();
@@ -508,7 +515,10 @@ function renderResult(d, userPhoto, timing = "") {
          <img src="${userPhoto}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />
          <div class="muted" style="font-size:12px">${t('photoRead')}</div>
        </div>` : "";
-  const cards = (d.matches||[]).slice(0,6).map((m,i)=>matchCard(m,i)).join("");
+  // 판정한 후보는 모두 그리되 7번째부터는 접어 둠 — 예전엔 '후보 12건'이라 해 놓고 6건만 보여 7~12위는 볼 수 없었음
+  const all = d.matches || [];
+  const cards = all.map((m, i) => i < 6 ? matchCard(m, i) : `<div class="more-cand" hidden>${matchCard(m, i)}</div>`).join("")
+    + (all.length > 6 ? `<button type="button" class="btn btn-outline btn-sm more-btn" onclick="showMoreCands(this)">${t('moreCands', all.length - 6)}</button>` : "");
   $("result").innerHTML =
     `${banner}${photoBlock}
      <div class="cand-head"><b>${t('candCount', d.count)}</b>${cards ? `<span class="muted legend">${t('scoreLegend')}</span>` : ""}</div>
@@ -611,8 +621,8 @@ async function openReport(id, token, viaEmail = false) {
       { headers: { "X-Report-Token": token } });  // 메일 링크로 왔으면 익명 횟수만 셈(메일 업체 추적 대신)
     if (!res.ok) throw new Error(res.status);
     const r = await res.json();
-    const gone = new Set(r.dismissed || []);
-    const matches = (r.matches || []).filter(m => !gone.has(m.atc_id));
+    const gone = new Set(r.dismissed || []);  // 옛 기록은 관리번호, 새 기록은 관리번호_순번
+    const matches = (r.matches || []).filter(m => !gone.has(m.atc_id) && !gone.has(`${m.atc_id}_${m.fd_sn || "1"}`));
     if (r.status === "confirmed" && r.best_match) {
       _lid = id; _matches = [r.best_match];
       saveMineRef(id, token);

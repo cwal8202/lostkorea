@@ -29,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from apps import ops, store
 
 from . import search as search_mod
-from . import site, thumbs
+from . import pii, site, thumbs
 from .config import settings
 from .gemini import normalize_lang
 from .limits import client_ip, limiter
@@ -289,12 +289,26 @@ def _guard_report(request: Request, image: bool = False) -> None:
     store.bump("report_image" if image else "report_text")
 
 
+def _scrub(req) -> None:
+    """신고 문장·사진 메모의 전화번호·카드번호·주민번호·여권번호·이메일을 저장·AI 전송 전에 가림(apps/api/pii.py)."""
+    n = 0
+    for field in ("text", "note"):
+        if isinstance(getattr(req, field, None), str):
+            masked, k = pii.mask(getattr(req, field))
+            if k:
+                setattr(req, field, masked)
+                n += k
+    if n:
+        store.bump("pii_masked", n)
+
+
 @app.post("/lost-items/stream")
 def register_lost_item_stream(req: LostItemRequest, request: Request) -> StreamingResponse:
     """`POST /lost-items`의 실시간 버전 — 추출·지역·검색·판정을 단계마다 SSE로 흘려보냄."""
     from apps.agent import graph as agent_graph
 
     _guard_report(request)
+    _scrub(req)
     lang = normalize_lang(req.lang)
     steps = agent_graph.stream(req.text, req.lost_date, lang)
     return StreamingResponse(_stream_match(steps, req.email or "", req.notify_weak, text=req.text, lang=lang),
@@ -307,6 +321,7 @@ def register_lost_item_image_stream(req: LostItemImageRequest, request: Request)
     from apps.agent import graph as agent_graph
 
     _guard_report(request, image=True)
+    _scrub(req)
     lang = normalize_lang(req.lang)
     steps = agent_graph.stream_image(req.image_b64, req.mime, note=req.note,
                                      lost_date=req.lost_date, lang=lang)
@@ -364,6 +379,7 @@ def register_lost_item(req: LostItemRequest, request: Request) -> MatchResponse:
     from apps.agent import graph as agent_graph
 
     _guard_report(request)
+    _scrub(req)
     lang = normalize_lang(req.lang)
     result = agent_graph.run(req.text, req.lost_date, lang)
     if not result.get("extracted", {}).get("is_lost_report", True):  # 분실물 신고 아님 → 저장·검색·알림 없이 종료
@@ -379,6 +395,7 @@ def register_lost_item_image(req: LostItemImageRequest, request: Request) -> Mat
     from apps.agent import graph as agent_graph
 
     _guard_report(request, image=True)
+    _scrub(req)
     lang = normalize_lang(req.lang)
     result = agent_graph.run_image(req.image_b64, req.mime, note=req.note,
                                    lost_date=req.lost_date, lang=lang)
@@ -574,7 +591,9 @@ def confirm_lost_item(lid: str, req: ConfirmRequest, x_report_token: str | None 
     """'내 물건이에요' → confirmed. 후보는 서버가 저장한 것에서 찾음(클라이언트 데이터 불신). 수령은 본인(HITL)."""
     item = _owned(lid, x_report_token)
     cands = (item.get("matches") or []) + ([item["best_match"]] if item.get("best_match") else [])
-    match = next((m for m in cands if m.get("atc_id") == req.atc_id), None)
+    # 같은 관리번호에 순번만 다른 습득물(가방과 그 안의 지갑 등, 운영 3%)을 헷갈리지 않게 순번까지 맞춤
+    match = next((m for m in cands if m.get("atc_id") == req.atc_id
+                  and (not req.fd_sn or str(m.get("fd_sn") or "1") == req.fd_sn)), None)
     if not match:
         raise HTTPException(status_code=400, detail="이 신고의 후보가 아니에요")
     store.confirm(lid, match)
@@ -597,7 +616,7 @@ def lost_item_outcome(lid: str, req: OutcomeRequest, x_report_token: str | None 
         store.bump(f"outcome_{req.stage}")
     status = "confirmed"
     if req.stage == "not_mine":  # 기관에 확인해 보니 다른 물건 → 그 후보 빼고 다시 찾는 중
-        store.dismiss(lid, match.get("atc_id"))
+        store.dismiss(lid, f"{match.get('atc_id')}_{match.get('fd_sn') or '1'}")
         status = "open"
     return {"ok": True, "stage": req.stage, "status": status, "outcome": outcome}
 
@@ -606,7 +625,7 @@ def lost_item_outcome(lid: str, req: OutcomeRequest, x_report_token: str | None 
 def dismiss_lost_item(lid: str, req: DismissRequest, x_report_token: str | None = Header(None)) -> dict:
     """'아니에요' → 그 후보 제외하고 계속 탐색(open)."""
     _owned(lid, x_report_token)
-    dismissed = store.dismiss(lid, req.atc_id)
+    dismissed = store.dismiss(lid, f"{req.atc_id}_{req.fd_sn}" if req.fd_sn else req.atc_id)
     store.bump("dismiss")
     return {"ok": True, "status": "open", "dismissed": dismissed}
 

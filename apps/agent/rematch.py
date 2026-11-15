@@ -54,8 +54,12 @@ _SLIM_KEYS = ("atc_id", "fd_sn", "name", "subject", "description", "category", "
               "name_en", "desc_en", "visual_score", "visual_reason")
 
 
-def slim_matches(matches: list[dict], n: int = 6) -> list[dict]:
-    """메일·확인용으로 저장할 후보(서버 판정 결과) — 상위 n개, 필요한 필드만, 설명은 짧게."""
+def is_dismissed(m: dict, dismissed: set) -> bool:
+    return m.get("atc_id") in dismissed or f"{m.get('atc_id')}_{m.get('fd_sn') or '1'}" in dismissed
+
+
+def slim_matches(matches: list[dict], n: int = 12) -> list[dict]:
+    """메일·확인용으로 저장할 후보(서버 판정 결과) — 상위 n개(판정한 12개 전부 — 다시 열어도 같은 후보), 필요한 필드만, 설명은 짧게."""
     out = []
     for m in (matches or [])[:n]:
         d = {k: m.get(k) for k in _SLIM_KEYS if m.get(k) is not None}
@@ -144,8 +148,8 @@ def _rematch_one(row: dict, verbose: bool) -> dict | None:
     new_keys = graph.graded_keys(matches)
     if new_keys:  # 판정이 실패(Gemini 장애)했으면 기록하지 않음 → 다음 재매칭에서 다시 판정
         store.set_graded(row["id"], list(dict.fromkeys((seen or []) + new_keys)))
-    dismissed = set(row.get("dismissed") or [])  # '아니에요' 한 후보 제외
-    matches = [m for m in matches if m.get("atc_id") not in dismissed]
+    dismissed = set(row.get("dismissed") or [])  # '아니에요' 한 후보 제외(옛 기록은 관리번호, 새 기록은 관리번호_순번)
+    matches = [m for m in matches if not is_dismissed(m, dismissed)]
     top = matches[0] if matches else None
     g = top.get("grade") if top else None
     level = alert_level(g, row.get("notify_weak", False)) if top else None

@@ -72,6 +72,7 @@ class AlertSettingsRequest(BaseModel):
 
 class ConfirmRequest(BaseModel):
     atc_id: str = Field(max_length=64)  # '내 물건이에요' 한 후보 — 서버가 저장한 후보에서 찾음(클라이언트 데이터 불신)
+    fd_sn: str = Field("", max_length=8)  # 같은 관리번호의 몇 번째 습득물인지(없으면 관리번호만으로 — 옛 화면 호환)
 
 
 class OutcomeRequest(BaseModel):
@@ -80,6 +81,7 @@ class OutcomeRequest(BaseModel):
 
 class DismissRequest(BaseModel):
     atc_id: str = Field(max_length=64)  # 사용자가 '아니에요' 한 후보
+    fd_sn: str = Field("", max_length=8)
 
 
 class VerifyRequest(BaseModel):

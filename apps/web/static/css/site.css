@@ -693,3 +693,6 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 @media (max-width: 480px) { .outcome-btns { display: grid; grid-template-columns: 1fr 1fr; }
   .outcome-btns .btn { white-space: normal; text-align: center; line-height: 1.25; } }
 
+
+/* 후보 7번째부터 '더 보기' */
+.more-btn { display: block; margin: 10px auto 0; }

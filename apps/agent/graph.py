@@ -190,10 +190,20 @@ def _valid_img(u: str) -> bool:
 
 
 def _fetch_image_b64(url: str, max_bytes: int = 5_000_000) -> tuple[str | None, str]:
-    """습득물 사진 URL → (base64, mime). 실패·과대·비이미지면 (None, "")."""
+    """습득물 사진 URL → (base64, mime). 실패·과대·비이미지면 (None, "").
+
+    경찰청 습득물 사진 주소만 받음(미리보기와 같은 허용 목록) — 색인 데이터의 주소가 오염돼도 서버가 엉뚱한 곳(내부망 등)에
+    요청하지 않게. 다른 곳으로 넘겨져도(리디렉션) 도착 주소를 다시 확인(외부 리뷰 지적, 11/15).
+    """
+    from apps.api import thumbs
+
+    if not thumbs.allowed(url):
+        return None, ""
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as r:
+            if not thumbs.allowed(r.geturl()):
+                return None, ""
             ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip()
             data = r.read(max_bytes + 1)
         if len(data) > max_bytes or not ctype.startswith("image/"):

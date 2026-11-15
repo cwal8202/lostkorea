@@ -57,7 +57,7 @@ def test_not_mine_drops_the_candidate_and_searches_again():
     lid = _report()
     r = _post(lid, "not_mine")
     row = store.get(lid)
-    assert r.json()["status"] == "open" and row["status"] == "open" and row["dismissed"] == ["F1"]
+    assert r.json()["status"] == "open" and row["status"] == "open" and row["dismissed"] == ["F1_1"]   # 관리번호_순번
     assert row["outcome"]["stage"] == "not_mine"
 
 
