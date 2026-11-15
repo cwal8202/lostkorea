@@ -53,7 +53,8 @@ else
   alert "DB 백업 실패" "backup_db.sh 실패"
   exit 1
 fi
-find "$DIR" -maxdepth 1 \( -name '*.sql.gz' -o -name '*.gpg' \) -mtime +"$KEEP" -delete   # 옛 findit_* 파일도 함께 정리
+# -mtime +N은 'N+1일 이상'이라 +14면 15일 가까이 남았음 → KEEP-1로 14일을 넘기지 않게(처리방침 '14일')
+find "$DIR" -maxdepth 1 \( -name '*.sql.gz' -o -name '*.gpg' \) -mtime +"$((KEEP - 1))" -delete   # 옛 findit_* 파일도 함께 정리
 
 # ── 2. 서버 밖 백업(R2, 암호화) ──
 KEY_ID=$(envval BACKUP_R2_ACCESS_KEY_ID); SECRET=$(envval BACKUP_R2_SECRET_ACCESS_KEY)
