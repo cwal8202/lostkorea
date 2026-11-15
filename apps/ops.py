@@ -115,6 +115,16 @@ def _disk_percent(path: str = "/") -> int:
     return round(u.used * 100 / u.total) if u.total else 0
 
 
+def _backup_line(store, m: dict, days: int) -> str:
+    """주간 요약 한 줄 — 서버 밖(R2) 백업 성공 일수와 최근 백업 크기(1GB 넘으면 전체 백업 방식 재검토)."""
+    try:
+        last = store._rows("SELECT day, n FROM metrics WHERE kind='backup_kb' ORDER BY day DESC LIMIT 1")
+    except Exception:  # noqa: BLE001
+        last = []
+    size = f"{last[0]['n']:,}KB({last[0]['day']})" if last else "기록 없음"
+    return f"DB 백업: 서버 밖(R2) 성공 {m.get('backup_offsite_ok', 0)}/{days}일 · 최근 크기 {size} — 1GB 넘으면 방식 재검토"
+
+
 def _closure_line(store, since: str) -> str:
     """주간 요약 한 줄 — 이 기간에 기록한 습득물 이탈(종결·사진 내려감·보관 기간 끝)."""
     try:
@@ -144,6 +154,7 @@ def weekly(days: int = 7, today: date | None = None, status: dict | None = None)
               f" · 만료 {rc.get('expired', 0)} · 이메일 확인됨 {rc.get('email_verified', 0)}",
               "", f"습득물 색인: {status.get('count')}건, 최근 습득일 {status.get('latest_found_at') or '-'}",
               _closure_line(store, since),
+              _backup_line(store, m, days),
               f"디스크: {_disk_percent()}% 사용"]
     calls, tin, tout = m.get("ai_calls", 0), m.get("ai_in", 0), m.get("ai_out", 0)
     usd = (tin * settings.ai_price_in_per_m + tout * settings.ai_price_out_per_m) / 1_000_000

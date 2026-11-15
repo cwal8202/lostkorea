@@ -97,7 +97,7 @@
 → 의미 임베딩이 주력 랭커(한글↔영문·번역·오타 커버). **지역 가점**은 밀집 군집(검정지갑 193건 등)에서
 묻힌 정답을 MRR 0.084→0.857로 끌어올림(덧셈 소프트 w≈0.05, eval 검증). 보관장소→구/시는 지명 사전(낱말 경계 규칙) + 카카오 장소 검색 캐시로 해석 — 운영 색인의 **99.4%**에 지역(2026-11-15 전수 점검·수정).
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 316개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 318개(fan-out·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -123,8 +123,8 @@ Docker Compose · **Caddy(자동 HTTPS)** · **GitHub Actions(자동배포)** ·
 eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, OpenSearch 색인·검색·데모, 결과 번역 6개 언어 측정 run_lang·분실일 거름 측정 run_date) + datalab/(데이터랩 결합 분석)
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
-scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache)
-tests/       pytest 316개 (외부 서비스 목킹)
+scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache)
+tests/       pytest 318개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)

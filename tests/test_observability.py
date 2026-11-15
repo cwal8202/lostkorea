@@ -89,6 +89,30 @@ def test_weekly_summary_counts_found_item_exits(mails):
     assert "습득물 이탈 기록: 종결 2 · 사진 내려감 1 · 보관 기간 끝 0건" in body
 
 
+def test_weekly_summary_shows_offsite_backup_health(mails):
+    store.bump("backup_offsite_ok", 1, day="2026-11-07")
+    store.bump("backup_offsite_ok", 1, day="2026-11-08")
+    store.bump("backup_kb", 15, day="2026-11-07")
+    store.bump("backup_kb", 16, day="2026-11-08")
+    body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 1, "latest_found_at": "2026-11-08"})
+    assert "DB 백업: 서버 밖(R2) 성공 2/7일 · 최근 크기 16KB(2026-11-08)" in body
+
+
+def test_backup_scripts_parse():
+    """서버 셸 스크립트 문법 확인(실행은 서버에서) — 백업이 조용히 깨지지 않게."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    import pytest
+    bash = shutil.which("bash")
+    if not bash:
+        pytest.skip("bash 없음")
+    root = Path(__file__).resolve().parents[1] / "scripts"
+    for name in ("backup_db.sh", "restore_test.sh", "daily_collect.sh"):
+        assert subprocess.run([bash, "-n", str(root / name)], capture_output=True).returncode == 0, name
+
+
 def test_weekly_summary_reports_measured_ai_cost(mails):
     store.bump_many({"ai_calls": 10, "ai_in": 1_000_000, "ai_out": 200_000}, day="2026-11-08")
     body = ops.weekly(7, today=date(2026, 11, 9), status={"count": 1, "latest_found_at": "2026-11-08"})

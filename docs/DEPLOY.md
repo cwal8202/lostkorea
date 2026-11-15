@@ -100,14 +100,33 @@ chmod +x scripts/daily_collect.sh
   (`NOTIFY_EMAIL_TO`, 없으면 `SMTP_USER`)에게 메일(`apps/ops.py`). 수동 점검:
   `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.ops freshness --max-age-days 3`
 
-## 8-1. DB 일일 백업 (cron)
-`scripts/backup_db.sh` — PostgreSQL(분실물 신고)을 `pg_dump | gzip`으로 `/root/lostkorea-backups/`에 저장, 14일 보관, 실패 시 메일.
-```bash
-chmod +x scripts/backup_db.sh
-(crontab -l 2>/dev/null; echo "0 4 * * * /root/lostkorea/scripts/backup_db.sh >> /root/lostkorea/backup.log 2>&1") | crontab -
-```
-- 복구: `gunzip -c /root/lostkorea-backups/lostkorea_YYYYMMDD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U lostkorea lostkorea`
-- 백업은 같은 서버에 남음(서버 장애엔 무력) → 중요해지면 외부 저장소로 복사. OpenSearch는 재수집으로 복구 가능해 백업 제외.
+## 8-1. DB 백업과 복구 (cron, 2026-11-15 서버 밖 백업 추가)
+`scripts/backup_db.sh` — 매일 04:00. **DB 전체**를 `pg_dump | gzip`.
+
+| 무엇을 | 어디에 | 보관 |
+|---|---|---|
+| DB 전체(신고 포함) | 서버 `/root/lostkorea-backups/` | 14일 |
+| DB 전체, **서버에서 AES-256 암호화(gpg)** | Cloudflare R2 `daily/` | 14일(스크립트 + R2 자동 삭제 규칙) |
+| 개인정보 없는 표만(metrics·found_closures·outcomes), 매월 1일 | R2 `archive/` | 12개월 |
+| 복구 시험(`scripts/restore_test.sh`) | R2 최신 백업 → 임시 PostgreSQL 컨테이너 → 표별 건수 비교 | 매월 1일 자동 + 설정 직후 1번 |
+
+- 전체 백업인 이유: 작고(압축 수십 KB~수십 MB) 파일 하나로 되살릴 수 있으며, 14일 지난 파일만 지우면 처리방침의 '백업에 최대 14일' 약속이
+  그대로 지켜짐. 백업 하나가 1GB를 넘으면 재검토(주간 요약에 '최근 크기'·'서버 밖 성공 일수').
+- 실패하면 관리자 메일(서버 백업 실패·서버 밖 올리기 실패·월간 보관 실패·복구 시험 실패).
+- 서버 밖 백업 설정(한 번):
+  1. Cloudflare → R2: 버킷 `lostkorea-backups`(위치 힌트 아시아·태평양), 수명 주기 규칙 `daily/` 14일·`archive/` 365일 뒤 삭제,
+     API 토큰(**이 버킷만** 객체 읽기·쓰기) → Access Key ID·Secret·S3 엔드포인트(`https://<계정ID>.r2.cloudflarestorage.com`).
+  2. 서버 `.env`에 `BACKUP_R2_ACCESS_KEY_ID`·`BACKUP_R2_SECRET_ACCESS_KEY`·`BACKUP_R2_ENDPOINT`·`BACKUP_R2_BUCKET=lostkorea-backups`.
+  3. 암호 파일: `openssl rand -base64 48 > /root/.lostkorea-backup-pass && chmod 600 /root/.lostkorea-backup-pass`
+     → **내용을 비밀번호 관리자에 보관**(서버를 잃으면 이 암호가 있어야 R2 백업을 열 수 있음).
+  4. 확인: `cd /root/lostkorea && scripts/backup_db.sh && scripts/restore_test.sh`
+  - 설정이 없으면 서버 밖 단계는 건너뜀(서버 백업은 그대로). 도구: 서버의 gpg + rclone 공식 이미지(docker, 설치 없음, 키는 환경변수로만).
+- 복구
+  - 서버 백업: `gunzip -c /root/lostkorea-backups/lostkorea_YYYYMMDD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U lostkorea lostkorea`
+  - 서버를 통째로 잃었을 때: 새 서버 → 저장소 clone → 비밀번호 관리자의 `.env`·백업 암호 → `docker compose ... up -d` →
+    R2 `daily/` 최신 파일을 받아 `gpg -d`(암호 파일) → 위처럼 psql로 넣기(약 1시간, 잃는 건 최대 하루치) →
+    습득물 색인은 수집기로 다시(최근 7일은 하룻밤, 185일 전체는 공공 API 한도로 며칠).
+- OpenSearch는 공공데이터 재수집으로 복구 가능해 백업 제외.
 
 ## 8-2. DB 비밀번호 (필수)
 `.env`의 `POSTGRES_PASSWORD`는 **필수**다 — compose에 기본값이 없어서 비어 있으면 아예 뜨지 않는다(공개 레포에 적힌 기본값으로
@@ -248,7 +267,7 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 
 ## 이후 강화(선택)
 - **React/Vercel 프론트 분리**: 분리 시 FastAPI에 CORS 허용 오리진 추가.
-- **관측성**: 에러 추적(Sentry 등)·외부 헬스 체크, 백업 외부 복제.
+- **관측성**: 에러 추적(Sentry 등)·외부 헬스 체크(백업 외부 복제는 2026-11-15 R2로).
 - **이미지 임베딩(CLIP) 레인**: RAM 여유 있는 인스턴스에서 image-to-image KNN 추가(현재는 Gemini 사진 대조로 대체).
 
 ## 보관장소 → 지역 해석 캐시 (2026-11-15)

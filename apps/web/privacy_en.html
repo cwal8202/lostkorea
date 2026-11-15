@@ -33,7 +33,9 @@
     <ul>
       <li>Reports are <b>deleted automatically 30 days after the alert period ends</b> (30 days by default; you can change it).</li>
       <li>You can <b>delete a report anytime under "My reports"</b>; it is erased immediately.</li>
-      <li>Database backups for disaster recovery are kept for 14 days, so deleted data may remain in a backup for up to 14 days.</li>
+      <li>Database backups for disaster recovery are kept for 14 days on the server and in off-server storage (Cloudflare R2, encrypted on our
+        server before upload), so deleted data may remain in a backup for up to 14 days. Statistics and found-item records that contain no
+        personal information are also archived once a month for 12 months.</li>
       <li>Email confirmation links expire after 48 hours.</li>
     </ul>
 
@@ -43,7 +45,7 @@
       <tr><th>Recipient</th><th>Data</th><th>Purpose</th><th>When / how</th></tr>
       <tr><td>Google LLC — Gemini API</td><td>Report text, photo, report language</td><td>Extracting item details, grading candidates, comparing photos</td><td>On report and daily re-matching, encrypted (HTTPS)</td></tr>
       <tr><td>Maileroo — email delivery service<br>(servers in the EU — Germany, Netherlands, France, Finland)</td><td>Email address, alert content</td><td>Sending confirmation and alert emails (Maileroo keeps delivery logs for up to 14 days)</td><td>When an email is sent, encrypted</td></tr>
-      <tr><td>Cloudflare, Inc.</td><td>Connection data (IP address, etc.), emails you send us (address and content)</td><td>Delivering the website and blocking attacks; forwarding mail sent to help@ and privacy@ to the operator's mailbox (Google Gmail)</td><td>When you visit or email us, encrypted</td></tr>
+      <tr><td>Cloudflare, Inc.</td><td>Connection data (IP address, etc.), emails you send us (address and content)</td><td>Delivering the website and blocking attacks; forwarding mail sent to help@ and privacy@ to the operator's mailbox (Google Gmail); storing database backups (R2 — encrypted on our server, so Cloudflare cannot read them; 14 days)</td><td>When you visit or email us, encrypted; backups once a day</td></tr>
     </table></div>
     <p>Transferred data is handled under each provider's terms and privacy policy. If you do not want this transfer, do not use the
        Service, or use it without email and photo (analysis of the report text is the core of the Service and cannot be skipped).</p>
