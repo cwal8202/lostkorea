@@ -250,3 +250,12 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - **React/Vercel 프론트 분리**: 분리 시 FastAPI에 CORS 허용 오리진 추가.
 - **관측성**: 에러 추적(Sentry 등)·외부 헬스 체크, 백업 외부 복제.
 - **이미지 임베딩(CLIP) 레인**: RAM 여유 있는 인스턴스에서 image-to-image KNN 추가(현재는 Gemini 사진 대조로 대체).
+
+## 보관장소 → 지역 해석 캐시 (2026-11-15)
+
+- 지역은 지명 사전(`eval/data/dep_gazetteer.json`) 규칙 + 카카오 장소 검색 캐시(`eval/data/dep_geocoded.json`)로 정함(`apps/api/region.py`).
+- 해석 규칙·캐시를 바꾼 뒤 저장된 지역(둘러보기 필터용)을 맞추려면 서버에서 한 번:
+  `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m scripts.backfill_region` (수집 시간 0~2시는 피하기)
+- 새 보관장소 캐시 채우기는 **로컬에서**(서버에서 저장소 파일을 고치면 git pull 자동 배포가 막힘): 운영 색인의 보관장소 집계를 파일로 받아
+  `uv run python -m scripts.build_geocode_cache --deps-file <파일>` → `dep_geocoded.json` 커밋. `.env`에 `KAKAO_REST_API_KEY` 필요.
+

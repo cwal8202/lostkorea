@@ -43,11 +43,17 @@ def region_from_address(addr: str) -> str:
     return sido
 
 
+# 괄호 안이 운영사·노선 이름이면(갈매역(한국철도공사)) 그걸 붙여 찾지 않음 — 운영사 본사(대전 동구)가 나왔음(2026-11-15 점검)
+_OPERATOR = re.compile(r"공사|철도|호선|선$|교통|주식회사|㈜|\(주|경전철|메트로|도시철도")
+
+
 def candidate_queries(dep: str) -> list[str]:
     m = re.search(r"[(（]([^)）]+)[)）]", dep)
     if not m:
         return [dep.strip()]
     brand = dep[: m.start()].strip()
+    if brand and _OPERATOR.search(m.group(1)):
+        return [brand]
     inside = re.sub(r"(점|지점|영업소)$", "", m.group(1)).strip()
     if inside in ("주", "주식회사") or not inside:
         return [re.sub(r"[(（][^)）]*[)）]", "", dep).strip()]
