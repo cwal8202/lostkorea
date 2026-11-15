@@ -87,6 +87,7 @@ const I18N = {
     ocThanks_not_mine:"알려 주셔서 고마워요. 이 후보는 빼고 계속 찾을게요.",
     ocLbl_contacted:"연락함", ocLbl_visited:"방문함", ocLbl_found:"찾음", ocLbl_not_mine:"다른 물건",
     actFail:"저장하지 못했어요. 잠시 후 다시 눌러 주세요.",
+    pagerCap:"결과가 많아 앞쪽 1만 건까지만 볼 수 있어요. 지역·날짜·키워드로 좁혀 보세요.",
     alertTitle:"알림 설정",
     alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
     alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
@@ -171,6 +172,7 @@ const I18N = {
     ocThanks_not_mine:"Thanks for letting us know. We'll drop this one and keep searching.",
     ocLbl_contacted:"Contacted", ocLbl_visited:"Visited", ocLbl_found:"Got it back", ocLbl_not_mine:"Not mine",
     actFail:"Couldn't save. Please try again shortly.",
+    pagerCap:"Only the first 10,000 results can be shown. Narrow it down by region, date or keyword.",
     alertTitle:"Alert settings",
     alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
     alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
@@ -989,16 +991,17 @@ function renderBrowse(d) {
   if (d.regions?.length && sel.dataset.filled !== "1") {  // 지역 드롭다운 최초 1회 채움
     const cur = sel.value || sel.dataset.want || "";
     delete sel.dataset.want;
+    // 서버가 시도(합계) → 그 아래 시군구 순으로 줌 — 시도를 고르면 그 아래 전부
     sel.innerHTML = `<option value="">${t('allRegions')}</option>` +
-      d.regions.slice().sort((a, b) => b.count - a.count)
-        .map(r => `<option value="${esc(r.name)}">${esc(r.name)} (${r.count})</option>`).join("");
+      d.regions.map(r => `<option value="${esc(r.name)}">${r.level ? "  └ " + esc(r.label || r.name) : esc(r.name)} (${r.count.toLocaleString()})</option>`).join("");
     sel.value = cur; sel.dataset.filled = "1";
   }
   $("bcount").textContent = t('browseCount', d.total || 0);
   const xl = t('browseXlate');
   $("browseList").innerHTML = (xl ? `<div class="note info" style="margin-bottom:8px">${ic('info', 'ic ic-sm')} ${xl}</div>` : "") +
     ((d.items || []).map(browseItem).join("") || `<span class="muted">${t('noItems')}</span>`);
-  renderPager(d.page || 1, Math.ceil((d.total || 0) / (d.size || 24)));
+  const pages = Math.ceil((d.total || 0) / (d.size || 24));
+  renderPager(d.page || 1, Math.min(pages, d.max_page || pages), pages > (d.max_page || pages));
 }
 
 // 사진 없는 항목도 같은 자리에 회색 칸을 둬 목록 줄이 맞게(사진 불러오기 실패 시에도 이 칸으로 바뀜)
@@ -1031,10 +1034,12 @@ function browseItem(m) {
     </div></div>`;
 }
 
-function renderPager(page, pages) {
+// capped: 결과가 많아 앞쪽 1만 건까지만 볼 수 있음(검색 서버 한도) — 예전엔 열 수 없는 뒤 페이지 수까지 보여 줬음
+function renderPager(page, pages, capped = false) {
   if (!pages || pages <= 1) { $("browsePager").innerHTML = ""; return; }
   const btn = (p, label, dis) => `<button class="btn btn-outline btn-sm" ${dis ? "disabled" : ""} onclick="doBrowse(${p})">${label}</button>`;
   $("browsePager").innerHTML = btn(page - 1, t('prev'), page <= 1)
     + `<span class="muted small">${page} / ${pages}</span>`
-    + btn(page + 1, t('next'), page >= pages);
+    + btn(page + 1, t('next'), page >= pages)
+    + (capped ? `<div class="muted small" style="flex-basis:100%;text-align:center">${t('pagerCap')}</div>` : "");
 }

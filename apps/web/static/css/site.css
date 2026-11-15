@@ -295,7 +295,7 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .orig-subj { font-weight: 700; color: var(--navy); margin-bottom: 6px; }
 .orig-text { white-space: pre-line; line-height: 1.7; }
 .orig-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 4px; font-weight: 700; }
-.pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 16px 0 12px; }
+.pager { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; padding: 16px 0 12px; }
 .pager:empty { display: none; }
 .load-fail { padding: 28px 0; text-align: center; color: var(--sub); }
 .load-fail .btn { margin-top: 12px; }
