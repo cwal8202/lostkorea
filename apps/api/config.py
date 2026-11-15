@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     watch_days_default: int = 30       # 지속 재매칭(알림) 기간 기본값 — 지나면 expired, 재매칭·LLM 비용 중단
     watch_days_max: int = 180          # 선택 상한 = 습득물 최대 보관 기간(~6개월)
     found_retention_days: int = 185   # 습득일이 이보다 오래된 습득물은 색인에서 삭제(유실물법 6개월 + 여유)
+    # 분실일을 알면 그 전날(grace) 이후 습득물만 찾음(검색 단계에서 거름 — 2026-11-15 운영자 결정).
+    # 예전엔 날짜를 안 썼고(가중치 0), 감점만 해도 185일치에서 비슷한 순 100개를 뽑으면 분실일 이후 습득물이 0~19개뿐(운영 실측)
+    # → 진짜 물건이 후보에 못 들어옴.
+    # 전날 습득물은 날짜를 하루 잘못 기억한 경우 몫으로 남기되 near만큼 낮춤(같은 날·그 뒤 습득물보다 아래로).
+    search_date_grace_days: int = 1
+    search_w_date_near: float = 0.02
     collect_workers: int = 4          # 상세 조회 동시 요청 수(공공 API 예의 — 너무 올리지 말 것)
     retention_days: int = 30          # 알림 기간이 끝난 뒤 이 일수가 지나면 신고 자동 삭제(개인정보 보유 기간)
     verify_hours: int = 48             # 이메일 확인 링크 유효 시간

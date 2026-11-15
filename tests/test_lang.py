@@ -81,7 +81,7 @@ def test_grade_prompt_puts_target_language_first_and_asks_only_score_and_reason(
     assert gemini._REASON_EXAMPLE[lang] in p                      # 예시도 그 언어로(예전엔 영어 예시뿐)
     assert "name_en" not in p and "desc_en" not in p               # 번역은 판정에서 분리
     assert "특이사항:신분증, 신한카드 2장" in p and "습득장소:지하철" in p   # 실제 단서(상투 문장은 뺌)
-    assert "분실일 2026-11-13(오늘 2026-11-15)" in p and "3일 넘게" in p
+    assert "분실일 2026-11-13(오늘 2026-11-15)" in p and "하루 이른 건" in p
 
 
 def test_grade_prompt_korean_has_no_language_rule_and_soft_date(monkeypatch):

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import urllib.request
+from datetime import date, datetime, timedelta, timezone
 
 from . import gemini
 from .config import settings
@@ -149,6 +150,33 @@ def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = ""
     }
 
 
+def date_floor(lost_date: str | None, grace_days: int, today: date | None = None) -> str | None:
+    """분실일 → 이 날짜(포함) 이후 습득물만 찾음(앱·eval 공용). 분실일 grace_days일 전부터.
+
+    날짜가 없거나 형식이 이상하거나 오늘보다 뒤면 None(거르지 않음) — 잘못된 날짜 하나로 결과가 통째로 비지 않게.
+    """
+    if not lost_date:
+        return None
+    try:
+        d = date.fromisoformat(lost_date[:10])
+    except ValueError:
+        return None
+    if d > (today or datetime.now(timezone(timedelta(hours=9))).date()):
+        return None
+    return (d - timedelta(days=grace_days)).isoformat()
+
+
+def date_penalty(found_at: str, lost_date: str | None, near: float) -> float:
+    """분실일보다 먼저(전날 등 거름 여유 안) 습득된 물건 감점 — 같은 날이거나 늦으면 0. 날짜를 모르면 0."""
+    if not (lost_date and found_at and near):
+        return 0.0
+    try:
+        days = (date.fromisoformat(lost_date[:10]) - date.fromisoformat(found_at[:10])).days
+    except ValueError:
+        return 0.0
+    return near if days >= 1 else 0.0
+
+
 def search(
     q: str,
     region_set: list[str] | None = None,
@@ -157,15 +185,27 @@ def search(
     size: int = 10,
     candidates: int = 100,
     w_region: float = 0.05,
-    w_time: float = 0.0,
+    w_time_near: float | None = None,
 ) -> list[dict]:
+    """의미 검색 + 지역 가점 (+ 분실일을 알면 그 전날 이후 습득물만).
+
+    분실일 처리: 검색 단계에서 거름(KNN filter) → 후보 100개가 모두 가능한 날짜의 물건. 전날 습득물은 near만큼 낮춤.
+    """
     region_set = region_set or []
+    near = settings.search_w_date_near if w_time_near is None else w_time_near
+    floor = date_floor(lost_date, settings.search_date_grace_days)
+    date_filter = {"range": {"found_at": {"gte": floor}}} if floor else None
     try:
         qv = gemini.embed_query(q)
-        query = {"knn": {"embedding": {"vector": qv, "k": candidates}}}
+        knn = {"vector": qv, "k": candidates}
+        if date_filter:
+            knn["filter"] = date_filter
+        query = {"knn": {"embedding": knn}}
     except Exception as e:  # noqa: BLE001 — 임베딩(Gemini) 장애 시 키워드(BM25) 검색으로 대체해 서비스 유지
         print(f"[search] 임베딩 실패({type(e).__name__}) → 키워드 검색으로 대체")
         query = {"multi_match": {"query": q, "fields": ["name^2", "subject", "description", "category"]}}
+        if date_filter:
+            query = {"bool": {"must": [query], "filter": [date_filter]}}
 
     hits = _os_search({
         "size": candidates,
@@ -182,8 +222,7 @@ def search(
         score = base
         if w_region and region_set and resolver.match(region, region_set):
             score += w_region
-        if w_time and lost_date and s.get("found_at", "") < lost_date:
-            score -= w_time  # 습득일 < 분실일이면 감점
+        score -= date_penalty(s.get("found_at", ""), lost_date, near)  # 분실일 전날 습득 → 조금 낮춤
         scored.append({
             "atc_id": s.get("atc_id", h["_id"].split("_")[0]),
             "fd_sn": s.get("fd_sn", "1"),

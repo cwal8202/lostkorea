@@ -122,12 +122,11 @@ def search_found_items(
     request: Request,
     q: str = Query(..., max_length=MAX_TEXT, description="분실물 자연어 설명 (예: '지하철에 두고 온 흰색 무선이어폰')"),
     region: str | None = Query(None, max_length=300, description="검색 지역집합, 쉼표구분 (예: '순천,광양,여수'). 넓게(구/시)."),
-    lost_date: str | None = Query(None, max_length=10, description="분실일 YYYY-MM-DD (습득일<분실일 감점)"),
+    lost_date: str | None = Query(None, max_length=10, description="분실일 YYYY-MM-DD — 그 전날 이후 습득물만"),
     grade: bool = Query(False, description="LLM grading 재정렬+근거 (Gemini 호출)"),
     size: int = Query(10, ge=1, le=50, description="반환 개수"),
     candidates: int = Query(100, ge=10, le=200, description="KNN 후보 수 (넉넉히)"),
     w_region: float = Query(0.05, ge=0.0, le=1.0, description="지역 가점 가중치 (eval 권장 ~0.05)"),
-    w_time: float = Query(0.0, ge=0.0, le=1.0, description="시간(습득일<분실일) 감점 가중치"),
 ) -> SearchResponse:
     limiter.hit(f"search:{client_ip(request)}", settings.limit_search_hour, _HOUR)
     limiter.spend(2 if grade else 1)  # 임베딩 1 + (판정 LLM 1)
@@ -135,7 +134,7 @@ def search_found_items(
     region_set = [r.strip() for r in region.split(",") if r.strip()] if region else []
     items = search_mod.search(
         q, region_set=region_set, lost_date=lost_date, do_grade=grade,
-        size=size, candidates=candidates, w_region=w_region, w_time=w_time,
+        size=size, candidates=candidates, w_region=w_region,
     )
     return SearchResponse(
         query=q, count=len(items), region_set=region_set, graded=grade,
