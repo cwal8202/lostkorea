@@ -68,6 +68,21 @@ def test_confirm_and_dismiss_use_serial_number_too():
     assert rematch.is_dismissed({"atc_id": "OLD"}, {"OLD"})                        # 옛 기록(관리번호만)도 그대로
 
 
+@pytest.mark.parametrize("source, want", [
+    ("police", ["P"]),          # 경찰서: 같은 관리번호 = 한 사람 소지품 묶음(지갑 + 그 안의 현금) → 번호 전체
+    ("portal", ["P_1"]),        # 기관(공항세관 등): 같은 번호에 다른 사람 물건 → 누른 그 물건만
+])
+def test_dismiss_scope_depends_on_source(source, want):
+    store.init()
+    wallet = {"atc_id": "P", "fd_sn": "1", "name": "지갑", "grade": 70, "source": source}
+    cash = {"atc_id": "P", "fd_sn": "2", "name": "현금", "grade": 60, "source": source}
+    lid = store.add("지갑", {}, [], [], wallet, 70, status="open", token_hash=store.hash_token("t"), matches=[wallet, cash])
+    r = client.post(f"/lost-items/{lid}/dismiss", headers={"X-Report-Token": "t"}, json={"atc_id": "P", "fd_sn": "1"})
+    dismissed = set(store.get(lid)["dismissed"])
+    assert r.json()["dismissed"] == want
+    assert rematch.is_dismissed(cash, dismissed) is (source == "police")         # 묶음의 현금도 같이 빠지는가
+
+
 def test_all_graded_candidates_are_kept():
     ms = [{"atc_id": str(i), "grade": 50} for i in range(15)]
     assert len(rematch.slim_matches(ms)) == 12                                     # 예전 6 → 다시 열어도 12개

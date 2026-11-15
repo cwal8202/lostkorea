@@ -616,16 +616,31 @@ def lost_item_outcome(lid: str, req: OutcomeRequest, x_report_token: str | None 
         store.bump(f"outcome_{req.stage}")
     status = "confirmed"
     if req.stage == "not_mine":  # 기관에 확인해 보니 다른 물건 → 그 후보 빼고 다시 찾는 중
-        store.dismiss(lid, f"{match.get('atc_id')}_{match.get('fd_sn') or '1'}")
+        store.dismiss(lid, dismiss_key(match, match.get("atc_id"), str(match.get("fd_sn") or "1")))
         status = "open"
     return {"ok": True, "stage": req.stage, "status": status, "outcome": outcome}
 
 
+def dismiss_key(match: dict | None, atc_id: str, fd_sn: str = "") -> str:
+    """'아니에요'로 뺄 범위 — 출처별로 다름(운영 데이터 확인, 11/15).
+
+    경찰서: 같은 관리번호 = 한 사람 소지품 묶음(지갑 + 그 안의 현금·신분증) → 번호 전체를 뺌.
+    기관(예: 인천공항세관): 같은 날 들어온 서로 다른 사람 물건을 한 번호로 등록(립스틱 + 담배 쇼핑백) → 누른 그 물건만.
+    출처를 모르면 그 물건만(내 물건이 잘못 사라지는 쪽이 더 나쁨). 순번을 모르는 옛 화면 요청은 번호 전체(예전 동작).
+    """
+    if (match or {}).get("source") == "police" or not fd_sn:
+        return atc_id
+    return f"{atc_id}_{fd_sn}"
+
+
 @app.post("/lost-items/{lid}/dismiss")
 def dismiss_lost_item(lid: str, req: DismissRequest, x_report_token: str | None = Header(None)) -> dict:
-    """'아니에요' → 그 후보 제외하고 계속 탐색(open)."""
-    _owned(lid, x_report_token)
-    dismissed = store.dismiss(lid, f"{req.atc_id}_{req.fd_sn}" if req.fd_sn else req.atc_id)
+    """'아니에요' → 그 후보 제외하고 계속 탐색(open). 경찰서 습득물은 같은 관리번호 묶음 전체, 기관 습득물은 그 물건만."""
+    item = _owned(lid, x_report_token)
+    cands = (item.get("matches") or []) + ([item["best_match"]] if item.get("best_match") else [])
+    match = next((m for m in cands if m.get("atc_id") == req.atc_id
+                  and (not req.fd_sn or str(m.get("fd_sn") or "1") == req.fd_sn)), None)
+    dismissed = store.dismiss(lid, dismiss_key(match, req.atc_id, req.fd_sn))
     store.bump("dismiss")
     return {"ok": True, "status": "open", "dismissed": dismissed}
 
