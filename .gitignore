@@ -24,3 +24,6 @@ eval/datalab/data/visitors_*.json
 design-preview/
 # 임베딩 차원·모델 비교 캐시(eval/run_dims.py) — 크고 재생성 가능
 eval/data/emb_dims_cache.json
+
+# 실제 분실 신고 실측 원자료(eval/run_lost112.py) — 저장소에 안 올림
+data/lost112/
