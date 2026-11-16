@@ -119,25 +119,35 @@ def _step_down_thinking(url: str, body: dict, message: str) -> bool:
     return True
 
 
-def _switch_to_fallback() -> bool:
-    """기본 모델이 사라졌을 때(404) 예비 모델로 전환 + 관리자 알림(1회). 이미 예비 모델이면 False."""
+def _switch_to_fallback(reason: str = "gone") -> bool:
+    """기본 모델을 못 쓸 때 예비 모델로 전환 + 관리자 알림(1회). 이미 예비 모델이면 False.
+
+    reason: 'gone' = 404(모델 종료·차단) / 'daily' = 하루 요청 한도 초과(429, 모델별 한도라 예비 모델은 따로 남아 있음).
+    """
     fb = settings.gemini_fallback_model
     if not fb or _model() == fb:
         return False
     old = _model()
     _ACTIVE["model"] = fb
+    if reason == "daily":
+        body = (f"{old}의 하루 요청 한도(모델별)를 넘어 {fb}로 자동 전환했어요. 서비스는 계속 동작합니다(예비 모델은 단가가 더 높음).\n"
+                f"한도는 태평양 자정(한국 오후 5시 무렵)에 풀립니다. 그 뒤 backend를 재시작하면 다시 {old}부터 씁니다.")
+    else:
+        body = (f"{old} 호출이 404(모델 종료·차단)로 실패해 {fb}로 자동 전환했어요. 서비스는 계속 동작합니다.\n"
+                f".env의 GEMINI_GRADE_MODEL을 {fb}(또는 새 모델)로 바꾸고 재배포하세요. 재시작하면 다시 {old}부터 시도합니다.")
     try:
         import threading
 
         from apps import ops
-        threading.Thread(target=ops.alert, daemon=True, args=(
-            f"Gemini 모델 전환 — {old} → {fb}",
-            f"{old} 호출이 404(모델 종료·차단)로 실패해 {fb}로 자동 전환했어요. 서비스는 계속 동작합니다.\n"
-            f".env의 GEMINI_GRADE_MODEL을 {fb}(또는 새 모델)로 바꾸고 재배포하세요. 재시작하면 다시 {old}부터 시도합니다.",
-        )).start()
+        threading.Thread(target=ops.alert, daemon=True, args=(f"Gemini 모델 전환 — {old} → {fb}", body)).start()
     except Exception:  # noqa: BLE001 — 알림 실패가 전환을 막지 않게
         pass
     return True
+
+
+def _daily_quota(err: str) -> bool:
+    """429가 '하루 한도'인가(분당 한도는 잠깐 기다리면 풀리니 전환하지 않음)."""
+    return "PerDay" in err or "per_day" in err
 
 
 def _post(url: str, body: dict, timeout: int = 60, max_retry: int = 3) -> dict:
@@ -157,6 +167,9 @@ def _post(url: str, body: dict, timeout: int = 60, max_retry: int = 3) -> dict:
         except urllib.error.HTTPError as e:
             if e.code == 404 and ":generateContent" in url and _switch_to_fallback():
                 url = _gen_url()  # 모델이 사라짐 → 예비 모델로 즉시 재시도
+                continue
+            if e.code == 429 and ":generateContent" in url and _daily_quota(_err_text(e)) and _switch_to_fallback("daily"):
+                url = _gen_url()  # 하루 한도 초과(모델별) → 예비 모델로 즉시 재시도
                 continue
             if e.code == 400 and _step_down_thinking(url, body, _err_text(e)):
                 continue          # 이 모델이 thinking 수준을 거부 → 조정해 즉시 재시도

@@ -67,6 +67,43 @@ def test_retired_model_switches_to_fallback_and_alerts(monkeypatch):
     assert len(alerts) == 1 and "모델 전환" in alerts[0]
 
 
+def test_daily_quota_switches_to_fallback_but_minute_limit_waits(monkeypatch):
+    """11/17 실측: 같은 키로 대량 측정을 돌려 기본 모델의 하루 한도(모델별 1만 회)를 다 씀 → 운영 AI가 오후까지 실패.
+    하루 한도 429는 예비 모델(한도 따로)로 바로 전환, 분당 한도 429는 예전처럼 잠깐 기다렸다 재시도."""
+    import io
+
+    urls, alerts = [], []
+    day = b'{"error":{"code":429,"details":[{"violations":[{"quotaId":"GenerateRequestsPerDayPerProjectPerModel"}]}]}}'
+    minute = b'{"error":{"code":429,"details":[{"violations":[{"quotaId":"GenerateRequestsPerMinutePerProjectPerModel"}]}]}}'
+    state = {"body": day, "fail": 1}
+
+    def fake_urlopen(req, timeout=0):
+        urls.append(req.full_url)
+        if settings.gemini_grade_model in req.full_url and state["fail"] > 0:
+            state["fail"] -= 1
+            raise urllib.error.HTTPError(req.full_url, 429, "quota", {}, io.BytesIO(state["body"]))
+        return _ok(_gen_response({"ok": True}))
+
+    monkeypatch.setattr(gemini.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(ops, "alert", lambda s, b: alerts.append(b))
+    monkeypatch.setattr(gemini.time, "sleep", lambda s: None)
+    import threading
+    monkeypatch.setattr(threading, "Thread",
+                        lambda target, daemon, args: type("T", (), {"start": lambda self: target(*args)})())
+
+    monkeypatch.setitem(gemini._ACTIVE, "model", None)
+    state.update(body=minute, fail=1)
+    assert gemini.generate_json("x") == {"ok": True}
+    assert [settings.gemini_fallback_model in u for u in urls] == [False, False]   # 분당 한도 → 같은 모델로 재시도
+    assert alerts == []
+
+    urls.clear()
+    state.update(body=day, fail=1)
+    assert gemini.generate_json("y") == {"ok": True}
+    assert [settings.gemini_fallback_model in u for u in urls] == [False, True]    # 하루 한도 → 예비 모델로 즉시
+    assert len(alerts) == 1 and "하루 요청 한도" in alerts[0]
+
+
 def test_long_route_keeps_destination(monkeypatch):
     """서울역→부산역 KTX처럼 긴 노선: 앞에서만 자르면 도착지(부산)가 잘렸다 → 앞뒤를 남김."""
     regions = ["서울 중구"] + [f"경유{i}" for i in range(30)] + ["부산 동구"]
