@@ -230,6 +230,14 @@ def _core(tok: str) -> str:
     return t
 
 
+def short_region(region: str) -> str:
+    """'서울특별시 중랑구' → '서울 중랑구' (경유 지역 칩·노선표와 같은 꼴, region_matches는 어느 꼴이든 비교)."""
+    toks = region.split()
+    if toks and toks[0] in _SIDO:
+        toks[0] = _SIDO[toks[0]]
+    return " ".join(toks)
+
+
 def region_matches(region: str, region_set: list[str]) -> bool:
     """해석된 지역(예 '서울특별시 중구')이 지역집합(예 ['서울 중구', '마포'])에 드는가.
 

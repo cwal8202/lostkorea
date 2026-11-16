@@ -32,6 +32,7 @@
 - **왜 후보인지 근거(LLM) + 📷 사진 검색(Vision)** — 목록만 주는 관공서와 달리 **판단 근거**·사진 대조까지.
   AI가 **무엇을 하는지(추출→지역→검색→판정) 실시간으로 보여주고**, 판정 전 후보부터 먼저 띄움.
 - **장소가 불확실해도** — 노선 경유 지역까지 넓혀 순위에 반영하고 *왜* 그 지역들을 봤는지 **설명**.
+  버스 번호는 **실제 노선표**(서울 시내 + 서울에 들어오는 경기·인천 버스 1,353개 노선의 정류장 → 구)로 — AI 추정보다 정밀도 38% → 98%.
 - **안 찾아봐도 알림** — 신고를 저장해두면 새 습득물 유입마다 자동 재매칭 → **이메일 알림**(알림 기간·약한 후보 알림은 사용자가 설정).
   메일 버튼은 **그 신고의 결과로 바로** 열려서 다른 기기에서도 후보 확인·[내 물건이에요]까지 이어짐.
 - **지금 보관 중인 것만** — 매일 경찰 목록과 대조해 주인에게 돌아간(종결) 습득물은 빼고, 내려간 사진도 반영.
@@ -101,10 +102,10 @@
 **검색어는 한 문장**: 브랜드·색·물건·특징을 검색어 하나로 — 좁게·중간·넓게 3개를 합치던 예전 방식은 넓은 검색어의 평범한 물건이
 정답을 밀어내 정답 1위 72% → 한 문장 89%(123문항, `eval/results/merge_compare.md`). 정답이 상위 8개 안에 99%라 AI 판정도 8개만(-29% 비용).
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 342개(검색어 만들기·지역가점·지역 매칭·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 384개(검색어 만들기·지역가점·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
-카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
+다른 지역 버스 노선(국토교통부 API 승인 후) · 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
 
 ---
 
@@ -124,15 +125,15 @@ Docker Compose · **Caddy(자동 HTTPS)** · **GitHub Actions(자동배포)** ·
 ## 레포 구조
 
 ```
-eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, OpenSearch 색인·검색·데모, 결과 번역 6개 언어 측정 run_lang·분실일 거름 측정 run_date) + datalab/(데이터랩 결합 분석)
+eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, OpenSearch 색인·검색·데모, 결과 번역 6개 언어 측정 run_lang·분실일 거름 측정 run_date·버스 경유 구 대조 run_route_bus) + datalab/(데이터랩 결합 분석)
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
-scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache)
-tests/       pytest 342개 (외부 서비스 목킹)
+scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache) · build_bus_routes(버스 노선표, 월 1회 로컬)
+tests/       pytest 384개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)
-apps/agent/     매칭 에이전트 (LangGraph: extract→route→fanout(검색어 한 문장)→search→grade(상위 8), 단계 스트림) + rematch(지속 재매칭·알림 기간)
+apps/agent/     매칭 에이전트 (LangGraph: extract→route(버스 번호는 노선표, 나머지 Gemini)→fanout(검색어 한 문장)→search→grade(상위 8), 단계 스트림) + rematch(지속 재매칭·알림 기간)
 apps/collector/ 수집기 (data.go.kr 목록 → 기존 항목 스킵 → 새 항목 상세 enrich → 임베딩 → 색인, --rematch)
 apps/store.py   분실물 저장소 (PostgreSQL/SQLite 이중 백엔드, DATABASE_URL로 선택, 누락 컬럼 자동 마이그레이션) + 익명 통계 + 습득물 이탈 기록
 apps/notifier.py 알림 (Notifier 인터페이스 + Console/Email, 유력·약한 후보 문구 구분, 신고자 언어 13개)
