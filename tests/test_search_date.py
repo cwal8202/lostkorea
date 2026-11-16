@@ -66,5 +66,6 @@ def test_keyword_fallback_also_filters_by_lost_date(monkeypatch):
 def test_agent_search_uses_extracted_lost_date(monkeypatch):
     seen = []
     monkeypatch.setattr(graph.search_mod, "search", lambda q, **k: seen.append(k["lost_date"]) or [])
-    graph.n_search({"extracted": {"lost_date": "2026-11-13"}, "queries": ["검정 지갑", "지갑"], "region_set": []})
-    assert seen == ["2026-11-13", "2026-11-13"]                              # 재매칭(match_stored)도 같은 경로
+    graph.n_search({"extracted": {"lost_date": "2026-11-13", "color": "검정", "item": "지갑"},
+                    "queries": ["검정 지갑", "지갑"], "region_set": []})
+    assert seen == ["2026-11-13"]                                            # 재매칭(match_stored)도 같은 경로(검색어 하나)

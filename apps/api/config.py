@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     # 전날 습득물은 날짜를 하루 잘못 기억한 경우 몫으로 남기되 near만큼 낮춤(같은 날·그 뒤 습득물보다 아래로).
     search_date_grace_days: int = 1
     search_w_date_near: float = 0.02
+    # 검색어 만드는 방식(2026-11-16 측정, eval/results/merge_compare.md — 123문항):
+    #   "full"   = 브랜드·색·물건·특징을 검색어 하나로(기본). 정답 1위 72%→89%, 판정 후보 8개 안 89%→99%, 임베딩 3번→1번.
+    #   "fanout" = 예전 방식(좁게·중간·넓게 3개를 높은 점수로 합침) — 되돌리기용. 넓은 검색어가 평범한 물건에 준 높은 점수가
+    #              좁은 검색어의 정답을 밀어내는 문제가 있었음(좁게 1위 → 합친 뒤 11~15위).
+    search_query_mode: str = "full"
+    # AI 판정에 넘기는 후보 수(예전 12). full 방식에선 정답이 8개 안에 99% → 판정 -0.7초·비용 -29%(eval/results/topk_8_vs_12.md).
+    grade_topk: int = 8
     collect_workers: int = 4          # 상세 조회 동시 요청 수(공공 API 예의 — 너무 올리지 말 것)
     retention_days: int = 30          # 알림 기간이 끝난 뒤 이 일수가 지나면 신고 자동 삭제(개인정보 보유 기간)
     verify_hours: int = 48             # 이메일 확인 링크 유효 시간

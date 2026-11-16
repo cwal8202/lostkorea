@@ -1,6 +1,7 @@
 """매칭 에이전트 (LangGraph) — 신고 자연어 → 매칭 결과.
 
-extract → route → fanout → search(병합) → grade. 노드는 평범한 함수, LangGraph가 그래프로 엮음.
+extract → route → fanout(검색어 만들기, 기본은 한 문장) → search → grade(상위 settings.grade_topk개).
+노드는 평범한 함수, LangGraph가 그래프로 엮음.
 v1은 선형. 추후 분기/루프(예: grade 낮으면 fanout 확장 후 재검색), DB 저장, 지속 재매칭 추가.
 """
 
@@ -17,10 +18,10 @@ from apps.agent import extract as extract_mod
 from apps.agent import fanout
 from apps.agent import route
 from apps.api import gemini
+from apps.api.config import settings
 from apps.api import search as search_mod
 
-SEARCH_PER_QUERY = 10
-MERGED_TOPK = 12
+SEARCH_PER_QUERY = 10  # 예전 방식(fanout)에서 검색어마다 가져오는 수. 판정 후보 수는 settings.grade_topk
 
 
 class AgentState(TypedDict, total=False):
@@ -56,20 +57,36 @@ def graded_keys(matches: list[dict]) -> list[str]:
     return [cand_key(m) for m in matches if m.get("grade") is not None]
 
 
+def _search_queries(state: AgentState) -> list[str]:
+    """이번 검색에 쓸 검색어. 기본(full)은 추출 필드로 매번 다시 만듦 — 예전 방식으로 저장된 신고(검색어 3개)도
+    밤 재매칭부터 새 방식으로 찾게. 추출 칸이 다 비면 저장된 첫 검색어, 그것도 없으면 신고 문장."""
+    if settings.search_query_mode == "fanout":
+        return state.get("queries") or []
+    qs = fanout.build_queries(state.get("extracted") or {})
+    if qs:
+        return qs
+    stored = state.get("queries") or []
+    text = (state.get("text") or "").strip()
+    return stored[:1] or ([text[:200]] if text else [])
+
+
 def n_search(state: AgentState) -> dict:
     ex = state["extracted"]
     region_set = state.get("region_set") or []
     lost_date = ex.get("lost_date") or None
+    queries = _search_queries(state)
+    topk = settings.grade_topk
+    per = topk if len(queries) == 1 else SEARCH_PER_QUERY
     merged: dict[str, dict] = {}
-    for q in state["queries"]:
+    for q in queries:
         for it in search_mod.search(
             q, region_set=region_set, lost_date=lost_date, do_grade=False,
-            size=SEARCH_PER_QUERY, candidates=100,
+            size=per, candidates=100,
         ):
             key = cand_key(it)
             if key not in merged or it["score"] > merged[key]["score"]:
                 merged[key] = it
-    cands = sorted(merged.values(), key=lambda x: -x["score"])[:MERGED_TOPK]
+    cands = sorted(merged.values(), key=lambda x: -x["score"])[:topk]
     return {"candidates": cands}
 
 
