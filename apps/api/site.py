@@ -513,9 +513,12 @@ def terms_en(request: Request) -> HTMLResponse:
 @router.get("/robots.txt", include_in_schema=False)
 def robots() -> PlainTextResponse:
     base = settings.public_base_url.rstrip("/")
+    # 전체 습득물 화면은 목록을 /found-items/browse에서 받아 채움 — 막으면 구글이 그린 화면엔 '불러오지 못했어요'만 남아
+    # Soft 404가 됨. 그 목록만 열고, 데이터 주소 자체는 응답 머리글 noindex로 검색 결과에서 뺌.
+    # 순서: 좁은 Allow → Disallow → 'Allow: /' — 가장 긴 규칙을 따르는 구글·처음 맞는 규칙을 따르는 봇 모두 같은 결과.
     return PlainTextResponse("\n".join([
-        "User-agent: *", "Allow: /",
-        "Disallow: /lost-items", "Disallow: /email/", "Disallow: /found-items/", "Disallow: /health",
+        "User-agent: *", "Allow: /found-items/browse",
+        "Disallow: /lost-items", "Disallow: /email/", "Disallow: /found-items/", "Disallow: /health", "Allow: /",
         f"Sitemap: {base}/sitemap.xml", "",
     ]))
 

@@ -349,6 +349,7 @@ def thumbnail(request: Request, u: str = Query(..., max_length=500)) -> Response
 @app.get("/found-items/browse")
 def browse_found_items(
     request: Request,
+    response: Response,
     q: str = Query("", max_length=100, description="키워드 검색(물품명·설명·분류, BM25)"),
     region: str = Query("", max_length=60, description="지역(구/시) 필터 (예: '강남')"),
     date_from: str = Query("", max_length=10, description="습득일 시작 YYYY-MM-DD"),
@@ -366,6 +367,8 @@ def browse_found_items(
         limiter.spend(1)
     if page == 1 and not _is_bot(request):  # 첫 페이지 조회만(페이지 넘김은 같은 조회)
         store.bump("browse")
+    # robots.txt가 이 주소를 연 건 구글이 /browse 화면을 그릴 때 목록을 받게 하려는 것 — 데이터 주소 자체는 검색 결과에 안 뜨게
+    response.headers["X-Robots-Tag"] = "noindex"
     return search_mod.browse(q=q, region=region, date_from=date_from, date_to=date_to,
                              page=page, size=size, photo=photo, sort=sort)
 

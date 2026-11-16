@@ -60,6 +60,26 @@ def test_robots_sitemap_manifest():
     assert mf.json()["short_name"] == "LostKorea" and mf.headers["content-type"].startswith("application/manifest+json")
 
 
+def test_browse_list_open_to_crawlers_but_not_indexed(monkeypatch):
+    """전체 습득물 화면은 목록을 /found-items/browse에서 받아 채움 — 그 주소를 막으면 구글이 그린 화면엔
+    '불러오지 못했어요'만 남아 Soft 404(2026-11-16 Search Console). 목록만 열고, 데이터 주소 자체는 noindex."""
+    from urllib import robotparser
+
+    from apps.api import search as search_mod
+
+    rp = robotparser.RobotFileParser()
+    rp.parse(client.get("/robots.txt").text.splitlines())
+    for path in ("/browse", "/en/browse", "/found-items/browse?q=wallet&page=1&size=10"):
+        assert rp.can_fetch("Googlebot", BASE + path), path
+    for path in ("/found-items/F1/photo", "/lost-items", "/email/x", "/health"):  # 나머지는 그대로 막힘
+        assert not rp.can_fetch("Googlebot", BASE + path), path
+
+    monkeypatch.setattr(search_mod, "_os_raw", lambda body: {"hits": {"hits": [], "total": {"value": 0}}})
+    r = client.get("/found-items/browse", headers={"user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1)"})
+    assert r.status_code == 200 and r.headers["x-robots-tag"] == "noindex"
+    assert "x-robots-tag" not in client.get("/en/browse").headers  # 화면은 색인 대상
+
+
 def test_english_policy_pages():
     assert "Privacy Policy" in client.get("/en/privacy").text
     assert "Terms of Service" in client.get("/en/terms").text

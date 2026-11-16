@@ -23,6 +23,8 @@
 - ✅ **네이버 서치어드바이저**: HTML 태그 방식(확인 값은 `apps/api/site.py`의 `SITE_VERIFICATION`, 모든 페이지 head — **지우지 말 것**),
   소유확인 완료, 사이트맵 제출.
 - ✅ **Bing Webmaster Tools**: Search Console에서 가져오기(별도 확인 불필요), 사이트맵 제출(처리 중). Bing은 DuckDuckGo 등에도 결과를 준다.
+- ⏳ **Search Console 'Soft 404'(2026-11-16)**: 전체 습득물 화면의 목록을 robots.txt가 막고 있던 문제 — FIND-110에서 고침. 배포 뒤
+  색인 생성 → 페이지 → 'Soft 404' 줄 → **수정 결과 확인**. '리디렉션이 포함된 페이지'(http·www → 대표 주소)는 정상이라 둠.
 - 효과는 며칠~몇 주 뒤 각 도구의 실적(검색어·노출·클릭)에서 확인. 새 페이지를 만들면 사이트맵은 자동 반영(`site.py` PAGES).
 지금까지 검색엔진에 사이트를 알린 적이 없다. sitemap·메타는 준비됨. 주소 `https://lostkorea.com`으로 등록.
 소유 확인은 **DNS(TXT 레코드) 방식**이 가장 간단 — 도메인이 Cloudflare에 있으니 Cloudflare DNS에 한 줄 추가.
