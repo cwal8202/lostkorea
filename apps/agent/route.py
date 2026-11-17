@@ -1,6 +1,7 @@
 """RouteResolver — 장소/교통 맥락 → 지역집합(구/시). 인터페이스로 분리.
 
-- 버스 번호가 노선표(eval/data/bus_routes.json, scripts/build_bus_routes.py)에 있으면 **실제 노선이 지나는 구**를 씀.
+- 버스 번호가 노선표(eval/data/bus_routes.json, scripts/build_bus_routes.py — 서울 API + 전국 국토부 API + 대구·광주 TAGO)에 있으면
+  **실제 노선이 지나는 구**를 씀.
 - 그 밖(지하철·기차·장소, 표에 없는 버스)은 LLM 세계지식(Gemini)으로 추정 — soft 가점이라 틀려도 배제 X.
 왜 나눴나: 버스 번호는 Gemini가 가장 약한 곳 — 세 자리 간선은 다른 도시로 헷갈리고(102번 → 부산) 모르는 노선은
 구를 15~20개씩 뿌림(eval/results/route_bus.md, 서울 37개 노선: 실제 3.9개 → Gemini 10개, 정밀도 38%).
@@ -77,6 +78,7 @@ _STOP = {"버스", "마을버스", "광역버스", "심야버스", "공항버스
          "안", "내", "근처", "정류장", "정류소", "방향", "쪽", "가는", "가다", "가던", "길", "두고", "놓고", "내림", "내렸",
          "내려서", "타서", "탄", "갈아탐", "갈아타고", "갈아탔", "환승", "잃어버림", "분실", "and", "then"}
 _JOSA = re.compile(r"(에서|으로|에게|까지|부터|에|로|의|을|를|이|가|은|는)$")
+_VARIANT = re.compile(r"^(\d+)-\d+$")  # 갈래 번호 '201-11' → 본 번호 '201'
 _SIDO_ONLY = re.compile(r"^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)"
                         r"(특별시|광역시|특별자치시|특별자치도|도|시)?$")
 
@@ -104,14 +106,26 @@ def _hint(rest: str) -> str:
 
 
 class BusTable:
-    """노선번호 → 실제 경유 구. 여러 도시에 같은 번호가 있으면(서울 320 · 안산 320) 문장 속 지명으로 고르고,
-    지명이 없으면 서울 노선을 먼저(외국인 방문의 37%가 서울)."""
+    """노선번호 → 실제 경유 구(서울 출처 + 전국 국토부 출처 + 대구·광주 TAGO 출처). 여러 도시에 같은 번호가 있으면(서울 320 · 안산 320 ·
+    부산 7 · 수원 7) 문장 속 지명으로 고르고, 지명이 없으면 서울 노선을 먼저(외국인 방문의 37%가 서울).
+    서울에 없는 번호를 지명 없이 말하면(예 '7번 버스') 여러 도시라 못 고름 → Gemini."""
 
     def __init__(self, routes: dict | None = None):
         self.by_key: dict[str, list[dict]] = {}
         for r in (routes or {}).values():
             if r.get("key") and r.get("regions"):
                 self.by_key.setdefault(r["key"], []).append(r)
+        # 갈래 번호: 제주는 국토부 자료에 '201-11'·'201-12'처럼 갈래까지 붙어 오는데 사람은 '201번'이라고 함(TAGO도 '201') →
+        # 같은 도시에 본 번호 노선이 따로 없으면 갈래들을 본 번호로도 찾게. 서울 '15-1'처럼 본 번호가 따로 있으면 그대로.
+        have = {(r.get("city"), k) for k, rs in self.by_key.items() for r in rs}
+        alias: dict[str, list[dict]] = {}
+        for k, rs in self.by_key.items():
+            m = _VARIANT.match(k)
+            if m:
+                alias.setdefault(m.group(1), []).extend(r for r in rs if (r.get("city"), m.group(1)) not in have)
+        for k, rs in alias.items():
+            if rs:
+                self.by_key.setdefault(k, []).extend(rs)
 
     @classmethod
     def load(cls, path: Path) -> BusTable:
@@ -139,11 +153,13 @@ class BusTable:
             return None
         rest = " ".join(rest.split())
         hint = _hint(rest) if rest else ""  # '부산'·'안산'·'인천공항'·'강남역'·'명동'
-        if hint:  # 문장에 지명이 있으면 그 시도를 지나는 노선만
+        if hint:  # 문장에 지명이 있으면 그곳을 지나는 노선만 — 시군구까지 맞는 노선이 있으면 그것('수원 7번' → 수원 7번)
             sido = hint.split()[0]
             found = [r for r in found if any(region_matches(g, [sido]) for g in r["regions"])]
+            if len(hint.split()) >= 2:
+                found = [r for r in found if region_matches(hint, r["regions"])] or found
             if not found:
-                return None  # 예: '부산 102번 버스' — 표엔 서울 102번뿐 → Gemini
+                return None  # 예: '부산 102번 버스'인데 표에 부산 102번이 없음 → Gemini
         else:
             found = [r for r in found if r.get("city") == "서울"] or found
         if len({r.get("city") for r in found}) > 3:

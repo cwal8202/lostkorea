@@ -272,12 +272,17 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - **관측성**: 에러 추적(Sentry 등)·외부 헬스 체크(백업 외부 복제는 2026-11-15 R2로).
 - **이미지 임베딩(CLIP) 레인**: RAM 여유 있는 인스턴스에서 image-to-image KNN 추가(현재는 Gemini 사진 대조로 대체).
 
-## 버스 노선표 (2026-11-16)
+## 버스 노선표 (2026-11-16, 전국 2026-11-18)
 
 - 버스 번호의 경유 지역은 `eval/data/bus_routes.json`(노선번호 → 지나는 시군구)에서 찾음(`apps/agent/route.py`). 신고 처리 중엔 API 호출 없음.
+- 출처 셋(같은 공공데이터포털 키): 서울 버스노선 API(서울 시내 + 서울에 들어오는 경기·인천) · 국토교통부 버스노선별 경유정류장(전국,
+  시군구별) · TAGO 버스노선정보(대구·광주 — 국토부 자료에 시내버스가 없음).
 - **갱신은 월 1회쯤 로컬에서** → 바뀐 표 커밋 → 자동배포로 반영(서버에서 만들면 저장소 파일이 바뀌어 git pull 자동배포가 막힘):
-  `uv run python -m scripts.build_bus_routes` (받은 지 25일 넘은 노선만 다시, `--force`면 전부). `.env`에 `DATA_GO_KR_SERVICE_KEY_DECODED`·`KAKAO_REST_API_KEY` 필요.
-- 서울 버스노선 API 하루 한도에 걸려 멈추면 다음 날 같은 명령 — 노선별 받은 날짜로 남은 것부터 이어 받음. 좌표→구는 `bus_coord_regions.json`에 캐시.
+  `uv run python -m scripts.build_bus_routes` (서울·대구·광주는 받은 지 25일 넘은 노선만, 전국은 자료가 있는 최근 운행일자로; `--only seoul|molit|tago`,
+  `--force`면 전부). `.env`에 `DATA_GO_KR_SERVICE_KEY_DECODED`·`KAKAO_REST_API_KEY` 필요.
+- 하루 한도에 걸리거나 제공 서버 오류로 멈추면 다음 날 같은 명령 — 서울은 노선별 받은 날짜, 전국은 `data/bus_molit/<운행일자>.json`(시군구별),
+  대구·광주는 `data/bus_tago/routes.json`(노선별)로 남은 것부터 이어 받음(둘 다 커밋 안 함). 표는 다 받은 뒤에만 바뀜.
+  국토부는 개발계정 하루 약 1,000회 + 04 오류 재시도까지 세어서 전국 전체 다시 받기에 이틀쯤. 좌표→구는 `bus_coord_regions.json`에 캐시.
 - 표가 바뀌어도 이미 저장된 신고의 경유 지역은 그대로(신고할 때 정해 저장) — 새 신고부터 반영.
 
 ## 보관장소 → 지역 해석 캐시 (2026-11-15)

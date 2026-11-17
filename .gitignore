@@ -27,3 +27,7 @@ eval/data/emb_dims_cache.json
 
 # 실제 분실 신고 실측 원자료(eval/run_lost112.py) — 저장소에 안 올림
 data/lost112/
+
+# 전국 버스 노선표 수집 중간 결과(scripts/build_bus_routes.py, 시군구별) — 재생성 가능, 표(eval/data/bus_routes.json)만 커밋
+data/bus_molit/
+data/bus_tago/

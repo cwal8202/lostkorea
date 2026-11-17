@@ -44,11 +44,11 @@
 (키는 계정에 하나 — 서버의 기존 키로 그대로 불림).
 - ✅ **국토교통부_버스노선별 경유정류장** (https://www.data.go.kr/data/15142031/openapi.do) — 주력. 11-16 승인, 서버 키로 호출 확인.
   `.../1613000/BusRoutespecificStopInformation/getBusRoutespecificStopInformation` (opr_ymd·ctpv_cd·sgg_cd). 정류장마다 시도·시군구·읍면동.
-  단, 운행일자 20250801은 나오고 2026-08·10은 NO_DATA — 노선표를 만들 때 자료가 있는 최근 날짜부터 찾을 것.
+  운행일자별 자료(11-18 기준 최근 20261022). 2026-07 개편 뒤 날짜는 새 시군구 코드(전남광주 12·인천 새 구)로 물어야 나옴.
 - ✅ **국토교통부_(TAGO)_버스노선정보** (https://www.data.go.kr/data/15098529/openapi.do) — 예비(위 데이터가 빠뜨린 도시가 있으면). 11-17 승인,
   `.../1613000/BusRouteInfoInqireService/getRouteNoList` 서버 키로 호출 확인.
   (처음 이 문서에 적힌 15098533은 **버스위치정보**였음 — 그걸로 신청·승인됐지만 실시간 버스 위치라 노선표엔 안 씀.)
-승인되면 `scripts/build_bus_routes.py`에 출처를 더해 같은 표에 넣음.
+→ ✅ 둘 다 노선표에 넣음(2026-11-18, FIND-116): 국토부 = 전국, TAGO = 대구·광주(국토부 자료에 시내버스가 없음).
 
 ---
 
