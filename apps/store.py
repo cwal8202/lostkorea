@@ -173,12 +173,20 @@ def init() -> None:
             PRIMARY KEY (report_key, stage)
         )
     """)
+    # 운영 화면 열람 기록 — 운영자가 신고 내용(문장)을 연 시각. 신고 id는 해시로만(신고를 지워도 기록은 남되 되돌릴 수 없음).
+    _run("""
+        CREATE TABLE IF NOT EXISTS admin_views (
+            at TEXT NOT NULL,
+            report_key TEXT NOT NULL,
+            action TEXT
+        )
+    """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
              "token_hash": "TEXT", "email_verified": "INTEGER DEFAULT 0", "verify_hash": "TEXT",
              "verify_expires": "TEXT", "matches": "TEXT", "graded_ids": "TEXT", "link_hashes": "TEXT",
-             "alert_pending": "TEXT", "outcome": "TEXT"}
+             "alert_pending": "TEXT", "outcome": "TEXT", "text_ko": "TEXT"}
     if _PG:
         for col, typ in added.items():
             _run(f"ALTER TABLE lost_items ADD COLUMN IF NOT EXISTS {col} {typ}")
@@ -500,6 +508,76 @@ def outcome_counts_since(day_from: str) -> dict[str, int]:
     """day_from(포함) 이후 누른 수령 진행 단계별 신고 수(주간 요약·성과 집계)."""
     rows = _rows("SELECT stage, COUNT(*) AS n FROM outcomes WHERE at >= ? GROUP BY stage", (day_from,))
     return {r["stage"]: int(r["n"]) for r in rows}
+
+
+# ── 운영 화면(/admin) 읽기 ──
+def reports_since(created_from: str) -> list[dict]:
+    """created_from(UTC ISO, 포함) 이후 신고 — 최신순. 운영 화면 신고 대장용(공개 API에서는 쓰지 않음)."""
+    return [_to_dict(r) for r in _rows("SELECT * FROM lost_items WHERE created_at >= ? ORDER BY created_at DESC",
+                                       (created_from,))]
+
+
+def metrics_by_day(day_from: str) -> dict[str, dict[str, int]]:
+    """{day: {kind: n}} — day_from(포함, KST 날짜) 이후."""
+    out: dict[str, dict[str, int]] = {}
+    for r in _rows("SELECT day, kind, n FROM metrics WHERE day >= ?", (day_from,)):
+        out.setdefault(r["day"], {})[r["kind"]] = int(r["n"])
+    return out
+
+
+def first_day(table: str) -> str | None:
+    """기록이 시작된 날(KST 날짜) — 그 전 날짜는 '0'이 아니라 '기록 없음'으로 보이게."""
+    col = {"metrics": "day", "found_closures": "detected_at"}[table]
+    r = _one(f"SELECT MIN({col}) AS d FROM {table}")
+    return (r or {}).get("d")
+
+
+def closures_by_day(day_from: str) -> dict[str, dict[str, int]]:
+    """{감지일: {kind: 건수}} — 습득물 이탈 기록(종결·사진 내려감·보관 기간 끝)."""
+    out: dict[str, dict[str, int]] = {}
+    for r in _rows("SELECT detected_at AS day, kind, COUNT(*) AS n FROM found_closures WHERE detected_at >= ? "
+                   "GROUP BY detected_at, kind", (day_from,)):
+        out.setdefault(r["day"], {})[r["kind"]] = int(r["n"])
+    return out
+
+
+def our_closed_days(day_from: str) -> list[str]:
+    """우리 신고가 짚은(유력 후보·'내 물건이에요') 습득물이 경찰 목록에서 종결된 감지일 — 한 건에 한 줄."""
+    return [r["day"] for r in _rows("SELECT detected_at AS day FROM found_closures WHERE kind='closed' "
+                                    "AND our_report IN ('candidate', 'confirmed') AND detected_at >= ?", (day_from,))]
+
+
+def last_metric(kind: str) -> dict | None:
+    """그 종류의 가장 최근 기록 {day, n}(예: backup_kb) — 없으면 None."""
+    return _one("SELECT day, n FROM metrics WHERE kind=? ORDER BY day DESC LIMIT 1", (kind,))
+
+
+def set_text_ko(lid: str, text_ko: str) -> None:
+    """외국어 신고 문장의 한국어 번역(운영 화면에서 처음 열 때 만든 것) — 신고와 함께 지워짐."""
+    _run("UPDATE lost_items SET text_ko=? WHERE id=?", (text_ko, lid))
+
+
+ADMIN_VIEW_KEEP_DAYS = 365  # 열람 기록 보관 기간
+
+
+def _view_key(lid: str) -> str:
+    return hashlib.sha256(("view:" + lid).encode()).hexdigest()
+
+
+def log_admin_view(lid: str, action: str = "open") -> None:
+    """운영자가 신고 내용을 연 기록 + 보관 기간 지난 기록 정리. 실패해도 화면은 열림."""
+    now = datetime.now(timezone.utc)
+    try:
+        _run("INSERT INTO admin_views (at, report_key, action) VALUES (?, ?, ?)", (now.isoformat(), _view_key(lid), action))
+        _run("DELETE FROM admin_views WHERE at < ?", ((now - timedelta(days=ADMIN_VIEW_KEEP_DAYS)).isoformat(),))
+    except Exception as e:  # noqa: BLE001
+        print(f"[admin] 열람 기록 실패: {e}")
+
+
+def admin_views(lid: str, limit: int = 5) -> list[str]:
+    """그 신고를 연 시각(UTC ISO, 최신순)."""
+    return [r["at"] for r in _rows("SELECT at FROM admin_views WHERE report_key=? ORDER BY at DESC LIMIT ?",
+                                   (_view_key(lid), limit))]
 
 
 def delete(lid: str) -> None:

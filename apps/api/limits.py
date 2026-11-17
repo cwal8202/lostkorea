@@ -47,6 +47,17 @@ class Limiter:
                 raise HTTPException(status_code=429, detail=message, headers={"Retry-After": str(retry)})
             q.append(now)
 
+    def count(self, key: str, window: float) -> int:
+        """윈도 안 호출 수(기록은 하지 않음) — 실패만 세고 성공은 세지 않는 곳(관리자 로그인)에서 먼저 막을 때."""
+        now = time.monotonic()
+        with self._lock:
+            q = self._hits.get(key)
+            if not q:
+                return 0
+            while q and now - q[0] >= window:
+                q.popleft()
+            return len(q)
+
     def spend(self, units: int = 1) -> None:
         today = datetime.now(KST).date().isoformat()
         with self._lock:

@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     limit_verify_mail_day: int = 3     # 같은 이메일 주소로 보내는 확인 메일
     daily_ai_budget: int = 1500        # 하루(KST) 전체 AI 요청 단위 상한 — 초과 시 429(과금 폭주 차단)
 
+    # 운영 화면(/admin) — 신고 문장이 보이므로 이 값이 있을 때만 열림(HTTP Basic, 사용자 이름은 아무거나). 비우면 /admin은 404.
+    admin_password: str = ""
+    limit_admin_fail_hour: int = 10    # 같은 IP의 관리자 비밀번호 실패 — 넘으면 한 시간 동안 맞는 비밀번호도 429
+
     # 알림 채널: console | email  (email은 아래 SMTP 설정 필요, 미설정 시 console 폴백)
     notifier_channel: str = "console"
     public_base_url: str = "https://lostkorea.com"  # 대표 주소 — 메일 링크·canonical·OG·sitemap 기준

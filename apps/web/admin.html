@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LostKorea 운영</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+<link rel="stylesheet" href="/static/fonts/pretendard/pretendard.css?v={{V}}" />
+<link rel="stylesheet" href="/static/css/site.css?v={{V}}" />
+<style>
+/* 운영 화면(apps/api/admin.py). 운영자가 고른 시안 2안(2026-11-16)을 실제 운영 값으로.
+   읽는 순서: 확인할 것(이상만) > 기간별 숫자(신고 대장이 중심) > 지금 상태(기간과 무관, 회색 판 하나).
+   차트 색: dataviz 기본 팔레트. 흰 바탕의 선·막대는 1·2번, 회색 판의 얇은 막대는 1~4번(숫자를 옆에 적어 대비 보완). */
+:root {
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s1-track: #cde2fb;
+  --grid: #e7ebf0; --axis: #cfd6df; --dot-off: #cfd6df; --rule: #e7ebf0;
+  --st-good: #0ca30c; --st-warn: #fab219; --st-crit: #d03b3b; --on-status: #ffffff; --on-warn: #0b0b0b;
+  --attn-bg: #fffbeb; --attn-edge: #fde68a; --crit-bg: #fef2f2; --crit-edge: #fecaca; --crit-ink: #b91c1c;
+  --tip-shadow: 0 6px 24px rgba(15, 23, 42, .14); --pressed-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+  --fs-1: 13px; --fs-2: 14px; --fs-3: 16px; --fs-4: 19px; --fs-5: 23px;
+}
+html, body { overflow-x: clip; }
+::selection { background: var(--brand-100); color: var(--navy); }
+.admin-badge { font-size: var(--fs-1); font-weight: 700; color: var(--brand-700); background: var(--brand-50); border-radius: 8px; padding: 4px 8px; }
+
+.admin { padding-top: 32px; padding-bottom: 64px; font-size: var(--fs-3); }
+.page-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 20px; }
+.page-head h1 { font-size: var(--fs-5); font-weight: 700; }
+.read-at { font-size: var(--fs-2); color: var(--sub); display: inline-flex; align-items: center; gap: 8px; }
+.admin h2 { font-size: var(--fs-4); font-weight: 700; }
+.admin h3 { font-size: var(--fs-3); font-weight: 700; color: var(--navy); }
+.sub { font-size: var(--fs-2); color: var(--sub); margin-top: 4px; }
+
+.st-ic { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 2px; }
+.st-ic .bg-good { fill: var(--st-good); } .st-ic .bg-warn { fill: var(--st-warn); } .st-ic .bg-crit { fill: var(--st-crit); }
+.st-ic .mk { fill: none; stroke: var(--on-status); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.st-ic .mk-dark { stroke: var(--on-warn); }
+
+/* 1. 확인할 것 */
+.attn { background: var(--attn-bg); border-radius: var(--r-lg); padding: 20px 24px; margin-bottom: 64px; }
+.attn.has-crit { background: var(--crit-bg); }
+.attn.clear { background: var(--surface); }
+.attn-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 16px; }
+.attn-list li { display: flex; gap: 12px; align-items: flex-start; }
+.attn-title { color: var(--navy); font-weight: 700; }
+.attn-detail { font-size: var(--fs-2); color: var(--body); margin-top: 4px; max-width: 72ch; }
+.ok-list { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--attn-edge); font-size: var(--fs-2); }
+.attn.has-crit .ok-list { border-top-color: var(--crit-edge); }
+.attn.clear .ok-list { margin-top: 8px; padding-top: 0; border-top: 0; }
+.ok-list summary { cursor: pointer; color: var(--ink); width: max-content; max-width: 100%; padding: 4px 0; border-radius: 8px; }
+.ok-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 32px; }
+.ok-list li { display: flex; gap: 8px; align-items: flex-start; color: var(--body); }
+.ok-list li .st-ic { width: 16px; height: 16px; margin-top: 4px; }
+.ok-list li b { color: var(--ink); font-weight: 700; margin-right: 4px; }
+
+/* 2. 기간별 숫자 */
+.scope-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--axis); margin-bottom: 24px; }
+.scope-head h2 { margin-right: 4px; }
+.range { font-size: var(--fs-2); color: var(--sub); }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--surface); border-radius: 12px; padding: 4px; gap: 4px; }
+.seg button { font: inherit; font-size: var(--fs-2); font-weight: 700; color: var(--body); background: transparent; border: 0; white-space: nowrap;
+              border-radius: 8px; padding: 8px 12px; min-height: 40px; cursor: pointer; }
+.seg button:hover { background: var(--surface-2); }
+.seg button:active { transform: scale(.98); }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--navy); box-shadow: var(--pressed-shadow); }
+.block { margin-bottom: 48px; }
+
+/* 신고 대장: 머리줄이 곧 단계별 합계 */
+.ledger-wrap { margin-top: 16px; }
+.ledger { width: 100%; border-collapse: collapse; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+.ledger th { text-align: left; font-weight: 400; color: var(--sub); padding: 8px; border-bottom: 1px solid var(--axis); vertical-align: bottom; white-space: nowrap; }
+.ledger td { padding: 8px; border-bottom: 1px solid var(--rule); color: var(--body); white-space: nowrap; }
+.ledger th:first-child, .ledger td:first-child { padding-left: 0; }
+.ledger .stg { text-align: center; width: 84px; padding-left: 0; padding-right: 0; }
+.stg-n { display: block; color: var(--navy); font-weight: 700; font-size: var(--fs-3); }
+.stg-p { color: var(--sub); font-size: var(--fs-1); }
+td.stg { position: relative; }
+td.stg::before, td.stg::after { content: ""; position: absolute; top: 50%; height: 2px; margin-top: -1px; background: var(--rule); }
+td.stg::before { left: 0; right: 50%; } td.stg::after { left: 50%; right: 0; }
+td.stg.first::before, td.stg.last::after { display: none; }
+td.stg.l-on::before, td.stg.r-on::after { background: var(--s1); }
+.dot { position: relative; z-index: 1; display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle;
+       background: var(--row-bg); border: 2px solid var(--dot-off); }
+.dot.on { background: var(--s1); border-color: var(--s1); box-shadow: 0 0 0 2px var(--row-bg); }
+td.c-now { color: var(--ink); }
+td.c-now.found { color: var(--navy); font-weight: 700; }
+td.c-alert { color: var(--sub); }
+.ledger-sum { display: none; }
+
+.ledger tr { --row-bg: var(--bg); }
+.ledger tbody tr.row { cursor: pointer; background: var(--row-bg); }
+.ledger tbody tr.row:hover { --row-bg: var(--surface); }
+.ledger tbody tr.row.open { --row-bg: var(--brand-50); }
+.ledger tbody tr.row.open td { border-bottom-color: transparent; }
+.ledger td.c-open { text-align: right; padding-top: 0; padding-bottom: 0; padding-right: 0; }
+.open-btn { font: inherit; font-size: var(--fs-2); font-weight: 700; color: var(--brand); background: transparent; border: 0;
+            display: inline-flex; align-items: center; gap: 4px; padding: 8px; min-height: 40px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.open-btn:hover { background: var(--brand-100); }
+.open-btn:active { transform: scale(.98); }
+.open-btn .chev { transition: transform .15s ease-out; }
+.open-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .open-btn .chev { transition: none; } }
+.ledger tr.detail td { padding: 0; white-space: normal; background: var(--brand-50); border-bottom: 1px solid var(--axis); cursor: auto; }
+.detail-in { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; padding: 8px 16px 20px; }
+.detail-wait { padding: 12px 16px 20px; font-size: var(--fs-2); color: var(--sub); }
+.d-label { font-size: var(--fs-1); color: var(--sub); margin: 16px 0 8px; }
+.d-col > .d-label:first-child { margin-top: 0; }
+.quote { margin: 0; font-size: var(--fs-3); line-height: 1.7; color: var(--ink); background: var(--bg); border-radius: 12px; padding: 12px 16px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.mask { font-size: var(--fs-2); color: var(--sub); background: var(--surface-2); border-radius: 4px; padding: 0 2px; }
+.d-hint { font-size: var(--fs-1); color: var(--sub); margin-top: 8px; }
+.d-hint .linkish { font: inherit; color: var(--brand); background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+.d-kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: var(--fs-2); }
+.d-kv dt { color: var(--sub); }
+.d-kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.cands { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cands li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 4px 12px; background: var(--bg); border-radius: 12px; padding: 12px; font-size: var(--fs-2); }
+.cands li > :not(.grade) { grid-column: 2; }
+.grade { grid-column: 1; grid-row: 1 / span 4; align-self: start; text-align: center; border-radius: 8px; padding: 4px 0; font-weight: 700; line-height: 1.3; }
+.grade small { display: block; font-size: var(--fs-1); font-weight: 400; }
+.grade.strong { background: var(--brand); color: var(--on-status); }
+.grade.weak { background: var(--brand-100); color: var(--brand-700); }
+.grade.low { background: var(--surface-2); color: var(--body); }
+.c-name { color: var(--navy); font-weight: 700; }
+.c-meta { color: var(--sub); }
+.c-reason { color: var(--body); }
+.c-tag { font-weight: 700; color: var(--green); }
+.c-tag.no { color: var(--sub); }
+.timeline { list-style: none; margin: 0; padding: 0; font-size: var(--fs-2); }
+.timeline li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 4px 0; color: var(--ink); }
+.timeline time { color: var(--sub); font-variant-numeric: tabular-nums; }
+.view-log { font-size: var(--fs-1); color: var(--sub); margin-top: 16px; }
+.more-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+.ledger-note { font-size: var(--fs-2); color: var(--sub); }
+.ledger-note b { color: var(--navy); }
+.empty { font-size: var(--fs-2); color: var(--sub); background: var(--surface); border-radius: 12px; padding: 20px; margin-top: 16px; }
+
+/* 방문과 신고 */
+.flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
+.fig { display: flex; align-items: baseline; gap: 4px; margin-top: 8px; }
+.fig-n { font-size: var(--fs-5); font-weight: 700; color: var(--navy); }
+.fig-u { font-size: var(--fs-2); color: var(--body); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0 0; font-size: var(--fs-2); color: var(--body); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.key-line { width: 16px; height: 2px; border-radius: 2px; display: inline-block; }
+.key-rect { width: 10px; height: 10px; border-radius: 4px; display: inline-block; }
+.chart { position: relative; margin-top: 8px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart svg:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }
+.tick { font-size: var(--fs-1); fill: var(--sub); font-variant-numeric: tabular-nums; }
+.end-label { font-size: var(--fs-1); fill: var(--ink); font-weight: 700; }
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--bg); border-radius: 12px; padding: 8px 12px; font-size: var(--fs-1);
+       box-shadow: var(--tip-shadow); white-space: nowrap; color: var(--sub); }
+.tip-head { margin-bottom: 4px; }
+.tip-row { display: flex; align-items: center; gap: 8px; line-height: 1.6; }
+.tip-row b { color: var(--navy); font-size: var(--fs-2); min-width: 2.5em; font-variant-numeric: tabular-nums; }
+details.as-table { margin-top: 8px; font-size: var(--fs-2); }
+details.as-table summary { cursor: pointer; color: var(--brand); width: max-content; padding: 4px 0; border-radius: 8px; }
+.tbl-wrap { max-height: 240px; overflow: auto; margin-top: 8px; border: 1px solid var(--rule); border-radius: 12px; }
+.tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { text-align: right; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+.tbl th { color: var(--sub); font-weight: 400; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+
+/* 메일·AI·막은 요청·색인 변화 */
+.rec { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px; }
+.kv { margin: 8px 0 0; }
+.kv div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: var(--fs-2); }
+.kv dt { color: var(--body); }
+.kv dd { margin: 0; color: var(--navy); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.flag { color: var(--amber); font-weight: 700; margin-left: 8px; }
+.zeros { font-size: var(--fs-1); color: var(--sub); margin-top: 8px; }
+
+/* 3. 지금 상태 */
+.now { background: var(--surface); border-radius: var(--r-lg); padding: 24px; }
+.now .scope-head { border-bottom-color: var(--line-strong); margin-bottom: 24px; }
+.now-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 40px; }
+.now .kv div { border-bottom-color: var(--line-strong); }
+.thin { display: flex; gap: 2px; height: 8px; margin-top: 12px; }
+.thin span { border-radius: 4px; min-width: 2px; }
+.sw { width: 10px; height: 10px; border-radius: 4px; display: inline-block; margin-right: 8px; }
+.meter { height: 8px; background: var(--s1-track); border-radius: 4px; overflow: hidden; margin-top: 12px; }
+.meter span { display: block; height: 100%; background: var(--s1); border-radius: 4px; }
+.meter-cap { font-size: var(--fs-2); color: var(--sub); margin-top: 8px; }
+.err { font-size: var(--fs-2); color: var(--crit-ink); margin-top: 8px; }
+
+.foot-note { font-size: var(--fs-2); color: var(--sub); margin-top: 32px; line-height: 1.8; }
+.need { color: var(--amber); font-weight: 700; }
+.load-fail { background: var(--crit-bg); color: var(--crit-ink); border-radius: var(--r-lg); padding: 20px 24px; font-size: var(--fs-2); }
+
+@media (max-width: 1000px) {
+  .rec, .now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .container { padding: 0 16px; }
+  .attn { padding: 16px; }
+  .ok-list ul, .flow, .rec, .now-grid { grid-template-columns: minmax(0, 1fr); }
+  .flow, .rec, .now-grid { gap: 32px; }
+  .now { padding: 20px 16px; }
+  .ledger-sum { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin-top: 16px; text-align: center;
+                font-size: var(--fs-1); color: var(--sub); }
+  .ledger-sum b { display: block; color: var(--navy); font-size: var(--fs-3); }
+  .ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .ledger, .ledger tbody { display: block; }
+  .ledger tr { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; padding: 12px 0;
+               border-bottom: 1px solid var(--rule); }
+  .ledger td { display: block; border: 0; padding: 0; white-space: normal; }
+  .ledger td.stg { display: none; }
+  .ledger td.c-date { grid-column: 1; grid-row: 1 / span 2; }
+  .ledger td.c-item { grid-column: 2; grid-row: 1; color: var(--ink); }
+  .ledger td.c-now { grid-column: 3; grid-row: 1; text-align: right; }
+  .ledger td.c-lang { grid-column: 2; grid-row: 2; color: var(--sub); }
+  .ledger td.c-alert { grid-column: 3; grid-row: 2; text-align: right; }
+  .ledger td.c-open { grid-column: 2 / span 2; grid-row: 3; text-align: left; padding: 0; }
+  .open-btn { margin-left: -8px; }
+  .ledger tr.detail { display: block; padding: 0; }
+  .ledger tr.detail td { display: block; }
+  .detail-in { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 12px; }
+  .timeline li { grid-template-columns: 104px minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">본문 바로가기</a>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="/admin" aria-label="LostKorea 운영 화면">
+      <img src="/static/logo.svg" alt="" width="34" height="34" />
+      <span class="wordmark">Lost<span>Korea</span></span>
+      <span class="admin-badge">운영</span>
+    </a>
+    <div class="nav-right">
+      <a class="btn btn-soft btn-sm" href="/" target="_blank" rel="noopener">사이트 열기</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="container admin">
+  <div class="page-head">
+    <h1>운영 현황</h1>
+    <p class="read-at"><span id="readAt">읽는 중…</span><button type="button" class="btn btn-soft btn-sm" id="reload">다시 읽기</button></p>
+  </div>
+
+  <div id="loadFail" class="load-fail" role="alert" hidden></div>
+
+  <div id="body" hidden>
+  <section class="attn" id="attn" aria-labelledby="h-attn">
+    <h2 id="h-attn"></h2>
+    <ul class="attn-list" id="attnList"></ul>
+    <details class="ok-list" id="okList"><summary></summary><ul></ul></details>
+  </section>
+
+  <div class="scope-head">
+    <h2>기간별 숫자</h2>
+    <div class="seg" role="group" aria-label="기간" id="daySeg">
+      <button type="button" data-days="7" aria-pressed="true">최근 7일</button>
+      <button type="button" data-days="30" aria-pressed="false">30일</button>
+      <button type="button" data-days="90" aria-pressed="false">90일</button>
+    </div>
+    <span class="range" id="range"></span>
+  </div>
+
+  <section class="block" aria-labelledby="h-ledger">
+    <h3 id="h-ledger">신고 대장</h3>
+    <p class="sub" id="ledgerSub"></p>
+    <div class="ledger-sum" id="ledgerSum" aria-hidden="true"></div>
+    <div class="ledger-wrap" id="ledgerWrap"></div>
+    <div class="more-row">
+      <button type="button" class="btn btn-soft btn-sm" id="ledgerMore"></button>
+      <p class="ledger-note" id="ledgerNote"></p>
+    </div>
+  </section>
+
+  <section class="block" aria-label="방문과 신고">
+    <div class="flow">
+      <div>
+        <h3>방문</h3>
+        <p class="fig"><span class="fig-n" id="visitTotal"></span><span class="fig-u">회</span></p>
+        <p class="sub" id="visitSub"></p>
+        <div class="legend" aria-hidden="true">
+          <span><i class="key-line" style="background:var(--s1)"></i>한국어 화면</span>
+          <span><i class="key-line" style="background:var(--s2)"></i>영어 화면(가이드 포함)</span>
+        </div>
+        <div class="chart" id="visitChart"></div>
+        <details class="as-table"><summary>표로 보기</summary><div class="tbl-wrap" id="visitTable"></div></details>
+      </div>
+      <div>
+        <h3>신고 접수</h3>
+        <p class="fig"><span class="fig-n" id="reportTotal"></span><span class="fig-u">건</span></p>
+        <p class="sub" id="reportSub"></p>
+        <div class="legend" aria-hidden="true"><span><i class="key-rect" style="background:var(--s1)"></i><span id="reportUnit">하루 신고</span></span></div>
+        <div class="chart" id="reportChart"></div>
+        <details class="as-table"><summary>표로 보기</summary><div class="tbl-wrap" id="reportTable"></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" aria-label="메일, AI, 막은 요청, 색인 변화">
+    <div class="rec" id="rec"></div>
+  </section>
+
+  <section class="now" aria-labelledby="h-now">
+    <div class="scope-head">
+      <h2 id="h-now">지금 상태</h2>
+      <span class="range">기간 버튼과 상관없이 지금 값이에요.</span>
+    </div>
+    <div class="now-grid" id="nowGrid"></div>
+  </section>
+
+  <p class="foot-note">
+    방문 국가와 유입 경로는 Cloudflare 대시보드의 Analytics에서 보세요. 이 화면은 IP를 남기지 않아요.<br />
+    신고 문장은 줄을 열 때만 불러오고, 연 시각이 기록돼요. 이메일 주소는 이 화면에 나오지 않아요.<br />
+    <span class="need">＊</span> 지금은 기록하지 않는 숫자예요.
+    <span class="need">≈</span> 다른 기록으로 어림한 값이에요.
+  </p>
+  </div>
+</main>
+
+<script>
+(() => {
+  // ── 도우미 ──
+  const fmt = (n) => Math.round(n).toLocaleString("ko-KR");
+  const D0 = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+  const isoOf = (t) => new Date(t).toISOString().slice(0, 10);
+  const addDays = (s, n) => isoOf(D0(s).getTime() + n * 864e5);
+  const md = (s) => { const d = D0(s); return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`; };
+  const kday = (s) => { const d = D0(s); return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`; };
+  const dow = (s) => "일월화수목금토"[D0(s).getUTCDay()];
+  const sum = (arr, k) => arr.reduce((t, d) => t + (typeof k === "function" ? k(d) : (d[k] || 0)), 0);
+  const reportsOf = (d) => (d.report_text || 0) + (d.report_image || 0);
+  const visitsEn = (d) => (d.view_en || 0) + (d.view_guide || 0);
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); if (parent) parent.appendChild(e); return e; };
+  const el = (tag, cls, text, parent) => { const e = document.createElement(tag); if (cls) e.className = cls;
+    if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const niceScale = (v) => { const raw = Math.max(v, 4) / 4, p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = Math.max(1, [1, 2, 2.5, 5, 10].map((k) => k * p).filter((s) => Number.isInteger(s)).find((s) => s >= raw));
+    return { step, max: step * Math.max(1, Math.ceil(v / step)) }; };
+  const ICON = {
+    good: '<svg class="st-ic" viewBox="0 0 24 24" role="img" aria-label="정상"><circle class="bg-good" cx="12" cy="12" r="11"/><path class="mk" d="M7 12.5l3.2 3.2L17 9"/></svg>',
+    warn: '<svg class="st-ic" viewBox="0 0 24 24" role="img" aria-label="주의"><path class="bg-warn" d="M12 2 23 21.5H1z"/><path class="mk mk-dark" d="M12 9v5.5M12 17.6v.2"/></svg>',
+    crit: '<svg class="st-ic" viewBox="0 0 24 24" role="img" aria-label="장애"><circle class="bg-crit" cx="12" cy="12" r="11"/><path class="mk" d="M8.5 8.5l7 7M15.5 8.5l-7 7"/></svg>',
+  };
+  const CHEV = '<svg class="ic ic-sm chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+  async function api(path, method = "GET") {
+    // origin에서 다시 만듦 — 주소창에 user:pass@가 있으면 상대 주소 fetch가 거절됨(브라우저가 기억한 로그인은 그대로 실림)
+    const r = await fetch(location.origin + path, { method, headers: { "X-Admin": "1" }, cache: "no-store", credentials: "same-origin" });
+    let body = null; try { body = await r.json(); } catch (e) { /* 본문 없음 */ }
+    if (!r.ok) throw new Error((body && body.detail) || `HTTP ${r.status}`);
+    return body;
+  }
+
+  function makeTable(host, head, rows) {
+    host.textContent = "";
+    const t = el("table", "tbl", null, host), tr = el("tr", null, null, el("thead", null, null, t));
+    head.forEach((h) => el("th", null, h, tr));
+    const tb = el("tbody", null, null, t);
+    rows.forEach((row) => { const r2 = el("tr", null, null, tb); row.forEach((c) => el("td", null, c, r2)); });
+  }
+  function tipRows(tip, head, rows) {
+    tip.textContent = "";
+    el("div", "tip-head", head, tip);
+    rows.forEach(([color, label, value, shape]) => {
+      const row = el("div", "tip-row", null, tip);
+      const k = el("i", shape === "rect" ? "key-rect" : "key-line", null, row); k.style.background = color;
+      el("b", null, value, row); el("span", null, label, row);
+    });
+  }
+  function placeTip(tip, host, x, y) {
+    tip.hidden = false;
+    const w = tip.offsetWidth, hw = host.clientWidth;
+    let left = x + 16; if (left + w > hw) left = x - w - 16; if (left < 0) left = 0;
+    tip.style.left = left + "px"; tip.style.top = Math.max(0, y - tip.offsetHeight / 2) + "px";
+  }
+  function axes(s, m, iw, ih, max, step, y) {
+    for (let v = 0; v <= max; v += step) {
+      svg("line", { x1: m.l, x2: m.l + iw, y1: y(v), y2: y(v), stroke: v ? css("--grid") : css("--axis"), "stroke-width": 1 }, s);
+      svg("text", { x: m.l - 8, y: y(v) + 4, "text-anchor": "end", class: "tick" }, s).textContent = fmt(v);
+    }
+  }
+  function keyNav(s, n, get, show) {
+    s.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { show(Math.max(0, get() - 1)); e.preventDefault(); }
+      if (e.key === "ArrowRight") { show(Math.min(n - 1, get() + 1)); e.preventDefault(); }
+    });
+  }
+
+  // ── 선 그래프(방문) ──
+  function lineChart(host, rows, series) {
+    host.textContent = "";
+    if (!rows.some((d) => series.some((se) => se.get(d) > 0))) { el("p", "empty", "이 기간에는 아직 방문 기록이 없어요.", host); return; }
+    const W = host.clientWidth, H = 200, m = { l: 40, r: 40, t: 8, b: 24 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b, n = rows.length;
+    const { max, step } = niceScale(Math.max(...rows.flatMap((d) => series.map((se) => se.get(d)))));
+    const x = (i) => m.l + (n === 1 ? iw / 2 : (i * iw) / (n - 1)), y = (v) => m.t + ih - (v / max) * ih;
+    const s = svg("svg", { viewBox: `0 0 ${W} ${H}`, height: H, tabindex: 0, role: "img",
+      "aria-label": `하루 방문 그래프. ${series.map((se) => `${se.name} 마지막 날 ${fmt(se.get(rows[n - 1]))}회`).join(", ")}. 화살표 키로 날짜를 옮겨요.` }, host);
+    axes(s, m, iw, ih, max, step, y);
+    const every = Math.max(1, Math.ceil(n / 5));
+    for (let i = n - 1; i >= 0; i -= every) svg("text", { x: x(i), y: H - 4, "text-anchor": "middle", class: "tick" }, s).textContent = md(rows[i].day);
+    const ends = [];
+    series.forEach((se) => {
+      svg("path", { d: rows.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(se.get(d)).toFixed(1)}`).join(""),
+        fill: "none", stroke: se.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, s);
+      const v = se.get(rows[n - 1]);
+      svg("circle", { cx: x(n - 1), cy: y(v), r: 4, fill: se.color, stroke: css("--bg"), "stroke-width": 2 }, s);
+      ends.push({ y: y(v), text: fmt(v) });
+    });
+    if (Math.abs(ends[0].y - ends[1].y) > 16) ends.forEach((e) => { svg("text", { x: m.l + iw + 8, y: e.y + 4, class: "end-label" }, s).textContent = e.text; });
+    const cross = svg("line", { y1: m.t, y2: m.t + ih, stroke: css("--axis"), "stroke-width": 1, visibility: "hidden" }, s);
+    const dots = series.map((se) => svg("circle", { r: 4, fill: se.color, stroke: css("--bg"), "stroke-width": 2, visibility: "hidden" }, s));
+    const tip = el("div", "tip", null, host); tip.hidden = true;
+    let cur = n - 1;
+    const show = (i) => {
+      cur = i; const cx = x(i);
+      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+      series.forEach((se, k) => { dots[k].setAttribute("cx", cx); dots[k].setAttribute("cy", y(se.get(rows[i]))); dots[k].setAttribute("visibility", "visible"); });
+      tipRows(tip, `${kday(rows[i].day)} (${dow(rows[i].day)})`, series.map((se) => [se.color, se.name, fmt(se.get(rows[i]))]));
+      placeTip(tip, host, cx, m.t + ih / 2);
+    };
+    const hide = () => { cross.setAttribute("visibility", "hidden"); dots.forEach((d) => d.setAttribute("visibility", "hidden")); tip.hidden = true; };
+    s.addEventListener("pointermove", (e) => { const b = s.getBoundingClientRect(); const px = (e.clientX - b.left) * (W / b.width);
+      show(Math.max(0, Math.min(n - 1, Math.round(((px - m.l) / iw) * (n - 1))))); });
+    s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide); s.addEventListener("focus", () => show(cur));
+    keyNav(s, n, () => cur, show);
+  }
+
+  // ── 세로 막대(신고) ──
+  function columnChart(host, bins) {
+    host.textContent = "";
+    if (!bins.some((b) => b.total > 0)) { el("p", "empty", "이 기간에는 아직 신고가 없어요.", host); return; }
+    const W = host.clientWidth, H = 200, m = { l: 40, r: 8, t: 20, b: 24 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b, n = bins.length, band = iw / n;
+    const bw = Math.max(2, Math.min(24, band - 2)), { max, step } = niceScale(Math.max(...bins.map((b) => b.total)));
+    const y = (v) => m.t + ih - (v / max) * ih, last = bins[n - 1];
+    const s = svg("svg", { viewBox: `0 0 ${W} ${H}`, height: H, tabindex: 0, role: "img",
+      "aria-label": `신고 막대그래프. 마지막 ${last.label} ${fmt(last.total)}건. 화살표 키로 옮겨요.` }, host);
+    axes(s, m, iw, ih, max, step, y);
+    const every = Math.max(1, Math.ceil(n / 5));
+    const bars = bins.map((b, i) => {
+      const cx = m.l + band * i + band / 2, x0 = cx - bw / 2, h = (b.total / max) * ih, top = m.t + ih - h, base = m.t + ih, rr = Math.min(4, bw / 2, h);
+      const p = svg("path", { fill: css("--s1"), d: h <= 0 ? "" :
+        `M${x0},${base}V${top + rr}Q${x0},${top} ${x0 + rr},${top}H${x0 + bw - rr}Q${x0 + bw},${top} ${x0 + bw},${top + rr}V${base}Z` }, s);
+      if ((n - 1 - i) % every === 0) svg("text", { x: cx, y: H - 4, "text-anchor": "middle", class: "tick" }, s).textContent = b.short;
+      return { p, cx, top };
+    });
+    svg("text", { x: bars[n - 1].cx, y: bars[n - 1].top - 6, "text-anchor": "middle", class: "end-label" }, s).textContent = fmt(last.total);
+    const tip = el("div", "tip", null, host); tip.hidden = true;
+    let cur = n - 1;
+    const show = (i) => {
+      cur = i; bars.forEach((b, k) => b.p.setAttribute("opacity", k === i ? 1 : .55));
+      const b = bins[i];
+      tipRows(tip, b.label, [[css("--s1"), "신고", fmt(b.total), "rect"], ["transparent", "글", fmt(b.text)], ["transparent", "사진", fmt(b.image)]]);
+      placeTip(tip, host, bars[i].cx, m.t + ih / 2);
+    };
+    const hide = () => { bars.forEach((b) => b.p.setAttribute("opacity", 1)); tip.hidden = true; };
+    s.addEventListener("pointermove", (e) => { const bb = s.getBoundingClientRect(); const px = (e.clientX - bb.left) * (W / bb.width);
+      show(Math.max(0, Math.min(n - 1, Math.floor((px - m.l) / band)))); });
+    s.addEventListener("pointerleave", hide); s.addEventListener("blur", hide); s.addEventListener("focus", () => show(cur));
+    keyNav(s, n, () => cur, show);
+  }
+
+  // ── 1. 확인할 것 ──
+  function renderAttn(checks) {
+    const probs = checks.filter((c) => c.level), oks = checks.filter((c) => !c.level);
+    const box = document.getElementById("attn");
+    box.className = "attn" + (probs.some((p) => p.level === "crit") ? " has-crit" : "") + (probs.length ? "" : " clear");
+    document.getElementById("h-attn").textContent = probs.length ? `확인할 것 ${probs.length}건` : "확인할 것 없음";
+    const ul = document.getElementById("attnList"); ul.textContent = ""; ul.hidden = !probs.length;
+    probs.forEach((p) => {
+      const li = el("li", null, null, ul); li.insertAdjacentHTML("afterbegin", ICON[p.level]);
+      const t = el("div", null, null, li); el("p", "attn-title", p.title, t); el("p", "attn-detail", p.detail, t);
+    });
+    const det = document.getElementById("okList");
+    det.querySelector("summary").textContent = probs.length ? `나머지 ${oks.length}개는 정상` : `${oks.length}개 모두 정상, 펼쳐서 보기`;
+    const ol = det.querySelector("ul"); ol.textContent = "";
+    oks.forEach((c) => { const li = el("li", null, null, ol); li.insertAdjacentHTML("afterbegin", ICON.good);
+      const t = el("span", null, null, li); el("b", null, c.name, t); t.append(c.ok); });
+  }
+
+  // ── 2-1. 신고 대장 ──
+  const STAGES = ["신고", "유력 후보", "내 물건", "연락·방문", "찾음"];
+  let shown = 10;
+  const opened = new Set(), details = new Map();
+
+  function kvGrid(host, rows) { const dl = el("dl", "d-kv", null, host); rows.forEach(([k, v]) => { el("dt", null, k, dl); el("dd", null, v, dl); }); }
+  function quote(host, text, lang) {
+    const q = el("p", "quote", null, host); q.lang = lang;
+    text.split(/(\[[^\]]{1,10}\])/).forEach((part) => { if (!part) return; if (/^\[.+\]$/.test(part)) el("span", "mask", part, q); else q.append(part); });
+    return q;
+  }
+  function translation(host, x, d) {
+    host.textContent = "";
+    if (d.text_ko) { quote(host, d.text_ko, "ko"); return; }
+    const wait = el("p", "d-hint", "한국어로 옮기는 중이에요…", host);
+    api(`/admin/reports/${x.rid}/ko`, "POST").then((r) => {
+      host.textContent = "";
+      if (r.text_ko) { d.text_ko = r.text_ko; quote(host, r.text_ko, "ko"); }
+      else el("p", "d-hint", "옮길 필요가 없는 문장이에요.", host);
+    }).catch((e) => {
+      wait.textContent = `번역하지 못했어요(${e.message}). `;
+      const b = el("button", "linkish", "다시 시도", wait); b.type = "button";
+      b.addEventListener("click", () => translation(host, x, d));
+    });
+  }
+  function renderDetail(x, d) {
+    const box = el("div", "detail-in"), G = D.grade;
+    const L = el("div", "d-col", null, box), R = el("div", "d-col", null, box);
+    el("p", "d-label", d.image ? "사진에서 뽑은 설명(사진 자체는 저장하지 않아요)" : d.needs_ko ? `신고 문장(원문, ${d.lang_label})` : "신고 문장", L);
+    quote(L, d.text, d.image ? "ko" : d.lang);
+    if (d.needs_ko) {
+      el("p", "d-label", "한국어 번역(처음 열 때 AI가 옮겨 신고에 저장)", L);
+      translation(el("div", null, null, L), x, d);
+    }
+    if (d.masked) el("p", "d-hint", "전화번호 같은 정보는 저장하기 전에 가려졌어요. 번역에도 가린 채로 들어가요.", L);
+    el("p", "d-label", "AI가 뽑은 항목", L); kvGrid(L, d.extracted);
+    el("p", "d-label", "신고 정보", L); kvGrid(L, d.info);
+
+    el("p", "d-label", d.cand_count ? `후보 습득물 ${d.cand_count}개(점수는 AI 판정, ${G.strong} 이상 유력, ${G.weak}~${G.strong - 1} 참고)` : "후보 습득물", R);
+    if (!d.cand_count) el("p", "d-hint", "아직 후보가 없어요. 매일 밤 새로 들어온 습득물과 다시 대조해요.", R);
+    else {
+      const ol = el("ol", "cands", null, R);
+      d.cands.forEach((c) => {
+        const li = el("li", null, null, ol), g = c.grade;
+        const gr = el("span", "grade " + (g == null ? "low" : g >= G.strong ? "strong" : g >= G.weak ? "weak" : "low"), g == null ? "–" : String(g), li);
+        el("small", null, g == null ? "판정 없음" : g >= G.strong ? "유력" : g >= G.weak ? "참고" : "낮음", gr);
+        el("span", "c-name", c.name || "(이름 없음)", li);
+        el("span", "c-meta", [c.org && `${c.org} 보관`, c.found && `${c.found} 습득`, `관리번호 ${c.ref}`].filter(Boolean).join(", "), li);
+        if (c.reason) el("span", "c-reason", c.reason, li);
+        if (c.tag) el("span", "c-tag" + (c.tag[0] === "no" ? " no" : ""), c.tag[1], li);
+      });
+      if (d.cand_count > d.cands.length) el("p", "d-hint", `나머지 ${d.cand_count - d.cands.length}개는 점수가 더 낮아 접어 두었어요.`, R);
+    }
+    el("p", "d-label", "진행 기록", R);
+    const tl = el("ol", "timeline", null, R);
+    d.events.forEach(([at, label, isoAt]) => { const li = el("li", null, null, tl); const tm = el("time", null, at, li); tm.dateTime = isoAt; el("span", null, label, li); });
+    if (d.untimed.length) el("p", "d-hint", `시각을 기록하지 않는 일＊: ${d.untimed.join(" · ")}`, R);
+    el("p", "view-log", d.views.length ? `이 신고를 연 기록: ${d.views.join(", ")}. 이번에 연 것도 남았어요.` : "이 신고를 처음 열었어요. 연 시각이 남아요.", R);
+    return box;
+  }
+
+  function renderLedger(reps, from) {
+    const total = reps.length, counts = STAGES.map((_, i) => reps.filter((x) => x.stages[i]).length);
+    const alerting = reps.filter((x) => x.alert).length;
+    document.getElementById("ledgerSub").textContent = total
+      ? `${kday(from)}부터 지금까지 들어와 남아 있는 신고 ${fmt(total)}건이 어디까지 갔는지 한 줄씩 보여요. 줄을 누르면 신고 문장과 후보를 볼 수 있어요.`
+      : "이 기간에 들어온 신고가 어디까지 갔는지 한 줄씩 보여 줘요.";
+    const wrap = document.getElementById("ledgerWrap"), more = document.getElementById("ledgerMore"), sumBox = document.getElementById("ledgerSum");
+    wrap.textContent = ""; sumBox.textContent = "";
+    const note = document.getElementById("ledgerNote"); note.textContent = "";
+    if (!total) {
+      el("p", "empty", "이 기간에 들어온 신고가 없어요. 사이트에서 신고가 들어오면 여기에 한 줄씩 쌓여요.", wrap);
+      more.hidden = true; return;
+    }
+    STAGES.forEach((s, i) => { const d = el("div", null, null, sumBox); el("b", null, fmt(counts[i]), d); d.append(s); });
+    const t = el("table", "ledger", null, wrap);
+    el("caption", "sr-only", `신고 대장, ${fmt(total)}건 중 ${Math.min(shown, total)}건 표시`, t);
+    const hr = el("tr", null, null, el("thead", null, null, t));
+    ["신고일", "언어", "물건", "알림"].forEach((h, i) => {
+      const th = el("th", null, h, hr); th.scope = "col";
+      if (i === 3) el("span", "stg-p", ` ${fmt(alerting)}`, th);
+    });
+    STAGES.forEach((s, i) => {
+      const th = el("th", "stg", null, hr); th.scope = "col";
+      el("span", null, s, th); el("span", "stg-n", fmt(counts[i]), th);
+      el("span", "stg-p", i ? `${Math.round(counts[i] / total * 100)}%` : "전체", th);
+    });
+    const thNow = el("th", null, "지금", hr); thNow.scope = "col";
+    const thOpen = el("th", null, null, hr); thOpen.scope = "col"; el("span", "sr-only", "내용", thOpen);
+    const tb = el("tbody", null, null, t);
+    reps.slice(0, shown).forEach((x) => {
+      const tr = el("tr", "row", null, tb), on = x.stages;
+      el("td", "c-date", md(x.day), tr); el("td", "c-lang", x.lang_label, tr);
+      el("td", "c-item", x.cat + (x.image ? " · 사진" : ""), tr);
+      el("td", "c-alert", x.alert ? "알림 켬" : "", tr);
+      on.forEach((v, i) => {
+        const cls = ["stg", i === 0 ? "first" : "", i === 4 ? "last" : "", v && i > 0 && on[i - 1] ? "l-on" : "", v && i < 4 && on[i + 1] ? "r-on" : ""];
+        const td = el("td", cls.filter(Boolean).join(" "), null, tr);
+        el("span", "dot" + (v ? " on" : ""), null, td).setAttribute("aria-hidden", "true");
+        el("span", "sr-only", v ? "지남" : "아직", td);
+      });
+      el("td", "c-now" + (x.found ? " found" : ""), x.now, tr);
+      const btn = el("button", "open-btn", null, el("td", "c-open", null, tr));
+      const did = `d-${x.rid.slice(0, 12)}`;
+      btn.type = "button"; btn.setAttribute("aria-expanded", "false"); btn.setAttribute("aria-controls", did);
+      btn.setAttribute("aria-label", `${kday(x.day)} ${x.lang_label} ${x.cat} 신고 내용 보기`);
+      el("span", null, "내용", btn); btn.insertAdjacentHTML("beforeend", CHEV);
+      const toggle = () => {
+        const open = btn.getAttribute("aria-expanded") === "true";
+        if (open) { document.getElementById(did)?.remove(); opened.delete(x.rid); }
+        else {
+          const dtr = document.createElement("tr"); dtr.className = "detail"; dtr.id = did;
+          const td = el("td", null, null, dtr); td.colSpan = 11; tr.after(dtr); opened.add(x.rid);
+          td.addEventListener("click", (e) => e.stopPropagation());  // 상세 안을 눌러도 접히지 않게
+          const show = (d) => { td.textContent = ""; td.append(renderDetail(x, d)); };
+          if (details.has(x.rid)) show(details.get(x.rid));
+          else {
+            el("p", "detail-wait", "신고 내용을 불러오는 중이에요…", td);
+            api(`/admin/reports/${x.rid}`).then((d) => { details.set(x.rid, d); if (document.getElementById(did)) show(d); })
+              .catch((e) => { td.textContent = ""; el("p", "detail-wait", `불러오지 못했어요(${e.message}).`, td); });
+          }
+        }
+        btn.setAttribute("aria-expanded", open ? "false" : "true"); tr.classList.toggle("open", !open);
+      };
+      btn.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+      tr.addEventListener("click", () => { if (!String(window.getSelection())) toggle(); });  // 글자를 고르는 중엔 접지 않음
+      if (opened.has(x.rid)) toggle();
+    });
+    const rest = total - Math.min(shown, total);
+    more.hidden = !rest; more.textContent = `${fmt(Math.min(30, rest))}건 더 보기`;
+    const closed = D.our_closed.filter((d) => d >= from).length;
+    note.append("'연락·방문'과 '찾음'은 신고한 사람이 결과 화면에서 직접 누른 것만 세요. 신고자가 지운 신고는 대장에 없어요. 우리가 후보로 짚은 습득물 중 경찰 목록에서 종결된 것은 ");
+    el("b", null, `${fmt(closed)}건`, note);
+    note.append(D.first_closure_day && D.first_closure_day > from ? `이에요(${kday(D.first_closure_day)}부터 기록, 주인 반환 말고 이관과 폐기도 섞여 있어요).`
+      : "이에요(주인 반환 말고 이관과 폐기도 섞여 있어요).");
+  }
+
+  // ── 2-3. 메일, AI, 막은 요청, 색인 변화 ──
+  function group(host, title, rows, fig, note) {
+    const box = el("div", null, null, host);
+    el("h3", null, title, box);
+    if (fig) { const p = el("p", "fig", null, box); el("span", "fig-n", fig[0], p); el("span", "fig-u", fig[1], p); if (fig[2]) el("p", "sub", fig[2], box); }
+    const dl = el("dl", "kv", null, box), zeros = [];
+    rows.forEach(([k, v, bad, text]) => {
+      if (v === 0) { zeros.push(k); return; }
+      const row = el("div", null, null, dl); el("dt", null, k, row);
+      const dd = el("dd", null, text || fmt(v), row);
+      if (bad) el("span", "flag", "확인", dd);
+    });
+    if (zeros.length) el("p", "zeros", `0건: ${zeros.join(", ")}`, box);
+    if (note) el("p", "zeros", note, box);
+  }
+  function renderRec(cur, from, to) {
+    const host = document.getElementById("rec"); host.textContent = "";
+    group(host, "메일", [["알림 메일 보냄", sum(cur, "alert_sent")], ["메일 링크로 결과 열람", sum(cur, "email_link_open")],
+      ["알림 메일 실패", sum(cur, "alert_failed"), true], ["재발송 포기", sum(cur, "alert_gaveup"), true],
+      ["확인 메일 실패", sum(cur, "verify_mail_failed"), true], ["알림 수신 거부", sum(cur, "unsubscribe")]]);
+    const calls = sum(cur, "ai_calls"), tin = sum(cur, "ai_in"), tout = sum(cur, "ai_out"), rep = sum(cur, reportsOf);
+    const usd = (tin * D.ai_price.in + tout * D.ai_price.out) / 1e6;
+    group(host, "AI 사용", [["호출", calls, false, `${fmt(calls)}회`], ["입력 토큰", tin], ["출력 토큰", tout],
+      ["결과 언어 실패(원문 표시)", sum(cur, "ai_lang_fail"), true]],
+      [`$${usd.toFixed(2)}`, "추정", rep ? `약 ${fmt(usd * 1400)}원, 신고 1건당 $${(usd / rep).toFixed(4)}` : `약 ${fmt(usd * 1400)}원`]);
+    group(host, "오류와 막은 요청", [["앱 오류", sum(cur, "error"), true], ["요청 제한(429)", sum(cur, "rate_limited")],
+      ["신고 아님(잡담 등)", sum(cur, "report_invalid")], ["개인정보 가림", sum(cur, "pii_masked")],
+      ["신고 삭제", sum(cur, "delete")], ["둘러보기 조회", sum(cur, "browse")]]);
+    const cl = []; for (let s = from; s <= to; s = addDays(s, 1)) cl.push(D.closures[s] || {});
+    const first = D.first_closure_day;
+    group(host, "습득물 색인 변화", [["종결로 빠짐", sum(cl, "closed")], ["사진 내려감", sum(cl, "photo_removed")],
+      ["보관 기간(185일) 끝", sum(cl, "retention_end")]], null,
+      !first ? "이탈 기록이 아직 없어요." : first > from ? `${kday(first)}부터 기록해요.` : null);
+  }
+
+  // ── 3. 지금 상태 ──
+  function kvRows(host, rows) { const dl = el("dl", "kv", null, host); rows.forEach(([k, v]) => { const row = el("div", null, null, dl); el("dt", null, k, row); el("dd", null, v, row); }); return dl; }
+  function renderNow(N0) {
+    const host = document.getElementById("nowGrid"); host.textContent = "";
+    const R0 = N0.reports, total = R0.open + R0.candidate + R0.confirmed + R0.expired;
+
+    const a = el("div", null, null, host);
+    el("h3", null, "남아 있는 신고", a);
+    if (!total) el("p", "sub", "아직 신고가 없어요.", a);
+    else {
+      const p = el("p", "fig", null, a); el("span", "fig-n", fmt(total), p); el("span", "fig-u", "건", p);
+      const parts = [["찾는 중", R0.open, "--s1"], ["유력 후보 있음", R0.candidate, "--s2"], ["'내 물건이에요' 확인", R0.confirmed, "--s3"], ["기간 끝(만료)", R0.expired, "--s4"]];
+      const bar = el("div", "thin", null, a); bar.setAttribute("role", "img");
+      bar.setAttribute("aria-label", parts.map((x) => `${x[0]} ${fmt(x[1])}건`).join(", "));
+      parts.forEach(([, v, c]) => { if (v) { const s = el("span", null, null, bar); s.style.flex = `${v} 0 0`; s.style.background = `var(${c})`; } });
+      const dl = el("dl", "kv", null, a);
+      parts.forEach(([k, v, c]) => { const row = el("div", null, null, dl); const dt = el("dt", null, null, row);
+        const sw = el("i", "sw", null, dt); sw.style.background = `var(${c})`; dt.append(k); el("dd", null, fmt(v), row); });
+      const row = el("div", null, null, dl); el("dt", null, "그중 알림 받는 중", row); el("dd", null, fmt(R0.alerting), row);
+    }
+
+    const b = el("div", null, null, host);
+    el("h3", null, "습득물 색인", b);
+    if (!N0.index) el("p", "err", "색인 수를 읽지 못했어요. 검색 엔진이 돌아오면 다시 보여요.", b);
+    else {
+      const I = N0.index, p = el("p", "fig", null, b); el("span", "fig-n", fmt(I.count), p); el("span", "fig-u", "건", p);
+      const pct = Math.min(100, I.count / I.cap * 100);
+      const m = el("div", "meter", null, b); m.setAttribute("role", "img"); m.setAttribute("aria-label", `늦은 등록 채우기 상한 ${fmt(I.cap / 1e4)}만 건의 ${Math.round(pct)}%`);
+      el("span", null, null, m).style.width = pct + "%";
+      el("p", "meter-cap", `늦은 등록 채우기 상한 ${fmt(I.cap / 1e4)}만 건의 ${Math.round(pct)}%`, b);
+      kvRows(b, [["최근 습득일", I.latest ? kday(I.latest) : "없음"]]);
+    }
+
+    const c = el("div", null, null, host), M = N0.mail;
+    el("h3", null, `${M.month}월 메일`, c);
+    const p = el("p", "fig", null, c); el("span", "fig-n", `≈${fmt(M.n)}`, p); el("span", "fig-u", "통", p);
+    const mp = M.n / M.cap * 100;
+    const m = el("div", "meter", null, c); m.setAttribute("role", "img"); m.setAttribute("aria-label", `무료 한도 ${fmt(M.cap)}통의 ${Math.round(mp)}%`);
+    el("span", null, null, m).style.width = Math.min(100, Math.max(mp, .5)) + "%";
+    el("p", "meter-cap", `무료 한도 ${fmt(M.cap)}통의 ${Math.round(mp)}%. 알림 메일과 확인 메일(이메일 입력 수)만 셌어요. 운영 알림 메일은 빠져 있어요.`, c);
+
+    const d = el("div", null, null, host), S = N0.server;
+    el("h3", null, "서버", d);
+    kvRows(d, [["디스크", S.disk == null ? "읽지 못함" : `${S.disk}%`],
+      ["마지막 백업", S.backup_day ? `${kday(S.backup_day)} 04시` : "기록 없음"],
+      ["백업 크기", S.backup_kb == null ? "기록 없음" : `${fmt(S.backup_kb)}KB`],
+      ["서버 밖(R2) 백업", S.backup_day ? (S.offsite_ok ? "성공" : "기록 없음") : "기록 없음"]]);
+  }
+
+  // ── 기간 영역 ──
+  let D = null, span = 7;
+  function rowsFor(a, b) { const out = []; for (let s = a; s <= b; s = addDays(s, 1)) out.push(Object.assign({ day: s }, D.metrics[s] || {})); return out; }
+  function prevText(span, pfrom, pto, value, unit) {
+    const first = D.first_metric_day;
+    if (!first || pto < first) return `앞 ${span}일은 기록 없음`;
+    if (pfrom < first) return `앞 ${span}일(${kday(first)}부터)은 ${fmt(value)}${unit}`;
+    return `앞 ${span}일은 ${fmt(value)}${unit}`;
+  }
+  function renderPeriod() {
+    const today = D.today, to = addDays(today, -1), from = addDays(today, -span);
+    const pto = addDays(from, -1), pfrom = addDays(today, -2 * span);
+    const first = D.first_metric_day;
+    const start = first && first > from ? first : from;   // 기록 시작 전 날짜는 0이 아니라 '기록 없음'이라 그래프에서 뺌
+    const cur = start <= to ? rowsFor(start, to) : [], prev = rowsFor(pfrom, pto).filter((d) => first && d.day >= first);
+    document.getElementById("range").textContent = `${kday(from)}부터 ${kday(to)}까지(어제까지)` +
+      (first && first > from ? `. 통계 기록은 ${kday(first)}부터예요` : "");
+
+    renderLedger(D.ledger.filter((x) => x.day >= from), from);
+
+    const v = sum(cur, (d) => (d.view_ko || 0) + visitsEn(d)), vp = sum(prev, (d) => (d.view_ko || 0) + visitsEn(d));
+    document.getElementById("visitTotal").textContent = fmt(v);
+    document.getElementById("visitSub").textContent = `${prevText(span, pfrom, pto, vp, "회")}. 페이지가 열린 횟수라 순 방문자 수와 달라요(검색엔진 봇 제외).`;
+    lineChart(document.getElementById("visitChart"), cur, [
+      { name: "한국어 화면", color: css("--s1"), get: (d) => d.view_ko || 0 },
+      { name: "영어 화면", color: css("--s2"), get: visitsEn },
+    ]);
+    makeTable(document.getElementById("visitTable"), ["날짜", "한국어", "영어", "합계"],
+      cur.slice().reverse().map((d) => [md(d.day), fmt(d.view_ko || 0), fmt(visitsEn(d)), fmt((d.view_ko || 0) + visitsEn(d))]));
+
+    const rp = sum(cur, reportsOf), rpp = sum(prev, reportsOf);
+    document.getElementById("reportTotal").textContent = fmt(rp);
+    document.getElementById("reportSub").textContent = `글 ${fmt(sum(cur, "report_text"))}건, 사진 ${fmt(sum(cur, "report_image"))}건. ` +
+      `${prevText(span, pfrom, pto, rpp, "건")}. 신고 아님·나중에 지운 것도 들어간 접수 수예요.`;
+    let bins;
+    if (span > 30) {
+      bins = [];
+      for (let i = 0; i < cur.length; i += 7) {
+        const w = cur.slice(i, i + 7);
+        bins.push({ label: `${md(w[0].day)}~${md(w[w.length - 1].day)}`, short: md(w[0].day), total: sum(w, reportsOf), text: sum(w, "report_text"), image: sum(w, "report_image") });
+      }
+    } else {
+      bins = cur.map((d) => ({ label: kday(d.day), short: md(d.day), total: reportsOf(d), text: d.report_text || 0, image: d.report_image || 0 }));
+    }
+    document.getElementById("reportUnit").textContent = span > 30 ? "주별 신고" : "하루 신고";
+    columnChart(document.getElementById("reportChart"), bins);
+    makeTable(document.getElementById("reportTable"), [span > 30 ? "주" : "날짜", "글", "사진", "합계"],
+      bins.slice().reverse().map((b) => [b.label, fmt(b.text), fmt(b.image), fmt(b.total)]));
+
+    renderRec(cur, from, to);
+  }
+
+  // ── 불러오기·상태(주소에 기간을 남김) ──
+  const qs = new URLSearchParams(location.search);
+  span = [7, 30, 90].includes(+qs.get("days")) ? +qs.get("days") : 7;
+  function sync() {
+    history.replaceState(null, "", span !== 7 ? `?days=${span}` : location.pathname);
+    document.querySelectorAll("#daySeg button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.days === span ? "true" : "false"));
+  }
+  async function load() {
+    const fail = document.getElementById("loadFail"), body = document.getElementById("body"), at = document.getElementById("readAt");
+    at.textContent = "읽는 중…";
+    try { D = await api("/admin/data"); }
+    catch (e) {
+      fail.hidden = false; fail.textContent = `숫자를 읽지 못했어요(${e.message}). 잠시 뒤 '다시 읽기'를 눌러 보세요.`;
+      at.textContent = ""; return;
+    }
+    fail.hidden = true; body.hidden = false;
+    at.textContent = `${D.read_at}에 읽음`;
+    details.clear();
+    renderAttn(D.checks); renderPeriod(); renderNow(D.now); sync();
+  }
+  document.querySelectorAll("#daySeg button").forEach((b) => b.addEventListener("click", () => { span = +b.dataset.days; shown = 10; renderPeriod(); sync(); }));
+  document.getElementById("ledgerMore").addEventListener("click", () => { shown += 30; renderLedger(D.ledger.filter((x) => x.day >= addDays(D.today, -span)), addDays(D.today, -span)); });
+  document.getElementById("reload").addEventListener("click", load);
+  load();
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (D) renderPeriod(); }, 120); });
+})();
+</script>
+</body>
+</html>

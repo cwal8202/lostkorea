@@ -45,6 +45,7 @@ nano .env      # 아래 키 채우기
 - **`DOMAIN`** (HTTPS 주소, 쉼표로 여러 개 가능 — 모두 인증서 자동 발급) — 비우면 http만.
 - **`PUBLIC_BASE_URL`**(대표 주소: 메일 링크·canonical·sitemap) · **`REDIRECT_HOSTS`**(옛 주소 → 대표 주소 영구 이동) — 아래 '주소 바꾸기'.
 - 이메일 알림 쓰면: `NOTIFIER_CHANNEL=email`, `SMTP_USER`, `SMTP_PASSWORD`, `NOTIFY_EMAIL_TO`
+- 운영 화면 쓰면: **`ADMIN_PASSWORD`** (없으면 `/admin`은 404) — 아래 '9-2. 운영 화면'
 - (`OPENSEARCH_URL`·`DATABASE_URL`은 compose가 자동 주입하므로 건드리지 말 것)
 
 > **DuckDNS 준비**: duckdns.org에서 서브도메인 생성 → 서버 IP 지정 → 그 도메인을 `.env` `DOMAIN`에. 운영 중 주소를 바꿀 땐 아래 '주소 바꾸기'.
@@ -167,6 +168,25 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
   `[정리]` 로그 줄에 "기록 N건"이 붙고, 기록이 실패하면 그날 정리를 보류하고 "습득물 이탈 기록 실패" 메일이 옴. 확인:
   `docker exec lostkorea-postgres psql -U lostkorea -d lostkorea -c "select detected_at, kind, check_window, count(*) from found_closures group by 1,2,3 order by 1 desc"`
 - **공개 레포는 60일간 커밋이 없으면 GitHub가 예약 워크플로(uptime)를 멈춘다** → Actions 탭에서 다시 켜기.
+
+## 9-2. 운영 화면 `/admin` (2026-11-18)
+들어오면 이상 항목만 위로 → 기간별 신고 대장·방문·신고·메일·AI 비용 → 지금 상태. 숫자는 `metrics`·`lost_items`·`found_closures`·색인에서
+그때그때 읽는다(새로 모으는 값 없음 — 운영 화면 자체의 열람 기록 `admin_views`와 비밀번호 실패 `admin_auth_fail`만 남김).
+
+- **켜기**(서버에서 한 번, 배포 전에) — `.env`에 비밀번호를 넣고 backend를 다시 만들면 열린다. 비밀번호는 비밀번호 관리자에 보관.
+  ```bash
+  cd /root/lostkorea && cp .env /root/.env.bak-admin-$(date +%Y%m%d%H%M) && chmod 600 /root/.env.bak-admin-*
+  PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24); printf '\nADMIN_PASSWORD=%s\n' "$PW" >> .env; echo "운영 화면 비밀번호: $PW"
+  docker compose -f docker-compose.prod.yml up -d backend   # .env는 컨테이너를 만들 때 읽음(배포가 backend를 다시 만들면 그때 반영)
+  ```
+- **열기**: https://lostkorea.com/admin → 브라우저 로그인 창에 사용자 이름 아무거나 + 비밀번호. 같은 IP가 한 시간에 10번 틀리면
+  그 IP는 한 시간 동안 맞는 비밀번호도 429(`LIMIT_ADMIN_FAIL_HOUR`). 로그아웃은 브라우저를 닫으면 됨.
+- **끄기**: `.env`에서 `ADMIN_PASSWORD` 줄을 지우고 `up -d backend` → `/admin` 아래 전부 404. 비밀번호를 바꿀 때도 같은 순서.
+- **점검**: `curl -s -o /dev/null -w '%{http_code}\n' https://lostkorea.com/admin` → 401(켜짐)·404(꺼짐).
+- 신고 문장은 줄을 열 때만 보내고 연 시각을 `admin_views`(신고 id는 해시, 1년 보관)에 남김. 이메일 주소는 화면에 없음.
+  외국어 신고는 처음 열 때 Gemini 1번으로 한국어로 옮겨 `lost_items.text_ko`에 저장(하루 AI 상한에서 1단위).
+- 화면의 '새벽 수집'은 색인의 `indexed_at`(처음 본 날)으로 센다 — 끝난 시각은 `daily_collect.log`에만 있음(＊). '지금 상태'의 디스크는
+  컨테이너에서 본 호스트 디스크, 'AI 모델'·'AI 사용 상한'은 웹 서버 프로세스 값(수집 컨테이너와 따로, 재시작하면 처음부터).
 
 > 자동배포는 `backend`·`caddy`만 재빌드(코드/웹 변경분). OpenSearch·Postgres는 데이터 보존 위해 건드리지 않음.
 > DB 스키마 변경(컬럼 추가)은 백엔드 기동 시 `store.init()`이 `ADD COLUMN IF NOT EXISTS`로 자동 적용 — 수동 마이그레이션 불필요.

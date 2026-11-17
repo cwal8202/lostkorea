@@ -527,7 +527,8 @@ def robots() -> PlainTextResponse:
     # 순서: 좁은 Allow → Disallow → 'Allow: /' — 가장 긴 규칙을 따르는 구글·처음 맞는 규칙을 따르는 봇 모두 같은 결과.
     return PlainTextResponse("\n".join([
         "User-agent: *", "Allow: /found-items/browse",
-        "Disallow: /lost-items", "Disallow: /email/", "Disallow: /found-items/", "Disallow: /health", "Allow: /",
+        "Disallow: /lost-items", "Disallow: /email/", "Disallow: /found-items/", "Disallow: /health", "Disallow: /admin",
+        "Allow: /",
         f"Sitemap: {base}/sitemap.xml", "",
     ]))
 

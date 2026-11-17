@@ -87,6 +87,12 @@
   IP별 레이트리밋 + 하루 AI 사용량 상한, 사진·검색어 크기 상한.
   [개인정보처리방침](https://lostkorea.com/privacy)·[이용약관](https://lostkorea.com/terms) — 사진 미저장,
   신고는 알림 기간 종료 30일 뒤 자동 삭제, '내 신고'에서 즉시 삭제 가능.
+- **운영 화면**(`/admin`, 운영자 전용): 들어오면 **이상 항목만 위로**(검색 엔진·새벽 수집·최근 습득일·백업·알림 재발송·디스크·예비 AI 모델·
+  AI 상한·앱 오류·로그인 실패, 정상은 한 줄로 접음) → 기간(7·30·90일)별 **신고 대장**(신고 → 유력 후보 → 내 물건 → 연락·방문 → 찾음을
+  한 줄씩, 줄을 열면 신고 문장·AI가 뽑은 항목·후보 3개·진행 기록, 외국어 신고는 처음 열 때 AI가 한국어로 옮겨 저장)·방문·신고 접수·메일·AI 비용·
+  습득물 이탈 → 지금 상태(남은 신고·색인·이번 달 메일·서버). 숫자는 실제 기록에서만(없는 값은 '기록 없음'·'＊', 어림값은 '≈').
+  `.env` `ADMIN_PASSWORD`가 있을 때만 열림(HTTP Basic, 없으면 404, IP당 한 시간 10번 틀리면 429), 신고 문장은 줄을 열 때만 보내고 연 시각을 기록,
+  이메일 주소는 싣지 않음.
 - **비용·장애 대비**: 재매칭은 상위 후보가 바뀐 신고만 LLM 판정. 숨은 thinking 토큰 제거(실측: 신고 1건 출력 토큰의 80% · 응답 16.9초→6.3초, 품질 동일), 같은 장소 노선 캐시. Gemini 장애 시 키워드(BM25) 검색으로 대체, 모델이 종료되거나 하루 요청 한도(모델별)를 넘으면 예비 모델로 자동 전환(관리자 알림).
 
 **✅ 검색 품질 실측 (eval, 골든셋 29문항)**
@@ -106,7 +112,7 @@
 신고 46건(15%) 중 67%를 1위로(3위 안 83%) 찾음. 브랜드·모델·여권 국적처럼 양쪽에 적힌 특징까지 맞는 보수적 하한은 16건(5%), 그중 1위 12건.
 영·중·일 문장으로는 하한 16건 중 12~15건(`eval/results/lost112.md`·`lost112_lang.md`, 판정은 AI라 정답 아님).
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 438개(검색어 만들기·지역가점·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 462개(운영 화면 인증·신고 대장·번역 저장·검색어 만들기·지역가점·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -133,7 +139,7 @@ eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, O
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache) · build_bus_routes(버스 노선표, 월 1회 로컬)
-tests/       pytest 438개 (외부 서비스 목킹)
+tests/       pytest 462개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)
@@ -143,7 +149,8 @@ apps/store.py   분실물 저장소 (PostgreSQL/SQLite 이중 백엔드, DATABAS
 apps/notifier.py 알림 (Notifier 인터페이스 + Console/Email, 유력·약한 후보 문구 구분, 신고자 언어 13개)
 apps/ops.py     운영 점검·알림 (오류 메일·데이터 정체·주간 요약·AI 토큰 실사용)
 apps/api/site.py  웹 페이지(홈·전체 습득물·가이드·방침·약관·robots·sitemap) — 언어별 서버 렌더링
-apps/web/       템플릿(index·문서 페이지·partials 머리글/바닥글) + static(css·js·폰트·로고·OG)
+apps/api/admin.py 운영 화면(/admin·/admin/data·/admin/reports/{id}[/ko]) — ADMIN_PASSWORD 인증, 실제 기록만 읽음
+apps/web/       템플릿(index·문서 페이지·partials 머리글/바닥글·admin.html 운영 화면) + static(css·js·폰트·로고·OG)
 ```
 > `apps/extension`(브라우저 확장)은 다음 단계 예정.
 
