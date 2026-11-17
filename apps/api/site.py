@@ -13,6 +13,9 @@ import hashlib
 import html
 import json
 import re
+import time
+import urllib.request
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -25,6 +28,7 @@ from .config import settings
 router = APIRouter()
 WEB = Path(__file__).resolve().parents[2] / "apps" / "web"
 BRAND = settings.brand_name
+_KST = timezone(timedelta(hours=9))
 CONTACT_URL = f"mailto:{settings.contact_email}"  # 문의 = 이메일(Cloudflare Email Routing → 운영자 메일)
 
 _BOT_RE = re.compile(r"bot|crawl|spider|slurp|preview|scan|curl|wget|python|httpx|go-http|java/|headless|"
@@ -49,15 +53,16 @@ def _asset_version() -> str:
 VERSION = _asset_version()
 
 # ── 페이지 메타(제목·설명·경로). path는 언어별 주소, alt는 다른 언어 주소 ──
+# 검색 결과에서 잘리지 않게: 제목은 폭 60, 설명은 폭 160 안(한글·한자는 2칸) — 구글이 대략 600px·920px에서 자름.
+# 핵심 낱말을 앞에(검색어: '분실물 찾기'·'습득물', 'lost something in Korea'). tests/test_seo_meta.py가 폭을 지킴.
 PAGES: dict[str, dict[str, dict[str, str]]] = {
     "home": {
-        "ko": {"path": "/", "title": f"{BRAND} — 한국 분실물 AI 찾기 | 경찰서·유실물센터 습득물 검색",
-               "desc": "잃어버린 물건을 말로 설명하거나 사진을 올리면 AI가 전국 경찰서·유실물센터 습득물 공개데이터에서 찾아드려요. "
-                       "보관 장소·연락처 안내, 새 습득물이 들어오면 이메일 알림까지. 무료·회원가입 없음."},
-        "en": {"path": "/en", "title": f"{BRAND} — Lost something in Korea? AI lost & found search",
-               "desc": f"Lost an item in Korea? Describe it in any language or upload a photo. {BRAND} searches Korea's "
-                       "police and public lost-and-found data with AI, shows where your item is held and how to get it "
-                       "back, and emails you when a match turns up. Free, no sign-up."},
+        "ko": {"path": "/", "title": f"분실물 찾기 — 경찰서·유실물센터 습득물 AI 검색 | {BRAND}",
+               "desc": "잃어버린 물건을 말이나 사진으로 알려 주면 AI가 전국 경찰서·유실물센터 습득물에서 찾아드려요. "
+                       "보관 장소 안내와 새 습득물 알림까지, 무료·가입 없음."},
+        "en": {"path": "/en", "title": f"Lost something in Korea? AI lost & found search | {BRAND}",
+               "desc": "Lost something in Korea? Describe it in any language or upload a photo. AI searches police "
+                       "lost-and-found data nationwide and emails you new matches. Free."},
     },
     "browse": {
         "ko": {"path": "/browse", "title": f"전체 습득물 둘러보기 — {BRAND}",
@@ -67,10 +72,9 @@ PAGES: dict[str, dict[str, dict[str, str]]] = {
                        "Updated daily."},
     },
     "guide": {
-        "en": {"path": "/en/guide", "title": f"Lost something in Korea? What to do, step by step — {BRAND}",
-               "desc": "Lost your wallet, phone or passport in Korea? A practical step-by-step guide: where lost items go, "
-                       "how to search Korea's lost-and-found data in English, getting help with Korean phone calls, "
-                       "and what to bring to pick it up."},
+        "en": {"path": "/en/guide", "title": f"Lost something in Korea? Step-by-step guide | {BRAND}",
+               "desc": "Lost a wallet, phone or passport in Korea? Where lost items go, how to search in English, "
+                       "help with calls in Korean, and what to bring to collect it."},
     },
     "privacy": {
         "ko": {"path": "/privacy", "title": f"개인정보처리방침 — {BRAND}", "desc": f"{BRAND} 개인정보처리방침"},
@@ -81,6 +85,11 @@ PAGES: dict[str, dict[str, dict[str, str]]] = {
         "en": {"path": "/en/terms", "title": f"Terms of Service — {BRAND}", "desc": f"{BRAND} Terms of Service"},
     },
 }
+# 사이트맵 수정 날짜(lastmod) — 페이지 글(제목·설명·본문)을 바꾸면 **그 페이지 날짜를 그날로** 올릴 것.
+# 구글은 날짜가 꾸준히 맞을 때만 믿으므로 배포 날짜가 아니라 내용이 바뀐 날. 전체 습득물(browse)은 목록이 매일 바뀌므로
+# 색인의 가장 최근 습득일을 씀(못 읽으면 이 날짜).
+UPDATED = {"home": "2026-11-17", "browse": "2026-11-15", "guide": "2026-11-17", "privacy": "2026-11-15",
+           "terms": "2026-11-14"}
 _TEMPLATE = {"home": "index.html", "browse": "index.html", "guide": "guide_en.html",
              "privacy": "privacy.html", "terms": "terms.html"}
 _TEMPLATE_EN = {"privacy": "privacy_en.html", "terms": "terms_en.html"}
@@ -523,14 +532,46 @@ def robots() -> PlainTextResponse:
     ]))
 
 
+_LATEST_FOUND: list = [0.0, ""]  # [다시 읽을 시각(monotonic), 'YYYY-MM-DD'] — 사이트맵은 드물게 읽히지만 한 시간은 재사용
+
+
+def _latest_found_date() -> str:
+    """색인의 가장 최근 습득일(YYYY-MM-DD). OpenSearch가 안 되면 ''(사이트맵이 실패하지 않게 짧게 기다림)."""
+    now = time.monotonic()
+    if now < _LATEST_FOUND[0]:
+        return _LATEST_FOUND[1]
+    try:
+        req = urllib.request.Request(
+            f"{settings.opensearch_url}/{settings.opensearch_index}/_search",
+            json.dumps({"size": 1, "sort": [{"found_at": {"order": "desc", "missing": "_last"}}],
+                        "_source": ["found_at"]}).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=3) as r:
+            hits = json.load(r)["hits"]["hits"]
+        latest = (hits[0]["_source"].get("found_at") or "")[:10] if hits else ""
+        date.fromisoformat(latest)
+    except (OSError, ValueError, KeyError, IndexError):
+        latest = ""
+    _LATEST_FOUND[:] = [now + (3600 if latest else 300), latest]
+    return latest
+
+
+def lastmod(page: str) -> str:
+    """사이트맵 lastmod — 내용이 바뀐 날(UPDATED). browse는 그날과 최근 습득일 중 늦은 날, 오늘(KST)을 넘지 않게."""
+    d = UPDATED[page]
+    if page == "browse":
+        d = max(d, _latest_found_date() or d)
+    return min(d, datetime.now(_KST).date().isoformat())
+
+
 @router.get("/sitemap.xml", include_in_schema=False)
 def sitemap() -> Response:
     base = settings.public_base_url.rstrip("/")
     urls = []
-    for meta in PAGES.values():
+    for page, meta in PAGES.items():
         alts = "".join(f'<xhtml:link rel="alternate" hreflang="{lg}" href="{base}{m["path"]}"/>' for lg, m in meta.items()) \
             if len(meta) > 1 else ""
-        urls += [f"<url><loc>{base}{m['path']}</loc>{alts}</url>" for m in meta.values()]
+        mod = lastmod(page)
+        urls += [f"<url><loc>{base}{m['path']}</loc><lastmod>{mod}</lastmod>{alts}</url>" for m in meta.values()]
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
            + "".join(urls) + "</urlset>")

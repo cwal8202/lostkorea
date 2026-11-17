@@ -210,6 +210,8 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 페이지는 `apps/api/site.py`가 언어별(한/영)로 서버에서 그린다: 템플릿 `apps/web/*.html` + 공통 머리글·바닥글
   `apps/web/partials/` + 문구 사전(`T`·`FAQ`). 정적 자산은 내용 해시를 `?v=`로 붙여 배포 즉시 새 파일을 받는다.
 - 서비스 이름은 `BRAND_NAME`(기본 `LostKorea`) 하나로 화면·메일·OG에 반영. 로고 글자(Lost**Korea**)는 템플릿에 직접 있음.
+- 검색 노출: 페이지 제목·설명은 `PAGES`(검색 결과에서 안 잘리게 폭 60·160 — 시험이 지킴). 페이지 글을 바꾸면 `UPDATED`의 그 페이지
+  날짜를 그날로 — 사이트맵 `lastmod`가 됨(전체 습득물은 색인의 최근 습득일을 자동으로).
 - 내부 이름도 2026-11-09에 findit → lostkorea로 이전(아래 '이름 이전 기록').
 - 폰트: Pretendard(SIL OFL, `static/fonts/pretendard/`)를 자체 호스팅 — 외부 CDN에 방문자 IP를 넘기지 않고, 차단 지역에서도 동작.
 
