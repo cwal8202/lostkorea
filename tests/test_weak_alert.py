@@ -119,3 +119,22 @@ def test_unverified_email_not_alerted_on_rematch(monkeypatch, fake):
     monkeypatch.setattr(rematch.graph, "match_stored", lambda *a, **k: _matches("A_1", 90))
     rematch.rematch_open(verbose=False)
     assert fake.sent == []
+
+
+def test_alert_blocked_only_when_place_and_date_both_mismatch():
+    """판정이 장소 '안 이어짐'·날짜 '어긋남'을 함께 적은 후보는 점수가 높아도 알림 없음 — 한쪽만이면 그대로(택시·지하철 물건은 옮겨 다님)."""
+    both = {"link_place": "안 이어짐", "link_date": "어긋남"}
+    assert rematch.alert_level(90, False, both) is None
+    assert rematch.alert_level(60, True, both) is None
+    assert rematch.alert_level(90, False, {"link_place": "안 이어짐", "link_date": "맞음"}) == "strong"
+    assert rematch.alert_level(90, False, {"link_place": "이어짐", "link_date": "어긋남"}) == "strong"
+    assert rematch.alert_level(90, False, {}) == "strong"          # 옛 판정(칸 없음)은 예전과 같음
+    assert rematch.alert_level(90, False) == "strong"
+
+
+def test_grade_keeps_place_and_date_links_only_when_valid():
+    from apps.api.gemini import clean_grades
+    out = clean_grades([{"id": 0, "score": 85, "place": "안 이어짐", "date": "어긋남"},
+                        {"id": 1, "score": 40, "place": "far", "date": ""}], 2)
+    assert out[0]["place"] == "안 이어짐" and out[0]["date"] == "어긋남"
+    assert "place" not in out[1] and "date" not in out[1]

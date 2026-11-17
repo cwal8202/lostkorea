@@ -113,6 +113,8 @@ def grade_candidates(text: str, cands: list[dict], lang: str = "ko", lost_date: 
         g = gmap.get(i)
         it["grade"] = g.get("score") if g else None
         it["reason"] = g.get("reason") if g else None
+        it["link_place"] = (g or {}).get("place")  # 장소·날짜가 이어지는지 — 둘 다 어긋나면 유력 알림만 막음(rematch.alert_level)
+        it["link_date"] = (g or {}).get("date")
         for src, dst in (("name", "name_en"), ("desc", "desc_en")):
             it.pop(dst, None)
             if (tr.get(i) or {}).get(src):

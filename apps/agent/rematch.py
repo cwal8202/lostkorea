@@ -35,12 +35,16 @@ def watch_deadline(row: dict) -> datetime:
     return created + timedelta(days=settings.watch_days_default)
 
 
-def alert_level(grade: int | None, notify_weak: bool) -> str | None:
+def alert_level(grade: int | None, notify_weak: bool, match: dict | None = None) -> str | None:
     """알림 등급 — 'strong'(유력 후보, ≥임계) | 'weak'(옵트인 시 [하한, 임계)) | None(알림 없음).
 
     약한 후보는 확정도 유력도 아니므로 상태를 open으로 두고(더 나은 후보 계속 탐색) 알림만 보낸다.
+    판정이 장소 '안 이어짐'과 날짜 '어긋남'을 함께 적은 후보는 점수가 높아도 알림 없음 — 점수·순위는 그대로(화면엔 보임).
+    실측(11/17): 서울 분실 ↔ 인천 습득 아이폰, 5월 분실 ↔ 7월 다른 동네 리락쿠마가 80~85점으로 '유력'이 됐음.
     """
     if grade is None:
+        return None
+    if match and match.get("link_place") == "안 이어짐" and match.get("link_date") == "어긋남":
         return None
     if grade >= settings.rematch_grade_threshold:
         return "strong"
@@ -51,7 +55,7 @@ def alert_level(grade: int | None, notify_weak: bool) -> str | None:
 
 _SLIM_KEYS = ("atc_id", "fd_sn", "name", "subject", "description", "category", "color", "dep_place",
               "found_place", "region", "found_at", "org_name", "tel", "source", "image_url", "score", "grade", "reason",
-              "name_en", "desc_en", "visual_score", "visual_reason")
+              "name_en", "desc_en", "visual_score", "visual_reason", "link_place", "link_date")
 
 
 def is_dismissed(m: dict, dismissed: set) -> bool:
@@ -152,7 +156,7 @@ def _rematch_one(row: dict, verbose: bool) -> dict | None:
     matches = [m for m in matches if not is_dismissed(m, dismissed)]
     top = matches[0] if matches else None
     g = top.get("grade") if top else None
-    level = alert_level(g, row.get("notify_weak", False)) if top else None
+    level = alert_level(g, row.get("notify_weak", False), top) if top else None
     notified = set(row.get("weak_notified") or [])
     current = (row.get("best_match") or {}).get("atc_id") if row.get("status") == "candidate" else None
     if level == "strong":

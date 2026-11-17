@@ -207,7 +207,7 @@ def _persist_and_respond(text: str, result: dict, email: str,
         store.bump("email_given")
     notify_weak = bool(notify_weak and email)
     # strong이면 '유력 후보(candidate)' — 확정 아님, 사용자 확인 필요(HITL).
-    status = "candidate" if alert_level(best_grade, False) == "strong" else "open"
+    status = "candidate" if alert_level(best_grade, False, top) == "strong" else "open"
 
     token = store.new_token()
     watch_until = watch_until_after()  # 기본 기간(결과창 '알림 설정'에서 변경)
@@ -582,7 +582,7 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
     store.bump("email_verified")
     matches = row.get("matches") or []
     top = matches[0] if matches else None
-    level = alert_level(top.get("grade"), row.get("notify_weak", False)) if top else None
+    level = alert_level(top.get("grade"), row.get("notify_weak", False), top) if top else None
     sent = False
     if level and row.get("status") in ("open", "candidate"):
         from apps.agent.rematch import send_alert
