@@ -82,8 +82,16 @@
         <button class="btn btn-primary" onclick="doBrowse(1)">{{search_short}}</button>
       </div>
       <div class="filter-chips">
-        <label class="fchip"><span class="sr-only">{{all_regions}}</span>
-          <select id="bregion" onchange="doBrowse(1)"><option value="">{{all_regions}}</option></select></label>
+        <div class="fchip rcombo" id="bregionBox">
+          <input type="hidden" id="bregion" value="" />
+          <input id="bregionInput" class="rcombo-input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="bregionList" aria-label="{{region_label}}" placeholder="{{region_ph}}" autocomplete="off" spellcheck="false" />
+          <button type="button" class="rcombo-clear" id="bregionClear" aria-label="{{region_clear}}" hidden>
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <button type="button" class="rcombo-toggle" id="bregionToggle" tabindex="-1" aria-label="{{region_open}}" aria-controls="bregionList">
+            <svg class="ic ic-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <ul id="bregionList" class="rcombo-list" role="listbox" aria-label="{{region_label}}" hidden></ul>
+        </div>
         <label class="fchip"><span class="sr-only">{{photo}}</span>
           <select id="bphoto" onchange="doBrowse(1)">
             <option value="">{{photo_all}}</option><option value="with">{{photo_with}}</option><option value="without">{{photo_without}}</option>

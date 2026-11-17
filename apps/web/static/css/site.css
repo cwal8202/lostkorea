@@ -684,3 +684,28 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 
 /* 후보 7번째부터 '더 보기' */
 .more-btn { display: block; margin: 10px auto 0; }
+
+/* ── 전체 습득물: 지역 고르기(입력하면 걸러지는 목록) ── */
+.rcombo { position: relative; cursor: text; padding-right: 4px; gap: 0; }
+.rcombo .rcombo-input { width: 13.5em; min-width: 0; text-overflow: ellipsis; color: var(--navy); }
+.rcombo .rcombo-input::placeholder { color: var(--sub); font-weight: 600; }
+.rcombo-clear, .rcombo-toggle { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--sub); cursor: pointer; flex: 0 0 32px; }
+.rcombo-clear:hover, .rcombo-toggle:hover { background: var(--surface); color: var(--navy); }
+.rcombo-clear:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.rcombo-list { position: fixed; z-index: 60; margin: 0; padding: 6px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
+  background: #fff; border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow-card); }
+.rc-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 8px 12px;
+  border-radius: 10px; font-size: 14.5px; color: var(--body); cursor: pointer; }
+.rc-opt b { color: var(--navy); font-weight: 700; }
+.rc-opt[aria-selected="true"], .rc-opt:hover { background: var(--surface); color: var(--navy); }
+.rc-opt mark { background: none; color: var(--brand); font-weight: 800; }
+.rc-kid { padding-left: 14px; position: relative; }
+.rc-kid::before { content: ""; position: absolute; left: 2px; top: 50%; width: 7px; height: 1px; background: var(--line-strong); }
+.rc-sub { margin-left: 4px; color: var(--sub); font-size: 13px; font-weight: 500; }
+.rc-cnt { color: var(--sub); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
+.rc-none { padding: 14px 12px; color: var(--sub); font-size: 14px; }
+@media (max-width: 640px) { .rcombo .rcombo-input { width: 10.5em; } }
+.rcombo .rcombo-input:focus, .rcombo .rcombo-input:focus-visible { outline: none; } /* 테두리는 감싸는 칸이 그림(입력칸 안쪽 이중 테두리 X) */
+.rcombo:focus-within { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); }
+@media (max-width: 640px) { .rcombo .rcombo-input { font-size: 16px; } } /* iOS: 16px 미만이면 입력할 때 화면이 확대됨 */

@@ -58,7 +58,7 @@ const I18N = {
     searchPhoto:"사진으로 찾기",
     matchResult:"매칭 결과", myReports:"내 신고 (이 브라우저)", refresh:"새로고침", loading:"불러오는 중…",
     browseTitle:"전체 습득물 둘러보기", browseDesc:"공개데이터로 수집된 습득물을 키워드·지역·날짜로 필터링해 살펴보세요. (AI 판정 없이 즉시 조회)",
-    kwPh:"키워드 (예: 지갑, 에어팟, 카드)", allRegions:"전체 지역", foundDate:"습득일", searchBtn:"검색", reset:"초기화",
+    kwPh:"키워드 (예: 지갑, 에어팟, 카드)", allRegions:"전체 지역", regionNone:"맞는 지역이 없어요", foundDate:"습득일", searchBtn:"검색", reset:"초기화",
     stepWorking:"진행 중…", total:"전체",
     regionCount:(n)=>`${n}개 지역까지 넓혀 가점`, noRegion:"장소 정보 없음 — 전국에서 검색",
     searchCount:(n)=>`후보 ${n}건 — 아래 목록에 AI가 점수·근거를 채워요`,
@@ -144,7 +144,7 @@ const I18N = {
     searchPhoto:"Search by photo",
     matchResult:"Match results", myReports:"My reports (this browser)", refresh:"Refresh", loading:"Loading…",
     browseTitle:"Browse all found items", browseDesc:"Browse collected found items by keyword, region and date. (Instant — no AI grading.)",
-    kwPh:"Keyword (e.g., wallet, AirPods, card)", allRegions:"All regions", foundDate:"Found date", searchBtn:"Search", reset:"Reset",
+    kwPh:"Keyword (e.g., wallet, AirPods, card)", allRegions:"All regions", regionNone:"No matching region", foundDate:"Found date", searchBtn:"Search", reset:"Reset",
     stepWorking:"Working…", total:"Total",
     regionCount:(n)=>`Boosting ${n} districts along the route`, noRegion:"No place given — searching nationwide",
     searchCount:(n)=>`${n} candidates — AI is scoring them below`,
@@ -955,7 +955,7 @@ function initStickyCta() {
 }
 
 applyLang();
-if (window.LK_VIEW === "browse") { browseFromUrl(); doBrowse(1); }
+if (window.LK_VIEW === "browse") { regionInit(); browseFromUrl(); regionSync(); doBrowse(1); }
 else {
   loadMine(); fetchStats(); initStickyCta(); openReportFromLink();
   window.addEventListener("hashchange", openReportFromLink);  // 열린 탭에서 다른 메일 링크를 눌러도
@@ -1007,20 +1007,157 @@ async function doBrowse(page) {
 function resetBrowse() {
   $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
   delete $("bregion").dataset.want;
+  regionSync();
   if ($("bphoto")) $("bphoto").value = "";
   if ($("bsort")) $("bsort").value = "new";
   doBrowse(1);
 }
 
+// ── 지역 고르기: 입력하면 걸러지는 목록(자동완성) ──
+// '부산' → 부산광역시와 그 아래 구·군 전부, '강' → 이름에 '강'이 든 시군구(같은 이름은 시도를 함께) + 강원 전체.
+// 외국인 영어 화면을 위해 로마자로도 찾음(부산 → busan, 강남구 → gangnamgu — 국어의 로마자 표기, 음운 변화는 빼고 글자대로).
+let REGIONS = [];      // 서버 region_tree: [{name, count, level, label}] — level 0 시도, 1 그 아래 시군구
+let rcItems = [];      // 지금 목록에 보이는 줄 [{value, html}]
+let rcActive = -1;     // 키보드로 가리킨 줄
+const RR_I = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
+const RR_V = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
+const RR_F = ["","k","k","k","n","n","n","t","l","k","m","p","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
+function romanize(s) {
+  let out = "";
+  for (const ch of s) {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    out += (c < 0 || c > 11171) ? ch : RR_I[Math.floor(c / 588)] + RR_V[Math.floor((c % 588) / 28)] + RR_F[c % 28];
+  }
+  return out;
+}
+const rcNorm = s => (s || "").toLowerCase().replace(/[\s\-·.,()]/g, "");
+const rcHit = (text, tok) => { const n = rcNorm(text); return n.includes(tok) || romanize(n).includes(tok); };
+function rcMark(text, q) {  // 한글로 친 글자는 굵게 표시(로마자로 찾은 건 표시 없이)
+  const i = q ? text.indexOf(q) : -1;
+  return i < 0 ? esc(text) : esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+}
+const rcCount = n => `<span class="rc-cnt">${n.toLocaleString()}</span>`;
+
+function regionFilter(q) {
+  const toks = q.trim().split(/\s+/).map(rcNorm).filter(Boolean);
+  const raw = q.trim();
+  const items = [];
+  if (!toks.length) {
+    items.push({ value: "", html: `<span>${esc(t('allRegions'))}</span>` });
+    REGIONS.forEach(r => items.push({ value: r.name,
+      html: r.level ? `<span class="rc-kid">${esc(r.label || r.name)}</span>${rcCount(r.count)}` : `<b>${esc(r.name)}</b>${rcCount(r.count)}` }));
+    return items;
+  }
+  const groups = [], kids = [];
+  for (let i = 0; i < REGIONS.length;) {
+    const s = REGIONS[i]; let j = i + 1;
+    const under = [];
+    while (j < REGIONS.length && REGIONS[j].level) under.push(REGIONS[j++]);
+    if (toks.every(k => rcHit(s.name, k))) groups.push([s, under]);            // 시도가 맞으면 그 아래 전부
+    else under.forEach(c => {                                                  // 아니면 시군구 이름(+시도로 좁히기: '서울 강서')
+      const label = c.label || c.name;
+      if (toks.every(k => rcHit(label, k) || rcHit(s.name, k)) && toks.some(k => rcHit(label, k))) kids.push([c, s, label]);
+    });
+    i = j;
+  }
+  kids.forEach(([c, s, label]) => items.push({ value: c.name,
+    html: `<span>${rcMark(label, raw)} <span class="rc-sub">${esc(s.name)}</span></span>${rcCount(c.count)}` }));
+  groups.forEach(([s, under]) => {
+    items.push({ value: s.name, html: `<b>${rcMark(s.name, raw)}</b>${rcCount(s.count)}` });
+    under.forEach(c => items.push({ value: c.name, html: `<span class="rc-kid">${esc(c.label || c.name)}</span>${rcCount(c.count)}` }));
+  });
+  return items;
+}
+
+function regionPlace() {  // 목록은 화면에 고정(fixed) — 휴대폰에서 가로로 밀리는 필터 줄 안에서도 잘리지 않게
+  const box = $("bregionBox").getBoundingClientRect(), list = $("bregionList");
+  const w = Math.max(box.width, Math.min(320, window.innerWidth - 24));
+  list.style.left = Math.max(12, Math.min(box.left, window.innerWidth - w - 12)) + "px";
+  list.style.top = (box.bottom + 6) + "px";
+  list.style.width = w + "px";
+  list.style.maxHeight = Math.max(160, window.innerHeight - box.bottom - 18) + "px";
+}
+
+function regionRender(q) {
+  const list = $("bregionList"), inp = $("bregionInput");
+  rcItems = regionFilter(q);
+  rcActive = q.trim() && rcItems.length ? 0 : -1;  // 입력했으면 첫 줄을 가리켜 Enter로 바로 고르게
+  list.innerHTML = rcItems.length
+    ? rcItems.map((it, i) => `<li id="rcopt-${i}" role="option" class="rc-opt" data-i="${i}" aria-selected="${i === rcActive}">${it.html}</li>`).join("")
+    : `<li class="rc-none" role="option" aria-disabled="true">${esc(t('regionNone'))}</li>`;
+  list.hidden = false; inp.setAttribute("aria-expanded", "true");
+  inp.setAttribute("aria-activedescendant", rcActive >= 0 ? `rcopt-${rcActive}` : "");
+  regionPlace();
+}
+
+function regionClose(restore = true) {
+  $("bregionList").hidden = true;
+  $("bregionInput").setAttribute("aria-expanded", "false");
+  $("bregionInput").removeAttribute("aria-activedescendant");
+  if (restore) regionSync();
+}
+
+function regionMove(d) {
+  if (!rcItems.length) return;
+  rcActive = (rcActive + d + rcItems.length) % rcItems.length;
+  $("bregionList").querySelectorAll(".rc-opt").forEach((li, i) => li.setAttribute("aria-selected", String(i === rcActive)));
+  const li = $(`rcopt-${rcActive}`);
+  li?.scrollIntoView({ block: "nearest" });
+  $("bregionInput").setAttribute("aria-activedescendant", li ? li.id : "");
+}
+
+function regionChoose(value) {
+  $("bregion").value = value;
+  regionClose();
+  doBrowse(1);
+}
+
+function regionSync() {  // 입력 칸 글자·지우기 단추를 지금 고른 지역에 맞춤
+  const v = $("bregion").value || "";
+  $("bregionInput").value = v;
+  $("bregionClear").hidden = !v;
+}
+
+function regionInit() {
+  const inp = $("bregionInput"), list = $("bregionList");
+  if (!inp) return;
+  inp.addEventListener("focus", () => { inp.select(); regionRender(""); });
+  inp.addEventListener("input", () => regionRender(inp.value));
+  inp.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (list.hidden) regionRender(inp.value === $("bregion").value ? "" : inp.value);
+      regionMove(e.key === "ArrowDown" ? 1 : -1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!list.hidden && rcActive >= 0) regionChoose(rcItems[rcActive].value);
+    } else if (e.key === "Escape") {
+      if (!list.hidden) { e.preventDefault(); regionClose(); }
+    } else if (e.key === "Tab") regionClose();
+  });
+  list.addEventListener("mousedown", e => e.preventDefault());  // 누르는 동안 입력 칸 포커스 유지
+  list.addEventListener("click", e => {
+    const li = e.target.closest(".rc-opt");
+    if (li) regionChoose(rcItems[+li.dataset.i].value);
+  });
+  $("bregionToggle").addEventListener("mousedown", e => e.preventDefault());
+  $("bregionToggle").addEventListener("click", () => {
+    if (list.hidden) { inp.focus(); } else regionClose();
+  });
+  $("bregionClear").addEventListener("click", () => { regionChoose(""); inp.focus(); });
+  document.addEventListener("click", e => { if (!list.hidden && !$("bregionBox").contains(e.target)) regionClose(); });
+  window.addEventListener("resize", () => { if (!list.hidden) regionPlace(); });
+  window.addEventListener("scroll", () => { if (!list.hidden) regionPlace(); }, true);
+  regionSync();
+}
+
 function renderBrowse(d) {
   const sel = $("bregion");
-  if (d.regions?.length && sel.dataset.filled !== "1") {  // 지역 드롭다운 최초 1회 채움
-    const cur = sel.value || sel.dataset.want || "";
+  if (d.regions?.length && !REGIONS.length) {  // 지역 목록 최초 1회 — 서버가 시도(합계) → 그 아래 시군구 순으로 줌
+    REGIONS = d.regions;
+    sel.value = sel.value || sel.dataset.want || "";
     delete sel.dataset.want;
-    // 서버가 시도(합계) → 그 아래 시군구 순으로 줌 — 시도를 고르면 그 아래 전부
-    sel.innerHTML = `<option value="">${t('allRegions')}</option>` +
-      d.regions.map(r => `<option value="${esc(r.name)}">${r.level ? "  └ " + esc(r.label || r.name) : esc(r.name)} (${r.count.toLocaleString()})</option>`).join("");
-    sel.value = cur; sel.dataset.filled = "1";
+    regionSync();
   }
   $("bcount").textContent = t('browseCount', d.total || 0);
   const xl = t('browseXlate');
