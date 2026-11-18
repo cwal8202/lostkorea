@@ -8,6 +8,8 @@
   uv run python -m eval.run_lost112 judge                 # 상위 8개를 다른 모델로 엄격 판정(강함/가능/없음)
   uv run python -m eval.run_lost112 report                # 집계(eval/results/lost112.md) + 지켜볼 목록 + 운영자 확인 30건
   PROD_SSH=root@서버 uv run python -m eval.run_lost112 watch   # 그 뒤 후보가 종결됐는지(운영 종결 기록 읽기만)
+  PROD_SSH=root@서버 uv run python -m eval.run_lost112 lostwatch  # 양쪽 종결 일치: 표본 신고 종결(접수해지) × 후보 습득물 종결
+  PROD_SSH=root@서버 uv run python -m eval.run_lost112 closedrev  # 거꾸로: 목록에서 사라진(종결) 신고 → 같은 물건 습득물도 종결?
   uv run python -m eval.run_lost112 lang --n 100          # 같은 신고를 영·중·일로(AI 번역) 넣어 같은 습득물을 찾는지
 
 - 원자료(신고·후보·판정)는 data/lost112/에만 — 저장소에 안 올림(.gitignore). 저장소엔 이 스크립트와 집계만.
@@ -83,6 +85,17 @@ def fetch() -> Path:
     return out
 
 
+def _with_detail(r: dict) -> dict:
+    """목록 한 줄 + 상세(분실 지역·접수 경찰서·상태 등). 가린 특이사항·'사진 없음' 그림은 비움."""
+    d = (_items(_call("getLostGoodsDetailInfo", ATC_ID=r["atcId"])) or [{}])[0]
+    m = {**r, **{k: v for k, v in d.items() if v}}
+    if HIDDEN in m.get("uniq", ""):
+        m["uniq"] = ""
+    if "no_img" in m.get("lstFilePathImg", ""):  # 사진 없음 자리표시 그림
+        m["lstFilePathImg"] = ""
+    return m
+
+
 def _load(p: Path) -> list[dict]:
     return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()]
 
@@ -107,15 +120,7 @@ def sample(n: int, seed: int) -> None:
     for k, v in sorted(by_top.items()):
         picked += rng.sample(v, min(quota[k], len(v)))
     with ThreadPoolExecutor(max_workers=4) as ex:
-        details = list(ex.map(lambda r: (_items(_call("getLostGoodsDetailInfo", ATC_ID=r["atcId"])) or [{}])[0], picked))
-    out = []
-    for r, d in zip(picked, details, strict=True):
-        m = {**r, **{k: v for k, v in d.items() if v}}
-        if HIDDEN in m.get("uniq", ""):
-            m["uniq"] = ""
-        if "no_img" in m.get("lstFilePathImg", ""):  # 사진 없음 자리표시 그림
-            m["lstFilePathImg"] = ""
-        out.append(m)
+        out = list(ex.map(_with_detail, picked))
     _save(RAW / "sample.jsonl", out)
     print(f"표본 {len(out)}건 — " + ", ".join(f"{k} {quota[k]}" for k in sorted(quota, key=lambda k: -quota[k])))
 
@@ -160,6 +165,8 @@ def _search_one(r: dict) -> dict:
     except Exception as e:  # noqa: BLE001 — 한 건 실패가 전체를 막지 않게
         return {"atcId": r["atcId"], "text": text, "error": f"{type(e).__name__}: {e}"[:300]}
     ex = st.get("extracted") or {}
+    if ex.get("degraded"):  # AI 추출 실패(429 등) — 조용히 깨진 결과를 집계에 섞지 않게(11/17)
+        return {"atcId": r["atcId"], "text": text, "error": "추출 실패(degraded)"}
     return {
         "atcId": r["atcId"], "text": text, "secs": round(time.time() - t0, 1),
         "is_lost_report": ex.get("is_lost_report", True),
@@ -239,28 +246,37 @@ def _cand_block(ms: list[dict]) -> str:
         for i, m in enumerate(ms))
 
 
-def _judge_one(pair: tuple[dict, dict]) -> dict:
+def _judge_cands(r: dict, ms: list[dict], think: str = "") -> tuple[list[dict] | None, str]:
+    """신고 하나 × 후보들 → ([{v, why}] 후보 순서대로, 오류). think='low'면 생각을 줄여 비용을 낮춤(3.8-flash는 minimal 거부)."""
     from apps.api import gemini
 
-    r, s = pair
-    ms = s.get("matches") or []
     if not ms:
-        return {"atcId": r["atcId"], "verdicts": []}
-    prompt = JUDGE_PROMPT.format(lost=_lost_block(r), cands=_cand_block(ms))
-    body = {"contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}
+        return [], ""
+    gen: dict = {"responseMimeType": "application/json", "temperature": 0}
+    if think:
+        gen["thinkingConfig"] = {"thinkingLevel": think}
+    body = {"contents": [{"parts": [{"text": JUDGE_PROMPT.format(lost=_lost_block(r), cands=_cand_block(ms))}]}],
+            "generationConfig": gen}
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{JUDGE_MODEL}:generateContent"
+    err = ""
     for attempt in range(3):
         try:
             res = gemini._post(url, body, timeout=90)
             data = json.loads(res["candidates"][0]["content"]["parts"][0]["text"])
-            vs = {int(v["id"]): v for v in data.get("verdicts", []) if str(v.get("id", "")).lstrip("#").isdigit()}
-            return {"atcId": r["atcId"], "verdicts": [
-                {"v": (vs.get(i) or {}).get("v", "none"), "why": (vs.get(i) or {}).get("why", "")} for i in range(len(ms))]}
+            vs = {int(str(v["id"]).lstrip("#")): v for v in data.get("verdicts", [])
+                  if str(v.get("id", "")).lstrip("#").isdigit()}
+            return [{"v": (vs.get(i) or {}).get("v", "none"), "why": (vs.get(i) or {}).get("why", "")}
+                    for i in range(len(ms))], ""
         except Exception as e:  # noqa: BLE001
             err = f"{type(e).__name__}: {e}"[:200]
             time.sleep(3 * (attempt + 1))
-    return {"atcId": r["atcId"], "error": err}
+    return None, err
+
+
+def _judge_one(pair: tuple[dict, dict]) -> dict:
+    r, s = pair
+    vs, err = _judge_cands(r, s.get("matches") or [])
+    return {"atcId": r["atcId"], "verdicts": vs} if vs is not None else {"atcId": r["atcId"], "error": err}
 
 
 def judge(workers: int) -> None:
@@ -449,30 +465,42 @@ def report() -> None:
           f"확인용 {len(pick)}건 → {RAW / 'review.md'}")
 
 
+def _prod_psql(sql: str) -> str:
+    """운영 PostgreSQL에 읽기 질의 하나(ssh) — PROD_SSH 필요. 쓰기는 하지 않음(원격 쓰기는 운영자가)."""
+    import os
+    import subprocess
+
+    host = os.environ.get("PROD_SSH")
+    if not host:
+        raise SystemExit("PROD_SSH 환경변수(운영 서버 ssh 주소)가 필요")
+    res = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", host,
+                          "docker exec -i lostkorea-postgres psql -U lostkorea -d lostkorea -q -At -F '|'"],
+                         input=sql, capture_output=True, text=True, encoding="utf-8", timeout=180)
+    if res.returncode:
+        raise SystemExit(res.stderr[:500])
+    return res.stdout
+
+
+def _found_closed(keys: list[str], since: str) -> dict[str, list[str]]:
+    """운영 found_closures에서 이 습득물들의 종결 기록(since 다음 날부터) — {키: [종류, 감지일]}. PROD_SSH 필요, 읽기만."""
+    import re
+
+    keys = sorted({k for k in keys if re.fullmatch(r"[A-Za-z0-9_]+", k)})
+    if not keys:
+        return {}
+    out = _prod_psql("select item_id, kind, detected_at from found_closures where kind = 'closed' and item_id in ("
+                     + ",".join(f"'{k}'" for k in keys) + f") and detected_at > '{since}';")  # 다음 밤 대조부터, 사진 내려감 제외
+    return {ln.split("|")[0]: ln.split("|")[1:] for ln in out.splitlines() if "|" in ln}
+
+
 def watch() -> None:
     """지켜볼 후보가 그 뒤 종결(주인 인계 등으로 목록에서 내려감)됐는지 — 운영 found_closures를 읽기만.
 
     PROD_SSH(예: root@서버) 필요. strong 후보 종결률을 같은 검색의 none 후보(비슷한 습득물) 종결률과 견줌.
     종결 = 주인이 찾아갔을 수도, 보관 기간이 끝났을 수도 → 차이만 보고 '우리가 찾아 줬다'고 말하지 않음.
     """
-    import os
-    import re
-    import subprocess
-
-    host = os.environ.get("PROD_SSH")
-    if not host:
-        raise SystemExit("PROD_SSH 환경변수(운영 서버 ssh 주소)가 필요")
     w = json.loads((RAW / "watch.json").read_text(encoding="utf-8"))
-    keys = sorted({x["key"] for x in w["items"] if re.fullmatch(r"[A-Za-z0-9_]+", x["key"])})
-    made = w["made"][:10]
-    sql = ("select item_id, kind, detected_at from found_closures where item_id in ("
-           + ",".join(f"'{k}'" for k in keys) + f") and detected_at > '{made}';")  # 다음 밤 대조부터
-    res = subprocess.run(["ssh", "-o", "ConnectTimeout=15", host,
-                          "docker exec -i lostkorea-postgres psql -U lostkorea -d lostkorea -At -F '|'"],
-                         input=sql, capture_output=True, text=True, encoding="utf-8", timeout=120)
-    if res.returncode:
-        raise SystemExit(res.stderr[:500])
-    closed = {ln.split("|")[0]: ln.split("|")[1:] for ln in res.stdout.splitlines() if "|" in ln}
+    closed = _found_closed([x["key"] for x in w["items"]], w["made"][:10])
     lines = [f"지켜보기 — 목록 만든 때 {w['made']}, 확인 {dt.datetime.now():%Y-%m-%d %H:%M}", ""]
     for v in ("strong", "possible", "none"):
         ks = {x["key"] for x in w["items"] if x["v"] == v}
@@ -481,6 +509,297 @@ def watch() -> None:
         rate = f"{len(c) / len(ks):.1%}" if ks else "-"
         lines.append(f"- {v}: 후보 {len(ks)}개 중 종결 {len(c)}개 ({rate}) {dict(kinds)}")
     out = RAW / f"watch_{dt.date.today():%Y%m%d}.txt"
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+
+
+def lostwatch() -> None:
+    """양쪽 종결 일치(회수 추정) — 표본 분실 신고가 목록에서 빠져 '종결(접수해지)'이 됐는지 + 그 신고의 후보 습득물이 종결됐는지.
+
+    신고 쪽 종결만으로는 '찾음'인지 '신고 취소'인지 모름(사유가 하나) → 그 신고의 strong 후보 습득물도 종결됐는지 겹쳐 보고,
+    같은 신고의 none 후보(비슷한 습득물) 종결과 견줘 우연히 겹친 비율을 가늠. data.go.kr 목록 23쪽 + 빠진 신고 상세만(AI 0회).
+    수집 시간(0~5시)엔 data.go.kr 429가 잦아 피할 것. 말할 땐 '회수 확정'이 아니라 '양쪽 종결 일치(회수 추정)'.
+    """
+    rows = {r["atcId"]: r for r in _load(RAW / "sample.jsonl")}
+    listed = {r["atcId"] for r in _load(fetch())}
+    sp = RAW / "lost_status.json"
+    status = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {}
+    today = f"{dt.date.today():%Y-%m-%d}"
+    for i in rows:
+        if i in listed or status.get(i, {}).get("closed"):
+            continue
+        d = (_items(_call("getLostGoodsDetailInfo", ATC_ID=i)) or [{}])[0]
+        status[i] = {"closed": "종결" in d.get("lstSteNm", ""), "ste": d.get("lstSteNm", ""), "seen": today}
+    sp.write_text(json.dumps(status, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    w = json.loads((RAW / "watch.json").read_text(encoding="utf-8"))
+    found = _found_closed([x["key"] for x in w["items"]], w["made"][:10])
+    by_lost: dict[str, list[dict]] = collections.defaultdict(list)
+    for x in w["items"]:
+        by_lost[x["lost"]].append(x)
+    lost_closed = {i for i, s in status.items() if s.get("closed")}
+
+    def rate(xs: list[dict]) -> str:
+        c = sum(1 for x in xs if x["key"] in found)
+        return f"{c}/{len(xs)} ({c / len(xs):.1%})" if xs else "-"
+
+    strong_reports = [i for i in rows if any(x["v"] == "strong" for x in by_lost.get(i, []))]
+    both = [i for i in strong_reports
+            if i in lost_closed and any(x["v"] == "strong" and x["key"] in found for x in by_lost[i])]
+    lines = [f"# 양쪽 종결 일치 — 확인 {dt.datetime.now():%Y-%m-%d %H:%M} (후보 목록 {w['made']})", "",
+             f"- 표본 신고 {len(rows)}건 중 신고 종결(접수해지): {len(lost_closed)}건",
+             f"- strong 후보가 있는 신고 {len(strong_reports)}건 중 신고 종결 "
+             f"{sum(1 for i in strong_reports if i in lost_closed)}건, **그중 strong 후보 습득물도 종결 {len(both)}건**", "",
+             "후보 습득물 종결률(우연히 겹친 비율을 가늠하는 대조):", "",
+             "| 후보 | 신고가 종결된 신고의 후보 | 신고가 열린 신고의 후보 |", "|---|---|---|"]
+    for v in ("strong", "possible", "none"):
+        xs_c = [x for i in lost_closed for x in by_lost.get(i, []) if x["v"] == v]
+        xs_o = [x for i in rows if i not in lost_closed for x in by_lost.get(i, []) if x["v"] == v]
+        lines.append(f"| {v} | {rate(xs_c)} | {rate(xs_o)} |")
+    lines += ["", "양쪽 종결 일치(strong) 건별:", ""]
+    for i in both:
+        ks = [x for x in by_lost[i] if x["v"] == "strong" and x["key"] in found]
+        lines.append(f"- {i} {rows[i].get('lstPrdtNm', '')[:20]} — 신고 종결 확인 {status[i]['seen']} / 습득물 "
+                     + ", ".join(f"{x['key']}({x['rank']}위, 종결 감지 {found[x['key']][1]})" for x in ks))
+    out = RAW / f"lostwatch_{dt.date.today():%Y%m%d}.md"
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+
+
+# ── 거꾸로: 이미 종결된 분실 신고에서 출발 ───────────────────────────────
+REV_P = RAW / "closedrev.json"
+PRICE = (0.75e-6, 3.75e-6)  # 3.6·3.8 Flash 1M 토큰당 입력 $0.75 · 출력(생각 포함) $3.75 — 2026-11 기준
+
+
+def _cost() -> float:
+    return TOKENS["in"] * PRICE[0] + TOKENS["out"] * PRICE[1]
+
+
+def _closures(since: str) -> list[dict]:
+    """운영 found_closures 중 종결(습득일 since 이후) = 이미 우리 색인에서 지워진 습득물. 이름·특이사항은 안 남기므로
+    판정 전에 경찰 상세로 다시 받음(종결된 습득물도 상세는 '종결' 상태로 그대로 나옴 — 11/18 확인). 읽기만."""
+    import csv
+    import io
+
+    dt.date.fromisoformat(since)  # 질의에 넣기 전 날짜 꼴 확인
+    out = _prod_psql("\\copy (select item_id, source, category_top, category_sub, color, region, dep_place, found_place, "
+                     f"found_at, detected_at from found_closures where kind = 'closed' and found_at >= '{since}') "
+                     "to stdout with csv header\n")
+    return list(csv.DictReader(io.StringIO(out)))
+
+
+def _gap(a: str, b: str) -> int:
+    return (dt.date.fromisoformat(b[:10]) - dt.date.fromisoformat(a[:10])).days
+
+
+def _pool(r: dict, region_set: list[str], closures: list[dict], skip: set[str], cap: int) -> list[dict]:
+    """이미 종결된 습득물 중 이 신고와 이어질 만한 것 — 같은 대분류, 분실일 하루 전~30일 뒤 습득, 지역이 이어짐
+    (우리 검색이 낸 경유 지역 또는 신고 시도). 거친 거름이라 순서는 경유 지역·소분류·색·날짜 가까움으로만 매김(검색 순위 아님)."""
+    from apps.api.region import _CANON_SIDO, region_matches
+
+    top, _, sub = (r.get("prdtClNm") or "").partition(">")
+    top, sub = top.strip(), sub.strip()
+    sido = (r.get("lstLctNm") or "").split(" ")[0]
+    # 분실 신고는 시도를 옛 이름·통합 이름으로도 씀('강원도', '전남광주통합특별시') — 습득물 쪽 이름(강원특별자치도 등)으로
+    sidos = {"광주광역시", "전라남도"} if sido == "전남광주통합특별시" else {_CANON_SIDO.get(sido, sido)} - {""}
+    color = (r.get("clrNm") or "").split("(")[0]
+    lost = r.get("lstYmd", "")
+    if not (top and lost):
+        return []
+    out = []
+    for c in closures:
+        if c["item_id"] in skip or c["category_top"] != top or not c.get("found_at"):
+            continue
+        gap = _gap(lost, c["found_at"])
+        if not -1 <= gap <= 30:
+            continue
+        on_route = bool(region_set) and region_matches(c.get("region", ""), region_set)
+        if not on_route and ((c.get("region") or "").split() or [""])[0] not in sidos:  # 지역 빈 기록 있음
+            continue
+        out.append(((not on_route, c["category_sub"] != sub, not (color and c.get("color", "").startswith(color)), abs(gap)), c))
+    out.sort(key=lambda x: x[0])
+    return [c for _, c in out[:cap]]
+
+
+def _closed_doc(c: dict) -> dict:
+    """종결 기록 + 경찰 상세(이름·특이사항·습득장소·보관 경찰서) → 판정 후보 꼴(_cand_block과 같은 칸)."""
+    from apps.collector import client
+
+    atc, _, sn = c["item_id"].rpartition("_")
+    try:
+        d = client.get_detail(c.get("source") or "police", atc, sn)
+    except Exception:  # noqa: BLE001 — 상세를 못 받아도 분류·색·장소·날짜로는 판정
+        d = {}
+    return {"atc_id": atc, "fd_sn": sn, "name": d.get("fdPrdtNm", ""),
+            "category": f"{c['category_top']} > {c['category_sub']}", "color": c.get("color", ""),
+            "description": d.get("uniq", ""), "dep_place": c.get("dep_place", ""),
+            "found_place": d.get("fdPlace") or c.get("found_place", ""), "region": c.get("region", ""),
+            "found_at": c.get("found_at", ""), "org_name": d.get("orgNm", ""),
+            "closed_at": c.get("detected_at", ""), "ste": d.get("csteSteNm", "")}
+
+
+def _save_rev(st: dict) -> None:
+    REV_P.write_text(json.dumps(st, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def closedrev(cap: int, budget: float, n_control: int, stage: str = "all") -> None:
+    """거꾸로 보기 — 전체 분실 신고 목록에서 사라진(종결) 신고에서 출발해, 같은 물건으로 보이는 습득물도 함께 종결됐는지 본다.
+
+    표본 300건을 기다리면 하루 0.2건꼴만 종결돼(11/18: 전체 22,024건 중 하루 24건) 결선 전에 숫자가 안 나와서 바꿈.
+    1) 어제 목록에 있고 오늘 목록에 없는 신고 → 상세가 '종결'인 것만(종결 사유는 회수·취소 구분 없음).
+    2) 우리 검색(지금 색인, 서비스와 같은 흐름) 상위 8개를 판정 → 같은 물건 후보가 다음 밤 대조에서 종결되는지(라이브).
+    3) 이미 종결돼 색인에서 지워진 습득물(운영 found_closures)도 같은 분류·지역·기간으로 걸러 판정(종결 풀) —
+       습득물을 먼저 찾아가고 신고는 나중에 닫히면 2)에선 못 봄. 이 풀은 우리 검색 순위가 아니라 거친 거름.
+    4) 대조군: 아직 열린 신고(표본 300 중)에 같은 거름·같은 판정 → 종결 풀에 같은 물건이 '우연히' 있는 비율.
+    말할 땐 '회수 확정'이 아니라 '양쪽 종결 일치(회수 추정)'. AI 비용은 budget 달러에서 멈춤.
+    """
+    _count_tokens()
+    if stage in ("live", "all"):
+        try:  # 색인에 못 붙으면 AI(추출·지역)만 쓰고 검색에서 전부 실패함(11/18 첫 실행) — 먼저 확인
+            urllib.request.urlopen(settings.opensearch_url, timeout=10).close()
+        except OSError as e:
+            raise SystemExit(f"색인 {settings.opensearch_url}에 못 붙음({e}) — OPENSEARCH_URL·터널 확인") from e
+    st = json.loads(REV_P.read_text(encoding="utf-8")) if REV_P.exists() else {"reports": {}, "control": {}}
+    cur_p = fetch()
+    prevs = [p for p in sorted(RAW.glob("list_*.jsonl")) if p.name < cur_p.name]
+    if not prevs:
+        raise SystemExit("비교할 이전 목록이 없음 — 내일 다시")
+    prev = {r["atcId"]: r for r in _load(prevs[-1])}
+    cur_ids = {r["atcId"] for r in _load(cur_p)}
+    today = f"{dt.date.today():%Y-%m-%d}"
+    gone = [prev[i] for i in prev if i not in cur_ids and i not in st["reports"]]
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for m in ex.map(_with_detail, gone):
+            st["reports"][m["atcId"]] = {"row": m, "ste": m.get("lstSteNm", ""), "closed": "종결" in m.get("lstSteNm", ""),
+                                         "gone": f"{prevs[-1].stem[5:]}~{cur_p.stem[5:]}", "seen": today}
+    _save_rev(st)
+    todo = [i for i, x in st["reports"].items() if x["closed"] and "verdicts" not in x]
+    print(f"사라진 신고 {len(gone)}건(새로) — 그중 종결 {sum(1 for r in gone if st['reports'][r['atcId']]['closed'])}건, "
+          f"검색·판정할 것 {len(todo)}건")
+    # 1단계(라이브) — 밤 대조(0시) 전에 돌려야 오늘 종결된 습득물이 아직 색인에 있음
+    done_now = 0
+    for i in todo if stage in ("live", "all") else []:
+        if _cost() > budget:
+            print(f"  예산 {budget}달러 도달 — 남은 {len(todo) - done_now}건은 다음에")
+            break
+        x, r = st["reports"][i], st["reports"][i]["row"]
+        s = _search_one(r)
+        lv, err = _judge_cands(r, s.get("matches") or [], think="low") if not s.get("error") else (None, s["error"])
+        if lv is None:
+            x["error"] = err
+            print(f"  ! {i} 실패 — {err}")
+            continue
+        x.pop("error", None)
+        x.update(searched=today, text=s["text"], region_set=s["region_set"], live=s["matches"], verdicts=lv)
+        done_now += 1
+        _save_rev(st)
+        print(f"  {done_now}/{len(todo)} {i} — 색인 후보 strong {sum(v['v'] == 'strong' for v in lv)}/{len(lv)}"
+              f" · 누적 ${_cost():.3f}")
+    if stage == "live":
+        print(f"AI 호출 {TOKENS} ≈ ${_cost():.3f}")
+        _rev_report(st)
+        return
+
+    # 2단계(종결 풀) — 이미 지워진 습득물. 기록·상세가 남아 급하지 않음
+    sample_rows = _load(RAW / "sample.jsonl")
+    pool_todo = [i for i, x in st["reports"].items() if "verdicts" in x and "pool_verdicts" not in x]
+    lost_days = [st["reports"][i]["row"].get("lstYmd", "") for i in pool_todo] + [r.get("lstYmd", "") for r in sample_rows]
+    since = str(dt.date.fromisoformat(min(d for d in lost_days if d)) - dt.timedelta(days=1))
+    closures = _closures(since)
+    print(f"종결 습득물 기록 {len(closures)}건(습득일 {since} 이후) — 종결 풀 판정 {len(pool_todo)}건")
+    pooled = 0
+    for i in pool_todo:
+        if _cost() > budget:
+            print(f"  예산 {budget}달러 도달 — 종결 풀은 여기까지")
+            break
+        x = st["reports"][i]
+        pool = [_closed_doc(c) for c in _pool(x["row"], x["region_set"], closures,
+                                              {f"{m['atc_id']}_{m['fd_sn']}" for m in x["live"]}, cap)]
+        pv, err = _judge_cands(x["row"], pool, think="low")
+        if pv is None:
+            print(f"  ! {i} 종결 풀 판정 실패 — {err}")
+            continue
+        x.update(pool=pool, pool_verdicts=pv, pooled=today)
+        pooled += 1
+        _save_rev(st)
+
+    # 대조군: 아직 열린 표본 신고 — 이번에 종결 풀을 본 신고와 같은 수만큼(무작위, 날짜로 고정)
+    srch = {s["atcId"]: s for s in _load(RAW / "search.jsonl") if not s.get("error")}
+    opened = [r for r in sample_rows if r["atcId"] in cur_ids and r["atcId"] not in st["control"] and r["atcId"] in srch]
+    k = n_control if n_control >= 0 else pooled
+    for r in random.Random(today).sample(opened, min(k, len(opened))):
+        if _cost() > budget:
+            print(f"  예산 {budget}달러 도달 — 대조군은 여기까지")
+            break
+        pool = [_closed_doc(c) for c in _pool(r, srch[r["atcId"]].get("region_set") or [], closures, set(), cap)]
+        pv, err = _judge_cands(r, pool, think="low")
+        if pv is None:
+            print(f"  ! 대조 {r['atcId']} 판정 실패 — {err}")
+            continue
+        st["control"][r["atcId"]] = {"date": today, "row": r, "pool": pool, "pool_verdicts": pv}
+        _save_rev(st)
+    print(f"AI 호출 {TOKENS} ≈ ${_cost():.3f}")
+    _rev_report(st)
+
+
+def _rev_report(st: dict) -> None:
+    """누적 집계 → data/lost112/closedrev_YYYYMMDD.md (신고·습득물 내용이 들어가므로 저장소 밖)."""
+    rep = st["reports"]
+    closed = [x for x in rep.values() if x["closed"]]
+    done = [x for x in closed if "verdicts" in x]
+    keys = [f"{m['atc_id']}_{m['fd_sn']}" for x in done for m in x["live"]]
+    later = _found_closed(keys, min(x["searched"] for x in done)) if done else {}
+
+    def after(x: dict, m: dict) -> str:  # 검색한 날 뒤 밤 대조에서 종결 감지된 날
+        k = later.get(f"{m['atc_id']}_{m['fd_sn']}")
+        return k[1] if k and k[1] > x["searched"] else ""
+
+    def has(x: dict, field: str, v: str) -> bool:
+        return any(y["v"] == v for y in x.get(field) or [])
+
+    def pct(a: int, b: int) -> str:
+        return f"{a}/{b} ({a / b:.0%})" if b else "-"
+
+    ctl = list(st["control"].values())
+    live_strong = [x for x in done if has(x, "verdicts", "strong")]
+    live_both = [x for x in live_strong
+                 if any(v["v"] == "strong" and after(x, m) for m, v in zip(x["live"], x["verdicts"], strict=True))]
+    lines = [f"# 거꾸로 보기 — 종결된 분실 신고에서 출발 (확인 {dt.datetime.now():%Y-%m-%d %H:%M})", "",
+             f"- 목록에서 사라진 신고 {len(rep)}건 중 상세 '종결' {len(closed)}건, 검색·판정 {len(done)}건 "
+             f"(다른 상태: {dict(collections.Counter(x['ste'] for x in rep.values() if not x['closed']))})",
+             "- 종결 사유는 회수·취소 구분이 없음 → '양쪽 종결 일치(회수 추정)'로만 말함", "",
+             "## 1. 우리 검색(지금 색인)이 짚은 습득물", "",
+             f"- 같은 물건(strong) 후보가 있는 신고: {pct(len(live_strong), len(done))}",
+             f"- 그 strong 후보가 검색 뒤 밤 대조에서 종결: {pct(len(live_both), len(live_strong))} "
+             f"(검색한 날 다음 밤부터 반영 — 오늘 검색한 건 내일 확인)", ""]
+    for v in ("strong", "possible", "none"):
+        xs = [(x, m) for x in done for m, y in zip(x["live"], x["verdicts"], strict=True) if y["v"] == v]
+        lines.append(f"  - {v} 후보 종결률(대조): {pct(sum(1 for x, m in xs if after(x, m)), len(xs))}")
+    ctl_strong = [x for x in ctl if has(x, "pool_verdicts", "strong")]
+    lines += ["", "## 2. 이미 종결돼 색인에서 지워진 습득물(같은 분류·지역·기간 거름) 중 같은 물건", "",
+              "| 신고 | 신고 수 | strong 있음 | possible 이상 있음 | 풀 평균 크기 |", "|---|---|---|---|---|"]
+    for name, xs in (("종결된 신고", [x for x in done if "pool_verdicts" in x]), ("열린 신고(대조군)", ctl)):
+        avg = sum(len(x.get("pool") or []) for x in xs) / len(xs) if xs else 0
+        lines.append(f"| {name} | {len(xs)} | {pct(sum(1 for x in xs if has(x, 'pool_verdicts', 'strong')), len(xs))} | "
+                     f"{pct(sum(1 for x in xs if has(x, 'pool_verdicts', 'strong') or has(x, 'pool_verdicts', 'possible')), len(xs))}"
+                     f" | {avg:.1f} |")
+    lines += ["", f"(대조군 strong {len(ctl_strong)}건 — 열린 신고인데 종결 풀에 같은 물건이 있다고 본 경우 = 판정의 우연·과신 정도)",
+              "", "## 건별(strong)", ""]
+    for x in done:
+        r = x["row"]
+        pairs = [("색인", m, after(x, m) or "열림") for m, v in zip(x["live"], x["verdicts"], strict=True) if v["v"] == "strong"]
+        pairs += [("종결 풀", m, m.get("closed_at", ""))
+                  for m, v in zip(x.get("pool") or [], x.get("pool_verdicts") or [], strict=True) if v["v"] == "strong"]
+        if not pairs:
+            continue
+        lines.append(f"- **{r['atcId']}** {r.get('lstSbjt', '')[:40]} / {r.get('lstPrdtNm')} / {r.get('lstLctNm', '')} "
+                     f"{r.get('lstPlace', '')} / 분실 {r.get('lstYmd')} / 접수 {r.get('orgNm', '')} — 신고 사라짐 {x['gone']}")
+        for src, m, when in pairs:
+            same = " · **같은 경찰서**" if r.get("orgNm") and r.get("orgNm") == m.get("org_name") else ""
+            lines.append(f"  - [{src}] {m['atc_id']}_{m['fd_sn']} {m.get('name', '')[:30]} / {m.get('color')} / "
+                         f"습득 {m.get('found_at')} / {m.get('dep_place')}({m.get('org_name', '')}) / 종결 {when}{same} — "
+                         f"{_desc(m)[:80] or '특이사항 없음'}")
+    out = RAW / f"closedrev_{dt.date.today():%Y%m%d}.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
 
@@ -587,11 +906,20 @@ def lang(n: int, workers: int) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["fetch", "sample", "search", "judge", "recheck", "report", "watch", "lang"])
+    ap.add_argument("cmd", choices=["fetch", "sample", "search", "judge", "recheck", "report", "watch", "lostwatch",
+                                    "closedrev", "lang"])
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--seed", type=int, default=112)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--cap", type=int, default=12, help="closedrev: 신고마다 종결 풀 후보 상한")
+    ap.add_argument("--budget", type=float, default=0.2, help="closedrev: 이번 실행 AI 비용 상한(달러)")
+    ap.add_argument("--control", type=int, default=-1, help="closedrev: 대조군 수(-1 = 이번에 판정한 종결 신고 수만큼)")
+    ap.add_argument("--stage", choices=["live", "pool", "all"], default="all",
+                    help="closedrev: live = 우리 검색만(밤 대조 전에), pool = 이미 지워진 습득물 + 대조군")
     a = ap.parse_args()
+    if a.cmd == "closedrev":
+        closedrev(a.cap, a.budget, a.control, a.stage)
+        return
     if a.cmd == "fetch":
         fetch()
     elif a.cmd == "sample":
@@ -604,6 +932,8 @@ def main() -> None:
         recheck(a.workers)
     elif a.cmd == "watch":
         watch()
+    elif a.cmd == "lostwatch":
+        lostwatch()
     elif a.cmd == "lang":
         lang(min(a.n, 100), a.workers)
     else:
