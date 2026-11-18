@@ -481,6 +481,11 @@ def _prod_psql(sql: str) -> str:
     return res.stdout
 
 
+# 보관 기간이 끝나 빠진 것은 '찾아감'이 아니므로 세지 않음: 우리가 185일 뒤 지우는 것은 종류가 따로(retention_end)라 이미 빠지고,
+# 경찰이 6개월 보관 끝에 목록에서 내리는 것도 섞이지 않게 습득 뒤 150일 안에 감지된 종결만(11/18 기록: 종결 전부 150일 안).
+_NOT_EXPIRED = " and found_at <> '' and detected_at::date - found_at::date < 150"
+
+
 def _found_closed(keys: list[str], since: str) -> dict[str, list[str]]:
     """운영 found_closures에서 이 습득물들의 종결 기록(since 다음 날부터) — {키: [종류, 감지일]}. PROD_SSH 필요, 읽기만."""
     import re
@@ -489,7 +494,8 @@ def _found_closed(keys: list[str], since: str) -> dict[str, list[str]]:
     if not keys:
         return {}
     out = _prod_psql("select item_id, kind, detected_at from found_closures where kind = 'closed' and item_id in ("
-                     + ",".join(f"'{k}'" for k in keys) + f") and detected_at > '{since}';")  # 다음 밤 대조부터, 사진 내려감 제외
+                     + ",".join(f"'{k}'" for k in keys) + f") and detected_at > '{since}'"  # 다음 밤 대조부터, 사진 내려감 제외
+                     + _NOT_EXPIRED + ";")
     return {ln.split("|")[0]: ln.split("|")[1:] for ln in out.splitlines() if "|" in ln}
 
 
@@ -502,12 +508,16 @@ def watch() -> None:
     w = json.loads((RAW / "watch.json").read_text(encoding="utf-8"))
     closed = _found_closed([x["key"] for x in w["items"]], w["made"][:10])
     lines = [f"지켜보기 — 목록 만든 때 {w['made']}, 확인 {dt.datetime.now():%Y-%m-%d %H:%M}", ""]
+    def rate(ks: set[str]) -> str:
+        c = sum(1 for k in ks if k in closed)
+        return f"{c}/{len(ks)} ({c / len(ks):.1%})" if ks else "-"
+
+    # 경찰서 보관분(F…)과 기관 보관분(V… 지하철·철도 등)을 나눔 — 기관은 잠깐 보관 뒤 경찰서로 넘기며 목록에서 빠져
+    # '종결'과 구분이 안 됨(상세도 똑같이 '종결') → 찾아감 근거로는 경찰서 보관분을 씀
     for v in ("strong", "possible", "none"):
         ks = {x["key"] for x in w["items"] if x["v"] == v}
-        c = [k for k in ks if k in closed]
-        kinds = collections.Counter(closed[k][0] for k in c)
-        rate = f"{len(c) / len(ks):.1%}" if ks else "-"
-        lines.append(f"- {v}: 후보 {len(ks)}개 중 종결 {len(c)}개 ({rate}) {dict(kinds)}")
+        lines.append(f"- {v}: 종결 {rate(ks)} — 경찰서 보관분 {rate({k for k in ks if k.startswith('F')})}, "
+                     f"기관 보관분 {rate({k for k in ks if not k.startswith('F')})}")
     out = RAW / f"watch_{dt.date.today():%Y%m%d}.txt"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
@@ -583,7 +593,8 @@ def _closures(since: str) -> list[dict]:
 
     dt.date.fromisoformat(since)  # 질의에 넣기 전 날짜 꼴 확인
     out = _prod_psql("\\copy (select item_id, source, category_top, category_sub, color, region, dep_place, found_place, "
-                     f"found_at, detected_at from found_closures where kind = 'closed' and found_at >= '{since}') "
+                     f"found_at, detected_at from found_closures where kind = 'closed' and found_at >= '{since}'"
+                     f"{_NOT_EXPIRED}) "
                      "to stdout with csv header\n")
     return list(csv.DictReader(io.StringIO(out)))
 
@@ -771,7 +782,10 @@ def _rev_report(st: dict) -> None:
              "## 1. 우리 검색(지금 색인)이 짚은 습득물", "",
              f"- 같은 물건(strong) 후보가 있는 신고: {pct(len(live_strong), len(done))}",
              f"- 그 strong 후보가 검색 뒤 밤 대조에서 종결: {pct(len(live_both), len(live_strong))} "
-             f"(검색한 날 다음 밤부터 반영 — 오늘 검색한 건 내일 확인)", ""]
+             f"(검색한 날 다음 밤부터 반영 — 오늘 검색한 건 내일 확인)",
+             "  - 찾아감 근거는 경찰서 보관분(F…)만: 기관 보관분(V… 지하철·철도 등)은 경찰서로 넘길 때도 똑같이 '종결'로 빠짐. "
+             f"경찰서 보관분 종결 {sum(1 for x in live_both if any(v['v'] == 'strong' and after(x, m) and m['atc_id'].startswith('F') for m, v in zip(x['live'], x['verdicts'], strict=True)))}건",
+             ""]
     for v in ("strong", "possible", "none"):
         xs = [(x, m) for x in done for m, y in zip(x["live"], x["verdicts"], strict=True) if y["v"] == v]
         lines.append(f"  - {v} 후보 종결률(대조): {pct(sum(1 for x, m in xs if after(x, m)), len(xs))}")
@@ -796,6 +810,8 @@ def _rev_report(st: dict) -> None:
                      f"{r.get('lstPlace', '')} / 분실 {r.get('lstYmd')} / 접수 {r.get('orgNm', '')} — 신고 사라짐 {x['gone']}")
         for src, m, when in pairs:
             same = " · **같은 경찰서**" if r.get("orgNm") and r.get("orgNm") == m.get("org_name") else ""
+            if not m["atc_id"].startswith("F"):
+                same += " · 기관 보관(종결이어도 경찰서 이관일 수 있음)"
             lines.append(f"  - [{src}] {m['atc_id']}_{m['fd_sn']} {m.get('name', '')[:30]} / {m.get('color')} / "
                          f"습득 {m.get('found_at')} / {m.get('dep_place')}({m.get('org_name', '')}) / 종결 {when}{same} — "
                          f"{_desc(m)[:80] or '특이사항 없음'}")
