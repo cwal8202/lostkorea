@@ -96,10 +96,12 @@ chmod +x scripts/daily_collect.sh
 - 수집은 **별도 일회성 컨테이너**(`docker compose run --rm backend …`)에서 실행 → 수집 중 자동배포가 백엔드를 재생성해도 끊기지 않음.
   (예전 `exec` 방식은 새벽 배포에 수집이 중단돼 작업이 유실됨. 첫 7일 창 실행은 서버에서 ~4.5시간.)
 - 진행 확인: `docker ps | grep backend-run` (수집 컨테이너) · `tail -f /root/lostkorea/daily_collect.log`
-- **습득물 영어 번역**(2026-11-20, FIND-124): 재매칭 뒤 `--translate 20000 --translate-minutes 20 --translate-calls 300` — 영어 칸이
-  없는 습득물의 물품명·특이사항·경찰 아닌 기관 이름을 AI로(같은 글은 번역 기억 `tr_cache`). 하룻밤 상한 AI 300회 ≈ $1.3, 평소엔 새 글만.
+- **습득물 영어 번역**(2026-11-20, FIND-124·126): 재매칭 뒤 `--translate 20000 --translate-minutes 20 --translate-calls 300` — 영어 칸이
+  없는 습득물의 물품명·특이사항·경찰 아닌 기관 이름을 AI로(같은 글은 번역 기억 `tr_cache`). 모델은 `GEMINI_TRANSLATE_MODEL`
+  (기본 gemini-3.1-flash-lite, 예비 모델로 안 넘어감). 하룻밤 상한 AI 300회 ≈ $0.5, 평소엔 새 글만. AI 40회마다 색인에 중간 저장.
   로그 줄: `영어 칸 없는 N건 중 N건 · 글 N개(기억 N) → 새로 옮김 N개 … AI N회 ≈ $N`.
-  처음 한 번 채우기(25만 건, 서로 다른 글 ~9만 2천 개, 어림 **$6.4**·1시간 남짓) — **Gemini 선불 잔액이 $10 이상인지 먼저 확인**
+  처음 한 번 채우기(25만 건, 서로 다른 글 ~9만 2천 개 중 3.6 Flash로 9,360개 옮김 → 남은 ~8만 3천 개, Flash-Lite 어림 **$2.3**·1시간 남짓)
+  — **Gemini 선불 잔액이 $5 이상인지 먼저 확인**
   (잔액 0이면 같은 결제 계정의 운영 키까지 멈춤), 밤 수집과 겹치지 않게 낮에:
   `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.collector.run --translate-only --translate 260000 --translate-minutes 120 --translate-calls 1700`
 - **작은 사진 미리 만들기**(2026-11-19, FIND-122): 수집 맨 끝(재매칭 뒤)에 `--thumbs 20000 --thumbs-minutes 90` — 습득일 최신순으로

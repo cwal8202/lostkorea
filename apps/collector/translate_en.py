@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import re
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -48,6 +49,12 @@ Rules:
 {payload}"""
 
 STATS = {"calls": 0, "in": 0, "out": 0, "failed_calls": 0}
+_NO_THINK: set[str] = set()   # thinking 설정을 거부한 모델(그 뒤론 안 보냄)
+SAVE_EVERY = 10               # 이만큼 바퀴(묶음 4개씩)마다 색인에 저장 — 중간에 멈춰도 화면에 남게(11/20 첫 채우기가 중간에 멈춰 0건)
+
+
+def cost(st: dict) -> float:
+    return st.get("ai_in", 0) * settings.tr_price_in_per_m / 1e6 + st.get("ai_out", 0) * settings.tr_price_out_per_m / 1e6
 
 
 def valid(ko: str, en: str) -> bool:
@@ -58,13 +65,48 @@ def valid(ko: str, en: str) -> bool:
     return all(tok.lower() in low for tok in _LATIN.findall(ko))
 
 
+def _post_tr(body: dict) -> dict:
+    """번역 전용 호출(settings.gemini_translate_model) — 서비스 호출(gemini._post)과 달리 예비 모델로 넘어가지 않음.
+    429·5xx·끊김은 세 번까지 다시, thinking 설정을 거부하면 빼고 다시."""
+    model = settings.gemini_translate_model
+    url = f"{gemini._BASE}/{model}:generateContent"
+    headers = {"Content-Type": "application/json", "x-goog-api-key": settings.gemini_api_key}
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(url, json.dumps(body).encode("utf-8"), headers)
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            msg = gemini._err_text(e)
+            if e.code == 400 and "thinking" in msg.lower() and body["generationConfig"].pop("thinkingConfig", None):
+                _NO_THINK.add(model)
+                continue
+            if e.code in (429, 500, 503) and attempt < 3:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise
+        except OSError:
+            if attempt < 3:
+                time.sleep(5)
+                continue
+            raise
+    raise RuntimeError("번역 호출 실패")
+
+
 def _call(prompt: str):
-    body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": gemini._gen_config()}
-    res = gemini._post(gemini._gen_url(), body, timeout=120)
+    cfg: dict = {"responseMimeType": "application/json", "temperature": 0}
+    if settings.gemini_translate_model not in _NO_THINK:
+        cfg["thinkingConfig"] = {"thinkingLevel": "minimal"}
+    res = _post_tr({"contents": [{"parts": [{"text": prompt}]}], "generationConfig": cfg})
     u = res.get("usageMetadata") or {}
+    n_in, n_out = u.get("promptTokenCount", 0), u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)
     STATS["calls"] += 1
-    STATS["in"] += u.get("promptTokenCount", 0)
-    STATS["out"] += u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)
+    STATS["in"] += n_in
+    STATS["out"] += n_out
+    try:   # 서비스 AI 비용(ai_*)과 따로 — 주간 요약·운영 화면의 AI 비용이 번역 때문에 부풀지 않게
+        store.bump_many({"tr_calls": 1, "tr_in": n_in, "tr_out": n_out})
+    except Exception:  # noqa: BLE001
+        pass
     return json.loads(res["candidates"][0]["content"]["parts"][0]["text"])
 
 
@@ -150,11 +192,24 @@ def sync(max_docs: int, budget_s: float, max_calls: int = 300, dry: bool = False
     st = {"docs": len(order), "missing_docs": len(docs), "strings": len(wanted), "cached": len(wanted) - len(todo),
           "to_translate": len(todo), "translated": 0, "rejected": 0, "updated": 0, "samples": []}
     batches = [todo[b : b + BATCH] for b in range(0, len(todo), BATCH)][:max_calls]
+    pending = set(order)                         # 아직 색인에 영어 칸을 안 넣은 문서
+
+    def save() -> None:                          # 글이 다 옮겨진 문서만 색인에(중간 저장 — 멈춰도 그만큼은 화면에)
+        updates = {i: f for i in list(pending) if (f := _fields(docs[i], known)) is not None}
+        if updates and not dry:
+            if not st["updated"]:
+                _ensure_mapping()
+            st["updated"] += _bulk_update(updates)
+        st["would_update"] = st.get("would_update", 0) + (len(updates) if dry else 0)
+        pending.difference_update(updates)
+
     start = time.monotonic()
     with ThreadPoolExecutor(WORKERS) as ex:      # 묶음 4개씩 동시에(분당 수십 회 — Tier 1 하루 1만 회에 한참 못 미침)
-        for r in range(0, len(batches), WORKERS):
+        for n, r in enumerate(range(0, len(batches), WORKERS)):
             if time.monotonic() - start > budget_s:
                 break
+            if n and n % SAVE_EVERY == 0:
+                save()
             for got in ex.map(translate, batches[r : r + WORKERS]):
                 for (k, ko), en in got.items():
                     known[k][ko] = en
@@ -165,11 +220,6 @@ def sync(max_docs: int, budget_s: float, max_calls: int = 300, dry: bool = False
                 if not dry:
                     for k in _PREFIX:
                         store.tr_put(k, {ko: en for (kk, ko), en in got.items() if kk == k})
-    updates = {i: f for i in order if (f := _fields(docs[i], known)) is not None}
-    if dry:
-        st["would_update"] = len(updates)
-    elif updates:
-        _ensure_mapping()
-        st["updated"] = _bulk_update(updates)
+    save()
     st.update({f"ai_{k}": v for k, v in STATS.items()})
     return st

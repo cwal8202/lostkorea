@@ -79,3 +79,26 @@ def test_item_carries_english_fields():
     assert it["category_en"] == "Wallet > Men's wallet" and it["color_en"] == "Black" and it["found_place_en"] == "Taxi"
     assert it["org_mt"] == "Seoul Gangnam Police Station" and it["dep_mt"] == "Yeoksam Police Substation"
     assert it["name_mt"] == "Wallet" and it["region_en"] == "Gangnam-gu, Seoul"
+
+
+def test_translation_uses_lite_model_without_fallback_and_own_cost(monkeypatch):
+    """번역은 전용 가벼운 모델로 — 예비 모델로 넘어가지 않고, 비용은 서비스 AI 비용(ai_*)과 따로(tr_*)."""
+    import io
+    import json as _json
+
+    from apps.api.config import settings
+    store.init()
+    urls = []
+
+    def fake(req, timeout=0):
+        urls.append(req.full_url)
+        body = {"candidates": [{"content": {"parts": [{"text": _json.dumps({"n0": "Wallet"})}]}}],
+                "usageMetadata": {"promptTokenCount": 1000, "candidatesTokenCount": 500}}
+        return io.BytesIO(_json.dumps(body).encode())
+    monkeypatch.setattr(T.urllib.request, "urlopen", fake)
+    before = store.metrics_since("2000-01-01")
+    assert T.translate([("name", "지갑")]) == {("name", "지갑"): "Wallet"}
+    assert urls == [f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_translate_model}:generateContent"]
+    after = store.metrics_since("2000-01-01")
+    assert after.get("tr_in", 0) - before.get("tr_in", 0) == 1000 and after.get("ai_in", 0) == before.get("ai_in", 0)
+    assert abs(T.cost({"ai_in": 1_000_000, "ai_out": 1_000_000}) - (settings.tr_price_in_per_m + settings.tr_price_out_per_m)) < 1e-9

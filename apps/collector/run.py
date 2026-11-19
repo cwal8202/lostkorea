@@ -614,14 +614,15 @@ def _run_translate(args: argparse.Namespace) -> None:
     """영어 번역(FIND-124) — 실패해도 수집 결과는 그대로(화면은 한국어 원문)."""
     from apps.collector import translate_en
 
-    print(f"\n영어 번역(최대 {args.translate}건·{args.translate_minutes:g}분·AI {args.translate_calls}회)...", flush=True)
+    print(f"\n영어 번역({settings.gemini_translate_model}, 최대 {args.translate}건·{args.translate_minutes:g}분·"
+          f"AI {args.translate_calls}회)...", flush=True)
     t = time.monotonic()
     try:
         st = translate_en.sync(args.translate, args.translate_minutes * 60, args.translate_calls)
     except Exception as e:  # noqa: BLE001
         print(f"  ! 영어 번역 실패: {e}")
         return
-    cost = st["ai_in"] * 0.75e-6 + st["ai_out"] * 3.75e-6
+    cost = translate_en.cost(st)
     print(f"  영어 칸 없는 {st['missing_docs']}건 중 {st['docs']}건 · 글 {st['strings']}개(기억 {st['cached']}) → "
           f"새로 옮김 {st['translated']}개(못 옮김 {st['rejected']}) · 색인 {st['updated']}건 · "
           f"AI {st['ai_calls']}회(실패 {st['ai_failed_calls']}) ≈ ${cost:.3f} · {time.monotonic() - t:.0f}초")

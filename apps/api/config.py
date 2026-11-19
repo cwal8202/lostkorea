@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # 2027-01-01부터 2배 예정(가격표 확인 후 .env로 갱신).
     ai_price_in_per_m: float = 0.75
     ai_price_out_per_m: float = 3.75
+    # 습득물 영어 번역(밤 수집 때) 전용 모델 — 짧은 물품명·특이사항이라 가벼운 모델로(11/20 운영자 결정: 3.6 Flash의 약 1/2.5 단가).
+    # 예비 모델로 넘어가지 않음(조용히 비싼 모델로 바뀌지 않게). 단가는 수집 로그의 비용 어림용(USD / 100만 토큰).
+    gemini_translate_model: str = "gemini-3.1-flash-lite"
+    tr_price_in_per_m: float = 0.25
+    tr_price_out_per_m: float = 1.50
     kakao_rest_api_key: str = ""
     data_go_kr_service_key_decoded: str = ""  # 경찰청 습득물 API (디코딩 키)
 
