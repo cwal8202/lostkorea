@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 from . import gemini
 from .config import settings
 from .region import resolver
+from .region_en import region_en, sido_en, sigungu_en
 
 
 def _os_raw(body: dict) -> dict:
@@ -30,7 +31,8 @@ def _os_search(body: dict) -> list[dict]:
 
 
 def _item(s: dict, _id: str = "", score: float = 0.0) -> dict:
-    """OpenSearch _source → API용 습득물 dict(임베딩 제외). region 없으면 런타임 해석."""
+    """OpenSearch _source → API용 습득물 dict(임베딩 제외). region 없으면 런타임 해석, 영어 화면용 region_en(규칙, AI 없음)."""
+    region = s.get("region") or resolver.resolve(s.get("dep_place", ""))
     return {
         "atc_id": s.get("atc_id", _id.split("_")[0] if _id else ""),
         "fd_sn": s.get("fd_sn", "1"),
@@ -41,7 +43,8 @@ def _item(s: dict, _id: str = "", score: float = 0.0) -> dict:
         "color": s.get("color", ""),
         "dep_place": s.get("dep_place", ""),
         "found_place": s.get("found_place", ""),  # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
-        "region": s.get("region") or resolver.resolve(s.get("dep_place", "")),
+        "region": region,
+        "region_en": region_en(region),
         "found_at": s.get("found_at", ""),
         "org_name": s.get("org_name", ""),
         "tel": s.get("tel", ""),
@@ -141,8 +144,8 @@ def region_tree(buckets: list[dict]) -> list[dict]:
             node["children"].append((name, n))
     out: list[dict] = []
     for sido, node in sorted(tree.items(), key=lambda kv: -kv[1]["count"]):
-        out.append({"name": sido, "count": node["count"], "level": 0})
-        out += [{"name": nm, "count": n, "level": 1, "label": nm[len(sido) + 1:]}
+        out.append({"name": sido, "count": node["count"], "level": 0, "en": sido_en(sido)})
+        out += [{"name": nm, "count": n, "level": 1, "label": nm[len(sido) + 1:], "en": sigungu_en(nm[len(sido) + 1:])}
                 for nm, n in sorted(node["children"], key=lambda x: -x[1])]
     return out
 

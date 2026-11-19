@@ -23,6 +23,7 @@ class FoundItem(BaseModel):
     dep_place: str = ""      # 보관장소(원본)
     found_place: str = ""    # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
     region: str = ""         # 해석된 구/시
+    region_en: str = ""      # 영어 화면용 지역(로마자 표기 규칙, 'Samcheok-si, Gangwon State')
     found_at: str = ""       # 습득일
     org_name: str = ""       # 보관기관(수령 문의)
     tel: str = ""            # 보관기관 연락처

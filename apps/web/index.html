@@ -29,7 +29,7 @@
             <img id="photoPreview" alt="" />
             <button type="button" class="chip-x" onclick="clearPhoto()" aria-label="{{photo_remove}}">✕</button>
           </span>
-          <label class="date-field"><span>{{lost_date}}</span><input type="date" id="lostDate" /></label>
+          <div class="date-field"><label for="lostDateText">{{lost_date}}</label><input type="text" class="date-text" id="lostDateText" data-date="lostDate" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="{{date_ph}}" /><span class="date-pick" title="{{date_pick}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><input type="date" id="lostDate" tabindex="-1" aria-hidden="true" /></span></div>
           <span class="count"><span id="textCount">0</span>/500</span>
         </div>
         <!-- 알림 이메일(선택) — 결과 화면까지 가야 보이던 것을 처음부터. 입력하면 '확인 메일을 한 번 눌러야 켜짐'을 바로 알림 -->
@@ -108,8 +108,8 @@
           <select id="bsort" onchange="doBrowse(1)">
             <option value="new" selected>{{sort_new}}</option><option value="old">{{sort_old}}</option>
           </select></label>
-        <label class="fchip"><span>{{found_date}}</span><input type="date" id="bfrom" onchange="doBrowse(1)" /></label>
-        <label class="fchip"><span>~</span><input type="date" id="bto" onchange="doBrowse(1)" /></label>
+        <div class="fchip fdate"><label for="bfromText">{{found_date}}</label><input type="text" class="date-text" id="bfromText" data-date="bfrom" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="{{date_ph}}" /><span class="date-pick" title="{{date_pick}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><input type="date" id="bfrom" onchange="doBrowse(1)" tabindex="-1" aria-hidden="true" /></span></div>
+        <div class="fchip fdate"><span aria-hidden="true">~</span><input type="text" class="date-text" id="btoText" data-date="bto" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="{{date_ph}}" aria-label="{{found_date_to}}" /><span class="date-pick" title="{{date_pick}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><input type="date" id="bto" onchange="doBrowse(1)" tabindex="-1" aria-hidden="true" /></span></div>
         <label class="fchip"><select id="bsize" onchange="doBrowse(1)">
           <option value="10" selected>10</option><option value="20">20</option><option value="30">30</option>
         </select><span>{{per_page}}</span></label>

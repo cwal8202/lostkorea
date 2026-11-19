@@ -244,6 +244,7 @@ const mapLinks = (m) => (m.org_name || m.region)
      <a href="${mapUrl(m)}" target="_blank" rel="noopener" class="maplink">${ic('map', 'ic ic-sm')}${t('googleMap')}</a>` : "";
 // EN 모드: grade가 함께 만든 영어 물품명·설명 사용(없으면 한국어 원문). 둘러보기 항목은 번역 없음.
 const dispName = (m) => (LANG === "en" && m.name_en) ? m.name_en : m.name;
+const dispRegion = (m) => (LANG === "en" && m.region_en) ? m.region_en : m.region;  // 지도 검색은 한국어 그대로(mapQuery)
 const dispDesc = (m) => (LANG === "en" && m.desc_en) ? m.desc_en : cleanDesc(m.description);
 
 // 경찰청 원문(특이사항 칸)은 대개 "○○에서는 [날짜] [물건]을 습득/보관 하였습니다 … 특이사항 : …" 틀이라
@@ -408,7 +409,7 @@ function matchCard(m, idx, preview = false) {
     ${thumb}
     <div class="m-body">
       <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-      <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
+      <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
       ${(m.org_name||m.tel) ? `<div class="m-meta"><span>${ic('building')}${esc(m.org_name)||'-'}</span>${m.tel?`<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>`:''}</div>` : ''}
       ${descBlock(m)}
       ${m.reason ? `<div class="m-reason">${ic('spark')}<span>${esc(m.reason)}</span></div>` : ''}
@@ -500,7 +501,7 @@ function claimGuide(m, stage = null) {
       ${thumb}
       <div class="m-body">
         <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-        <div class="m-meta">${t('claimHeldAt')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(m.region)||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
+        <div class="m-meta">${t('claimHeldAt')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
         <div style="margin-top:8px; font-size:14px">
           ${ic('building')} <b>${esc(m.org_name)||t('claimNoOrg')}</b>
           ${m.tel ? `· ${ic('phone')} <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : '· '+t('claimTelFallback').replace(/^· /,'')}
@@ -1005,6 +1006,7 @@ else {
   loadMine(); fetchStats(); initStickyCta(); openReportFromLink();
   window.addEventListener("hashchange", openReportFromLink);  // 열린 탭에서 다른 메일 링크를 눌러도
 }
+dateInit();  // URL에서 채운 날짜 값까지 글자 칸에 반영(browseFromUrl 뒤)
 
 // 전체 습득물 조건을 주소에 남김 — 새로고침·뒤로 가기에도 유지, 조건 그대로 링크 공유(예: /browse?photo=with&sort=old)
 // (함수로 — 페이지 시작 코드가 이 아래 선언보다 먼저 실행되므로 const면 초기화 전 접근 오류)
@@ -1018,6 +1020,41 @@ function browseFromUrl() {
     $(id).value = p.get(k);
     if (id === "bregion") $(id).dataset.want = p.get(k);  // 지역 목록은 첫 응답 뒤에 채워짐 → 그때 선택
   }
+}
+// ── 날짜 칸: 글자 칸(연도-월-일 / YYYY-MM-DD — 컴퓨터 언어와 상관없이 화면 언어로) + 달력 단추(브라우저 기본 달력) ──
+// 기본 날짜 칸만 쓰면 빈칸 안내가 컴퓨터 언어를 따라 영어 화면에도 '연도-월-일'이 나옴. 값은 숨은 날짜 칸(id 그대로)에 두어
+// 다른 코드(.value 읽기·onchange)는 그대로. 2026-11-19 / 2026.11.19 / 20261119 모두 받음, 없는 날짜는 빨간 테두리.
+function parseDate(s) {
+  const m = (s || "").trim().match(/^(\d{4})[-./ ]?(\d{1,2})[-./ ]?(\d{1,2})\.?$/);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3], dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return `${m[1]}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+function dateInit() {
+  document.querySelectorAll(".date-text[data-date]").forEach(txt => {
+    const real = $(txt.dataset.date);
+    if (!real) return;
+    const commit = () => {
+      const raw = txt.value.trim(), v = raw ? parseDate(raw) : "";
+      txt.classList.toggle("bad", v === null);
+      if (v === null) { txt.setAttribute("aria-invalid", "true"); return; }
+      txt.removeAttribute("aria-invalid");
+      txt.value = v;
+      if (real.value !== v) { real.value = v; real.dispatchEvent(new Event("change")); }
+    };
+    txt.addEventListener("change", commit);
+    txt.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); commit(); } });
+    real.addEventListener("change", () => { txt.value = real.value; txt.classList.remove("bad"); txt.removeAttribute("aria-invalid"); });
+    real.addEventListener("click", () => { try { real.showPicker(); } catch (_) { /* 휴대폰 등은 눌러서 바로 열림 */ } });
+    txt.value = real.value;
+  });
+}
+function dateSync() {
+  document.querySelectorAll(".date-text[data-date]").forEach(txt => {
+    const real = $(txt.dataset.date);
+    if (real) { txt.value = real.value; txt.classList.remove("bad"); txt.removeAttribute("aria-invalid"); }
+  });
 }
 function browseToUrl() {
   const p = new URLSearchParams();
@@ -1052,7 +1089,7 @@ async function doBrowse(page) {
 function resetBrowse() {
   $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
   delete $("bregion").dataset.want;
-  regionSync();
+  regionSync(); dateSync();
   if ($("bphoto")) $("bphoto").value = "";
   if ($("bsort")) $("bsort").value = "new";
   doBrowse(1);
@@ -1077,8 +1114,13 @@ function romanize(s) {
 }
 const rcNorm = s => (s || "").toLowerCase().replace(/[\s\-·.,()]/g, "");
 const rcHit = (text, tok) => { const n = rcNorm(text); return n.includes(tok) || romanize(n).includes(tok); };
-function rcMark(text, q) {  // 한글로 친 글자는 굵게 표시(로마자로 찾은 건 표시 없이)
-  const i = q ? text.indexOf(q) : -1;
+// 영어 화면: 서버의 공식 표기(en — 종로구 → Jongno-gu, 소리 변화 반영)를 앞에, 한국어는 작게 뒤에. 찾기는 한글·글자대로 로마자·en 모두
+const rcKoName = (r) => r.level ? (r.label || r.name) : r.name;
+const rcTxt = (r) => (LANG === "en" && r.en) ? r.en : rcKoName(r);
+const rcKo = (r) => (LANG === "en" && r.en) ? ` <span class="rc-ko" lang="ko">${esc(rcKoName(r))}</span>` : "";
+const rcHitR = (r, tok) => rcHit(rcKoName(r), tok) || (!!r.en && rcNorm(r.en).includes(tok));
+function rcMark(text, q) {  // 친 글자를 굵게 표시(대소문자 무시, 글자대로 로마자로 찾은 건 표시 없이)
+  const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
   return i < 0 ? esc(text) : esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
 }
 const rcCount = n => `<span class="rc-cnt">${n.toLocaleString()}</span>`;
@@ -1090,7 +1132,7 @@ function regionFilter(q) {
   if (!toks.length) {
     items.push({ value: "", html: `<span>${esc(t('allRegions'))}</span>` });
     REGIONS.forEach(r => items.push({ value: r.name,
-      html: r.level ? `<span class="rc-kid">${esc(r.label || r.name)}</span>${rcCount(r.count)}` : `<b>${esc(r.name)}</b>${rcCount(r.count)}` }));
+      html: r.level ? `<span class="rc-kid">${esc(rcTxt(r))}${rcKo(r)}</span>${rcCount(r.count)}` : `<span><b>${esc(rcTxt(r))}</b>${rcKo(r)}</span>${rcCount(r.count)}` }));
     return items;
   }
   const groups = [], kids = [];
@@ -1098,18 +1140,17 @@ function regionFilter(q) {
     const s = REGIONS[i]; let j = i + 1;
     const under = [];
     while (j < REGIONS.length && REGIONS[j].level) under.push(REGIONS[j++]);
-    if (toks.every(k => rcHit(s.name, k))) groups.push([s, under]);            // 시도가 맞으면 그 아래 전부
+    if (toks.every(k => rcHitR(s, k))) groups.push([s, under]);              // 시도가 맞으면 그 아래 전부
     else under.forEach(c => {                                                  // 아니면 시군구 이름(+시도로 좁히기: '서울 강서')
-      const label = c.label || c.name;
-      if (toks.every(k => rcHit(label, k) || rcHit(s.name, k)) && toks.some(k => rcHit(label, k))) kids.push([c, s, label]);
+      if (toks.every(k => rcHitR(c, k) || rcHitR(s, k)) && toks.some(k => rcHitR(c, k))) kids.push([c, s]);
     });
     i = j;
   }
-  kids.forEach(([c, s, label]) => items.push({ value: c.name,
-    html: `<span>${rcMark(label, raw)} <span class="rc-sub">${esc(s.name)}</span></span>${rcCount(c.count)}` }));
+  kids.forEach(([c, s]) => items.push({ value: c.name,
+    html: `<span>${rcMark(rcTxt(c), raw)}${rcKo(c)} <span class="rc-sub">${esc(rcTxt(s))}</span></span>${rcCount(c.count)}` }));
   groups.forEach(([s, under]) => {
-    items.push({ value: s.name, html: `<b>${rcMark(s.name, raw)}</b>${rcCount(s.count)}` });
-    under.forEach(c => items.push({ value: c.name, html: `<span class="rc-kid">${esc(c.label || c.name)}</span>${rcCount(c.count)}` }));
+    items.push({ value: s.name, html: `<span><b>${rcMark(rcTxt(s), raw)}</b>${rcKo(s)}</span>${rcCount(s.count)}` });
+    under.forEach(c => items.push({ value: c.name, html: `<span class="rc-kid">${esc(rcTxt(c))}${rcKo(c)}</span>${rcCount(c.count)}` }));
   });
   return items;
 }
@@ -1157,9 +1198,18 @@ function regionChoose(value) {
   doBrowse(1);
 }
 
+function regionName(v) {  // 고른 지역의 화면 이름 — 영어 화면은 'Jung-gu, Seoul'(값은 한국어 그대로)
+  if (LANG !== "en" || !v) return v;
+  let sido = null;
+  for (const r of REGIONS) {
+    if (!r.level) sido = r;
+    if (r.name === v && r.en) return r.level && sido ? `${r.en}, ${rcTxt(sido)}` : r.en;
+  }
+  return v;
+}
 function regionSync() {  // 입력 칸 글자·지우기 단추를 지금 고른 지역에 맞춤
   const v = $("bregion").value || "";
-  $("bregionInput").value = v;
+  $("bregionInput").value = regionName(v);
   $("bregionClear").hidden = !v;
 }
 
@@ -1235,7 +1285,7 @@ function browseItem(m) {
   return `<div class="bitem">${thumb}
     <div class="m-body">
       <div class="m-title">${esc(m.name) || t('noName')} <span class="muted">/ ${esc(m.color) || "-"}</span></div>
-      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(m.region) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}${m.found_place ? ` · ${t('lblPlace')}: ${esc(m.found_place)}` : ""}</div>
+      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(dispRegion(m)) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}${m.found_place ? ` · ${t('lblPlace')}: ${esc(m.found_place)}` : ""}</div>
       ${links ? `<div class="m-meta">${links}</div>` : ""}
       ${descBlock(m)}
       ${origDetails(m)}
