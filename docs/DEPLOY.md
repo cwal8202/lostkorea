@@ -203,6 +203,17 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 화면의 '새벽 수집'은 색인의 `indexed_at`(처음 본 날)으로 센다 — 끝난 시각은 `daily_collect.log`에만 있음(＊). '지금 상태'의 디스크는
   컨테이너에서 본 호스트 디스크, 'AI 모델'·'AI 사용 상한'은 웹 서버 프로세스 값(수집 컨테이너와 따로, 재시작하면 처음부터).
 
+## 9-3. MCP 키 (2026-11-20, FIND-128)
+AI 도구(MCP, `mcp-server/`)가 부르는 `/mcp-api/*`는 `.env`의 `MCP_API_KEYS`가 있을 때만 열린다(없으면 404). 쉼표로 여러 개 —
+기관·사람마다 따로 주고, 하나만 빼서 막을 수 있게. 키마다 하루 신고 300건(`LIMIT_MCP_REPORTS_DAY`), 시간당 습득물 상태 600건.
+```bash
+cd /root/lostkorea && cp .env /root/.env.bak-mcp-$(date +%Y%m%d%H%M) && chmod 600 /root/.env.bak-mcp-*
+K=$(openssl rand -hex 16); printf '\nMCP_API_KEYS=mcp-%s\n' "$K" >> .env; echo "MCP 키: mcp-$K"
+docker compose -f docker-compose.prod.yml up -d backend
+```
+점검: `curl -s -o /dev/null -w '%{http_code}\n' -X POST https://lostkorea.com/mcp-api/match` → 401·422(켜짐)·404(꺼짐).
+끄기: `MCP_API_KEYS` 줄을 지우고 `up -d backend`.
+
 > 자동배포는 `backend`·`caddy`만 재빌드(코드/웹 변경분). OpenSearch·Postgres는 데이터 보존 위해 건드리지 않음.
 > DB 스키마 변경(컬럼 추가)은 백엔드 기동 시 `store.init()`이 `ADD COLUMN IF NOT EXISTS`로 자동 적용 — 수동 마이그레이션 불필요.
 

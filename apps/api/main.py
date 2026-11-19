@@ -29,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from apps import ops, store
 
 from . import search as search_mod
-from . import admin, pii, site, thumbs
+from . import admin, mcp_api, pii, site, thumbs
 from .config import settings
 from .gemini import normalize_lang
 from .limits import client_ip, limiter
@@ -118,6 +118,7 @@ async def _http_error(request: Request, exc: StarletteHTTPException):
 app.mount("/static", StaticFiles(directory=_WEB / "static"), name="static")
 app.include_router(site.router)  # 웹사이트 페이지(홈·전체 습득물·가이드·방침·약관·robots·sitemap·manifest)
 app.include_router(admin.router)  # 운영 화면(/admin) — ADMIN_PASSWORD가 있을 때만, 없으면 404
+app.include_router(mcp_api.router)  # AI 도구(MCP)용 — MCP_API_KEYS가 있을 때만, 저장·메일 없이 매칭 결과만
 
 
 @app.get("/health")
