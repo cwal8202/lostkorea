@@ -564,6 +564,21 @@ def outcome_counts_since(day_from: str) -> dict[str, int]:
 
 
 # ── 운영 화면(/admin) 읽기 ──
+def search_reports(q: str, limit: int = 100) -> list[dict]:
+    """운영 화면 검색(FIND-125) — 신고 문장(원문·한국어 번역)·이메일(일부만 넣어도)·신고 번호 앞자리. 최신순, 남아 있는 신고 전부.
+
+    대소문자 무시(Postgres ILIKE, SQLite LIKE는 영문만 — 한글은 대소문자가 없음). %·_는 글자 그대로 찾게 이스케이프.
+    """
+    q = (q or "").strip()
+    if not q:
+        return []
+    esc = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    like, op = f"%{esc}%", ("ILIKE" if _PG else "LIKE")
+    sql = (f"SELECT * FROM lost_items WHERE text {op} ? ESCAPE '\\' OR text_ko {op} ? ESCAPE '\\' "
+           f"OR email {op} ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?")
+    return [_to_dict(r) for r in _rows(sql, (like, like, like, esc.lower() + "%", limit))]
+
+
 def reports_since(created_from: str) -> list[dict]:
     """created_from(UTC ISO, 포함) 이후 신고 — 최신순. 운영 화면 신고 대장용(공개 API에서는 쓰지 않음)."""
     return [_to_dict(r) for r in _rows("SELECT * FROM lost_items WHERE created_at >= ? ORDER BY created_at DESC",

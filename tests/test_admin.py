@@ -209,3 +209,35 @@ def test_page_is_valid_json_contract():
     for k in ("D.our_closed", "D.first_closure_day", "D.ai_price", "D.grade", "D.now", "D.checks"):
         assert k in page or k.split(".")[1] in page, k
     json.dumps(d)
+
+
+# ── 신고 찾기(FIND-125) ──
+def _find(q, **kw):
+    return client.post("/admin/reports/search", headers=_api(), json={"q": q}, **kw)
+
+
+def test_search_finds_by_text_email_and_id_without_leaking():
+    a = _report(text="I lost my black wallet near Hongdae", email="traveler.kim@example.com", lang="en")
+    b = _report(text="강남역에서 에어팟 프로를 잃어버렸어요")
+    assert [r["rid"] for r in _find("hongdae").json()["rows"]] == [a]          # 대소문자 무시
+    assert [r["rid"] for r in _find("에어팟").json()["rows"]] == [b]
+    assert [r["rid"] for r in _find("traveler.k").json()["rows"]] == [a]       # 이메일 일부
+    assert [r["rid"] for r in _find(b[:8]).json()["rows"]] == [b]              # 신고 번호 앞자리
+    r = _find("traveler")
+    assert "black wallet" not in r.text and "example.com" not in r.text        # 목록엔 문장·이메일 없음(열 때만)
+    assert set(r.json()["rows"][0]) == set(admin.ledger_row(store.get(a)))
+
+
+def test_search_treats_wildcards_as_text_and_checks_input():
+    _report(text="지갑 100% 확실해요")
+    _report(text="검정 지갑")
+    assert len(_find("100%").json()["rows"]) == 1 and _find("%").json()["rows"] and len(_find("_").json()["rows"]) == 0
+    assert _find("").status_code == 400 and _find("가" * 101).status_code == 400
+    assert client.post("/admin/reports/search", headers=_auth(), json={"q": "지갑"}).status_code != 200   # 화면 요청만
+    assert client.post("/admin/reports/search", headers={"X-Admin": "1"}, json={"q": "지갑"}).status_code == 401
+
+
+def test_page_has_pager_and_search_not_more_button():
+    page = client.get("/admin", headers=_auth()).text
+    assert 'id="ledgerPager"' in page and 'id="ledgerFind"' in page and "ledgerMore" not in page
+    assert "const PER = 20" in page and "/admin/reports/search" in page

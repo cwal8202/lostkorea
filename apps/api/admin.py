@@ -537,6 +537,28 @@ def admin_report(rid: str) -> JSONResponse:
     return JSONResponse(out, headers=_NO_STORE)
 
 
+SEARCH_MAX = 100   # 검색 결과 상한(넘으면 '더 좁혀 찾기' 안내)
+
+
+@router.post("/admin/reports/search", dependencies=[Depends(require_admin), Depends(_require_xhr)])
+async def admin_search(request: Request) -> JSONResponse:
+    """신고 찾기(FIND-125) — 문의가 오면 그 신고를 바로. 기간과 상관없이 남아 있는 신고 전부에서.
+
+    결과는 대장 줄과 같은 모양(신고 문장·이메일 없음) — 내용은 줄을 열 때만, 연 기록은 그대로 남음.
+    검색어는 저장·기록하지 않음(POST 본문이라 접속 기록에도 안 남음).
+    """
+    limiter.hit(f"adminsearch:{client_ip(request)}", 300, _HOUR)
+    try:
+        q = str((await request.json()).get("q") or "").strip()
+    except Exception:  # noqa: BLE001
+        q = ""
+    if not 1 <= len(q) <= 100:
+        raise HTTPException(status_code=400, detail="찾을 말을 1~100자로 넣어 주세요.", headers=_NO_STORE)
+    rows = store.search_reports(q, SEARCH_MAX + 1)
+    return JSONResponse({"rows": [ledger_row(r) for r in rows[:SEARCH_MAX]], "more": len(rows) > SEARCH_MAX},
+                        headers=_NO_STORE)
+
+
 @router.post("/admin/reports/{rid}/ko", dependencies=[Depends(require_admin), Depends(_require_xhr)])
 def admin_report_ko(rid: str, request: Request) -> JSONResponse:
     """외국어 신고의 한국어 번역 — 저장된 게 있으면 그대로, 없으면 AI 한 번 부르고 신고에 저장(다음부턴 호출 없음)."""

@@ -131,6 +131,20 @@ td.c-alert { color: var(--sub); }
 .timeline time { color: var(--sub); font-variant-numeric: tabular-nums; }
 .view-log { font-size: var(--fs-1); color: var(--sub); margin-top: 16px; }
 .more-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+/* 신고 대장: 찾기 칸 + 20건씩 쪽 나누기(FIND-125) */
+.ledger-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.ledger-find { display: flex; align-items: center; gap: 8px; flex: 1 1 320px; max-width: 460px; }
+.ledger-find input { flex: 1; min-width: 0; font: inherit; font-size: var(--fs-2); color: var(--ink); background: var(--surface);
+                     border: 1px solid var(--line-strong); border-radius: 10px; min-height: 40px; padding: 6px 12px; }
+.ledger-find input:focus { outline: 2px solid var(--brand); outline-offset: 1px; background: var(--bg); }
+.pager { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.pager button { font: inherit; font-size: var(--fs-2); font-weight: 700; color: var(--body); background: transparent; border: 0;
+                min-width: 36px; min-height: 36px; padding: 0 10px; border-radius: 10px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.pager button:hover:not(:disabled) { background: var(--surface-2); }
+.pager button[aria-current="page"] { background: var(--navy); color: #fff; }
+.pager button:disabled { color: var(--muted); cursor: default; }
+.pager .gap { color: var(--muted); padding: 0 4px; }
+.pager .pos { margin-left: 8px; font-size: var(--fs-2); color: var(--sub); font-variant-numeric: tabular-nums; }
 .ledger-note { font-size: var(--fs-2); color: var(--sub); }
 .ledger-note b { color: var(--navy); }
 .empty { font-size: var(--fs-2); color: var(--sub); background: var(--surface); border-radius: 12px; padding: 20px; margin-top: 16px; }
@@ -261,12 +275,20 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
   </div>
 
   <section class="block" aria-labelledby="h-ledger">
-    <h3 id="h-ledger">신고 대장</h3>
+    <div class="ledger-head">
+      <h3 id="h-ledger">신고 대장</h3>
+      <form class="ledger-find" id="ledgerFind" role="search" autocomplete="off">
+        <label class="sr-only" for="lq">신고 찾기 — 신고 문장 낱말, 이메일, 신고 번호</label>
+        <input type="search" id="lq" maxlength="100" placeholder="신고 문장 낱말 · 이메일 · 신고 번호" />
+        <button type="submit" class="btn btn-soft btn-sm">찾기</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="lqClear" hidden>기간 대장으로</button>
+      </form>
+    </div>
     <p class="sub" id="ledgerSub"></p>
     <div class="ledger-sum" id="ledgerSum" aria-hidden="true"></div>
     <div class="ledger-wrap" id="ledgerWrap"></div>
     <div class="more-row">
-      <button type="button" class="btn btn-soft btn-sm" id="ledgerMore"></button>
+      <nav class="pager" id="ledgerPager" aria-label="신고 대장 쪽"></nav>
       <p class="ledger-note" id="ledgerNote"></p>
     </div>
   </section>
@@ -345,9 +367,12 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
   };
   const CHEV = '<svg class="ic ic-sm chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 
-  async function api(path, method = "GET") {
+  async function api(path, method = "GET", data) {
     // origin에서 다시 만듦 — 주소창에 user:pass@가 있으면 상대 주소 fetch가 거절됨(브라우저가 기억한 로그인은 그대로 실림)
-    const r = await fetch(location.origin + path, { method, headers: { "X-Admin": "1" }, cache: "no-store", credentials: "same-origin" });
+    const headers = { "X-Admin": "1" };
+    if (data !== undefined) headers["Content-Type"] = "application/json";
+    const r = await fetch(location.origin + path, { method, headers, cache: "no-store", credentials: "same-origin",
+                                                   body: data !== undefined ? JSON.stringify(data) : undefined });
     let body = null; try { body = await r.json(); } catch (e) { /* 본문 없음 */ }
     if (!r.ok) throw new Error((body && body.detail) || `HTTP ${r.status}`);
     return body;
@@ -483,7 +508,9 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
 
   // ── 2-1. 신고 대장 ──
   const STAGES = ["신고", "유력 후보", "내 물건", "연락·방문", "찾음"];
-  let shown = 10;
+  const PER = 20;          // 한 쪽에 20건(전엔 '더 보기'로 계속 늘어나기만 함)
+  let page = 1;
+  let found = null;        // 찾기 결과 {q, rows, more} — 있으면 대장은 기간 대신 이것을 보여 줌
   const opened = new Set(), details = new Map();
 
   function kvGrid(host, rows) { const dl = el("dl", "d-kv", null, host); rows.forEach(([k, v]) => { el("dt", null, k, dl); el("dd", null, v, dl); }); }
@@ -542,22 +569,55 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
     return box;
   }
 
+  function renderPager(total) {
+    const nav = document.getElementById("ledgerPager"), pages = Math.max(1, Math.ceil(total / PER));
+    nav.textContent = "";
+    nav.hidden = total <= PER;
+    if (nav.hidden) return;
+    const go = (n) => { page = n; redrawLedger(); document.getElementById("h-ledger").scrollIntoView({ block: "start", behavior: "smooth" }); };
+    const btn = (label, n, opt = {}) => {
+      const b = el("button", null, label, nav); b.type = "button";
+      if (opt.aria) b.setAttribute("aria-label", opt.aria);
+      if (n === page && !opt.arrow) b.setAttribute("aria-current", "page");
+      if (opt.disabled) b.disabled = true; else b.addEventListener("click", () => go(n));
+    };
+    btn("‹ 이전", page - 1, { arrow: true, disabled: page <= 1, aria: "이전 쪽" });
+    const keep = new Set([1, pages, page - 1, page, page + 1].filter((n) => n >= 1 && n <= pages));
+    let last = 0;
+    [...keep].sort((a, b) => a - b).forEach((n) => {
+      if (n - last > 1) el("span", "gap", "…", nav).setAttribute("aria-hidden", "true");
+      btn(String(n), n, { aria: `${n}쪽` });
+      last = n;
+    });
+    btn("다음 ›", page + 1, { arrow: true, disabled: page >= pages, aria: "다음 쪽" });
+    el("span", "pos", `${fmt((page - 1) * PER + 1)}–${fmt(Math.min(page * PER, total))} / ${fmt(total)}건`, nav);
+  }
+  function redrawLedger() {
+    if (found) renderLedger(found.rows, null);
+    else renderLedger(D.ledger.filter((x) => x.day >= addDays(D.today, -span)), addDays(D.today, -span));
+  }
   function renderLedger(reps, from) {
     const total = reps.length, counts = STAGES.map((_, i) => reps.filter((x) => x.stages[i]).length);
     const alerting = reps.filter((x) => x.alert).length;
-    document.getElementById("ledgerSub").textContent = total
-      ? `${kday(from)}부터 지금까지 들어와 남아 있는 신고 ${fmt(total)}건이 어디까지 갔는지 한 줄씩 보여요. 줄을 누르면 신고 문장과 후보를 볼 수 있어요.`
-      : "이 기간에 들어온 신고가 어디까지 갔는지 한 줄씩 보여 줘요.";
-    const wrap = document.getElementById("ledgerWrap"), more = document.getElementById("ledgerMore"), sumBox = document.getElementById("ledgerSum");
+    const pages = Math.max(1, Math.ceil(total / PER));
+    page = Math.min(Math.max(1, page), pages);
+    document.getElementById("ledgerSub").textContent = found
+      ? (total ? `‘${found.q}’로 찾은 신고 ${fmt(total)}건이에요(기간과 상관없이 남아 있는 신고 전부에서${found.more ? ", 최근 100건까지" : ""}). 줄을 누르면 신고 문장과 후보를 볼 수 있어요.`
+               : `‘${found.q}’로 찾은 신고가 없어요. 신고 문장의 다른 낱말, 이메일 일부, 신고 번호 앞자리로 찾아보세요.`)
+      : total
+        ? `${kday(from)}부터 지금까지 들어와 남아 있는 신고 ${fmt(total)}건이 어디까지 갔는지 한 줄씩 보여요. 줄을 누르면 신고 문장과 후보를 볼 수 있어요.`
+        : "이 기간에 들어온 신고가 어디까지 갔는지 한 줄씩 보여 줘요.";
+    const wrap = document.getElementById("ledgerWrap"), sumBox = document.getElementById("ledgerSum");
     wrap.textContent = ""; sumBox.textContent = "";
     const note = document.getElementById("ledgerNote"); note.textContent = "";
+    renderPager(total);
     if (!total) {
-      el("p", "empty", "이 기간에 들어온 신고가 없어요. 사이트에서 신고가 들어오면 여기에 한 줄씩 쌓여요.", wrap);
-      more.hidden = true; return;
+      if (!found) el("p", "empty", "이 기간에 들어온 신고가 없어요. 사이트에서 신고가 들어오면 여기에 한 줄씩 쌓여요.", wrap);
+      return;
     }
     STAGES.forEach((s, i) => { const d = el("div", null, null, sumBox); el("b", null, fmt(counts[i]), d); d.append(s); });
     const t = el("table", "ledger", null, wrap);
-    el("caption", "sr-only", `신고 대장, ${fmt(total)}건 중 ${Math.min(shown, total)}건 표시`, t);
+    el("caption", "sr-only", `신고 대장, ${fmt(total)}건 중 ${fmt((page - 1) * PER + 1)}–${fmt(Math.min(page * PER, total))}번째`, t);
     const hr = el("tr", null, null, el("thead", null, null, t));
     ["신고일", "언어", "물건", "알림"].forEach((h, i) => {
       const th = el("th", null, h, hr); th.scope = "col";
@@ -571,7 +631,7 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
     const thNow = el("th", null, "지금", hr); thNow.scope = "col";
     const thOpen = el("th", null, null, hr); thOpen.scope = "col"; el("span", "sr-only", "내용", thOpen);
     const tb = el("tbody", null, null, t);
-    reps.slice(0, shown).forEach((x) => {
+    reps.slice((page - 1) * PER, page * PER).forEach((x) => {
       const tr = el("tr", "row", null, tb), on = x.stages;
       el("td", "c-date", md(x.day), tr); el("td", "c-lang", x.lang_label, tr);
       el("td", "c-item", x.cat + (x.image ? " · 사진" : ""), tr);
@@ -609,8 +669,7 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
       tr.addEventListener("click", () => { if (!String(window.getSelection())) toggle(); });  // 글자를 고르는 중엔 접지 않음
       if (opened.has(x.rid)) toggle();
     });
-    const rest = total - Math.min(shown, total);
-    more.hidden = !rest; more.textContent = `${fmt(Math.min(30, rest))}건 더 보기`;
+    if (found) return;  // 찾기 결과엔 기간 기준 설명을 붙이지 않음
     const closed = D.our_closed.filter((d) => d >= from).length;
     note.append("'연락·방문'과 '찾음'은 신고한 사람이 결과 화면에서 직접 누른 것만 세요. 신고자가 지운 신고는 대장에 없어요. 우리가 후보로 짚은 습득물 중 경찰 목록에서 종결된 것은 ");
     el("b", null, `${fmt(closed)}건`, note);
@@ -774,8 +833,24 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
     details.clear();
     renderAttn(D.checks); renderPeriod(); renderNow(D.now); sync();
   }
-  document.querySelectorAll("#daySeg button").forEach((b) => b.addEventListener("click", () => { span = +b.dataset.days; shown = 10; renderPeriod(); sync(); }));
-  document.getElementById("ledgerMore").addEventListener("click", () => { shown += 30; renderLedger(D.ledger.filter((x) => x.day >= addDays(D.today, -span)), addDays(D.today, -span)); });
+  function clearFind() {
+    found = null; page = 1;
+    document.getElementById("lq").value = ""; document.getElementById("lqClear").hidden = true;
+  }
+  document.querySelectorAll("#daySeg button").forEach((b) => b.addEventListener("click", () => { span = +b.dataset.days; clearFind(); renderPeriod(); sync(); }));
+  document.getElementById("ledgerFind").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const q = document.getElementById("lq").value.trim(), sub = document.getElementById("ledgerSub");
+    if (!q) { clearFind(); redrawLedger(); return; }
+    sub.textContent = "찾는 중이에요…";
+    try {
+      const r = await api("/admin/reports/search", "POST", { q });
+      found = { q, rows: r.rows || [], more: !!r.more }; page = 1;
+      document.getElementById("lqClear").hidden = false;
+      redrawLedger();
+    } catch (err) { sub.textContent = `찾지 못했어요(${err.message}).`; }
+  });
+  document.getElementById("lqClear").addEventListener("click", () => { clearFind(); redrawLedger(); document.getElementById("lq").focus(); });
   document.getElementById("reload").addEventListener("click", load);
   load();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (D) renderPeriod(); }, 120); });
