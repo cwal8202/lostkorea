@@ -359,6 +359,7 @@ def browse_found_items(
     size: int = Query(24, ge=1, le=100, description="페이지당 개수"),
     photo: str = Query("", pattern="^(|with|without)$", description="사진: with=있는 것만, without=없는 것만, 빈값=전체"),
     sort: str = Query("new", pattern="^(new|old)$", description="정렬: new=최신순, old=오래된순(습득일 기준)"),
+    expand: bool = Query(False, description="브랜드·모델을 일반 이름으로도 찾기(에어팟 → 무선이어폰) — 친 그대로가 먼저"),
 ) -> dict:
     """전체 습득물 둘러보기 — 키워드/지역/날짜/사진 필터 + 최신순·오래된순. 임베딩 미사용(외국어 키워드만 번역 1회·캐시)."""
     if page * size > 10_000:  # OpenSearch 기본 max_result_window
@@ -371,7 +372,7 @@ def browse_found_items(
     # robots.txt가 이 주소를 연 건 구글이 /browse 화면을 그릴 때 목록을 받게 하려는 것 — 데이터 주소 자체는 검색 결과에 안 뜨게
     response.headers["X-Robots-Tag"] = "noindex"
     return search_mod.browse(q=q, region=region, date_from=date_from, date_to=date_to,
-                             page=page, size=size, photo=photo, sort=sort)
+                             page=page, size=size, photo=photo, sort=sort, expand=expand)
 
 
 @app.post("/lost-items", response_model=MatchResponse)

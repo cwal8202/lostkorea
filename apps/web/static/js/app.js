@@ -6,6 +6,7 @@ const gradeColor = (g) => g == null ? 'var(--gray)' : g >= 80 ? 'var(--green)' :
 
 // 선 아이콘(사이트 공통 스타일 — 이모지 대신)
 const IC = {
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   phone: '<path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   building: '<path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M4 21h16"/>',
@@ -108,7 +109,10 @@ const I18N = {
                           : `<b>${d}</b>까지 매일 다시 찾아요. <b>이메일을 남기면</b> 알림을 보내드려요.`,
     resultsSent:(x)=>`지금 결과도 ${x}로 보냈어요.`,
     emailPh2:"이메일 주소", emailInvalid:"유효한 이메일을 입력하세요.",
-    browseXlate:"", browseMt:"", mtTag:"", perPage:"개씩", browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
+    browseXlate:"", browseMt:"", mtTag:"", perPage:"개씩",
+    xpBtn:(w, n)=>`비슷한 이름도 보기 — ‘${w}’${ro(w)} 적힌 것 +${n.toLocaleString()}건`, xpWhy:"경찰이 브랜드 없이 일반 이름으로만 적기도 해요",
+    xpOn:(q, n, w)=>`‘${q}’ 그대로 ${n.toLocaleString()}건이 먼저, 그 뒤는 ‘${w}’${ro(w)} 적힌 것이에요.`, xpOff:(q)=>`‘${q}’ 그대로만 보기`,
+    xpAuto:(q, n, w)=>`‘${q}’ 그대로는 ${n.toLocaleString()}건뿐이라, 이어서 ‘${w}’${ro(w)} 적힌 것도 보여 드려요.`, browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
     prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", retry:"다시 시도", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
     mineLoadFail:"목록을 불러오지 못했어요.", bestMatch:"최고 매칭",
     showMore:(n)=>`더 보기 (전체 ${n}건)`, collapse:"접기",
@@ -199,6 +203,9 @@ const I18N = {
     resultsSent:(x)=>`Current results sent to ${x}.`,
     emailPh2:"Email address", emailInvalid:"Enter a valid email.",
     browseMt:"Item names and notes are <b>auto-translated</b> from the Korean police records. Open <b>“Show original listing”</b> to see the original.",
+    xpBtn:(w, n)=>`Also show similar listings — “${w}” +${n.toLocaleString()}`, xpWhy:"Police often list items by a generic name, without the brand",
+    xpOn:(q, n, w)=>`${n.toLocaleString()} listed as “${q}” come first, then items listed as “${w}”.`, xpOff:(q)=>`Only “${q}”`,
+    xpAuto:(q, n, w)=>`Only ${n.toLocaleString()} listed as “${q}”, so items listed as “${w}” follow.`,
     mtTag:"Auto-translated",
     browseXlate:"Item names &amp; descriptions here are in Korean. To read them in your language, use your browser's <b>“Translate page”</b> (right-click → Translate, or the translate icon in the address bar).",
     perPage:"per page", browseCount:(n)=>`${n.toLocaleString()} total`, noItems:"No found items match.", noName:"(no name)",
@@ -1021,7 +1028,8 @@ dateInit();  // URL에서 채운 날짜 값까지 글자 칸에 반영(browseFro
 // 전체 습득물 조건을 주소에 남김 — 새로고침·뒤로 가기에도 유지, 조건 그대로 링크 공유(예: /browse?photo=with&sort=old)
 // (함수로 — 페이지 시작 코드가 이 아래 선언보다 먼저 실행되므로 const면 초기화 전 접근 오류)
 function browseKeys() {
-  return [["q", "bq"], ["region", "bregion"], ["photo", "bphoto"], ["sort", "bsort"], ["from", "bfrom"], ["to", "bto"]];
+  return [["q", "bq"], ["region", "bregion"], ["photo", "bphoto"], ["sort", "bsort"], ["from", "bfrom"], ["to", "bto"],
+          ["expand", "bexpand"]];
 }
 function browseFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -1076,13 +1084,18 @@ function browseToUrl() {
   history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
 }
 
+var _lastQ;  // 키워드가 바뀌면 '비슷한 이름도 보기'를 끔(처음 열 때는 주소의 expand 그대로). var — 시작 코드가 이 선언보다 먼저 돎
 async function doBrowse(page) {
+  const qv = $("bq").value.trim();
+  if (_lastQ != null && qv !== _lastQ && $("bexpand")) $("bexpand").value = "";
+  _lastQ = qv;
   browseToUrl();
   const p = new URLSearchParams({
-    q: $("bq").value.trim(), region: $("bregion").value || $("bregion").dataset.want || "",
+    q: qv, region: $("bregion").value || $("bregion").dataset.want || "",
     date_from: $("bfrom").value, date_to: $("bto").value, page, size: $("bsize").value || 10,
     photo: $("bphoto")?.value || "", sort: $("bsort")?.value || "new",  // 사진·정렬 칩(새 화면에만 있음)
   });
+  if ($("bexpand")?.value) p.set("expand", "1");
   // 불러오는 동안 빈 카드 모양(자리가 먼저 잡혀 화면이 덜 흔들림), 실패하면 [다시 시도]
   $("browseList").innerHTML = '<div class="skel"><i></i><div><b></b><b class="s"></b></div></div>'.repeat(3);
   $("bcount").textContent = ""; $("browsePager").innerHTML = "";
@@ -1098,6 +1111,7 @@ async function doBrowse(page) {
 
 function resetBrowse() {
   $("bq").value = ""; $("bregion").value = ""; $("bfrom").value = ""; $("bto").value = "";
+  if ($("bexpand")) $("bexpand").value = "";
   delete $("bregion").dataset.want;
   regionSync(); dateSync();
   if ($("bphoto")) $("bphoto").value = "";
@@ -1268,9 +1282,22 @@ function renderBrowse(d) {
   const koLeft = (d.items || []).some(m => !m.name_mt && /[가-힣]/.test(m.name || ""));
   const xl = koLeft ? t('browseXlate') : t('browseMt');
   $("browseList").innerHTML = (xl ? `<div class="note info" style="margin-bottom:8px">${ic('info', 'ic ic-sm')} ${xl}</div>` : "") +
+    expandBar(d.expand) +
     ((d.items || []).map(browseItem).join("") || `<span class="muted">${t('noItems')}</span>`);
   const pages = Math.ceil((d.total || 0) / (d.size || 24));
   renderPager(d.page || 1, Math.min(pages, d.max_page || pages), pages > (d.max_page || pages));
+}
+
+// 브랜드 → 일반 이름 넓히기(FIND-127): 기본은 친 그대로만 + 단추, 누르면 그대로가 먼저·이어서 일반 이름, 아주 적으면 자동으로 이어 붙임.
+// 실무: 좁은 말 → 넓은 말은 결과가 적을 때만, 넓혔다고 알리며(몰래 섞으면 검색을 안 믿게 됨).
+const ro = (w) => { const c = (w || "").charCodeAt(w.length - 1) - 0xAC00, j = c >= 0 && c < 11172 ? c % 28 : 0; return j === 0 || j === 8 ? "로" : "으로"; };
+function setExpand(on) { $("bexpand").value = on ? "1" : ""; doBrowse(1); }
+function expandBar(x) {
+  if (!x) return "";
+  const q = esc($("bq").value.trim()), w = esc(LANG === "en" ? (x.words_en || x.words)[0] : x.words[0]);
+  if (!x.on) return `<div class="xpand">${ic('search', 'ic ic-sm')}<button type="button" class="linkbtn" onclick="setExpand(true)">${t('xpBtn', w, x.extra)}</button><span class="muted">${t('xpWhy')}</span></div>`;
+  if (x.auto) return `<div class="xpand">${ic('info', 'ic ic-sm')}<span>${t('xpAuto', q, x.exact, w)}</span></div>`;
+  return `<div class="xpand">${ic('info', 'ic ic-sm')}<span>${t('xpOn', q, x.exact, w)}</span><button type="button" class="linkbtn" onclick="setExpand(false)">${t('xpOff', q)}</button></div>`;
 }
 
 // 사진 없는 항목도 같은 자리에 회색 칸을 둬 목록 줄이 맞게(사진 불러오기 실패 시에도 이 칸으로 바뀜)

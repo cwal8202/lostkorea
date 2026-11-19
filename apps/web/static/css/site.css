@@ -747,6 +747,12 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .rc-ko { margin-left: 4px; color: var(--muted); font-size: 12.5px; font-weight: 500; }
 /* 영어 화면: 기관 이름 뒤 한국어(작게) · 자동 번역 표시 */
 .ko-sm { margin-left: 2px; color: var(--muted); font-size: .9em; font-weight: 500; }
+/* 전체 습득물: '비슷한 이름도 보기'(브랜드 → 일반 이름, FIND-127) */
+.xpand { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; padding: 10px 14px;
+         border: 1px dashed var(--line-strong); border-radius: 14px; font-size: 14px; color: var(--sub); }
+.xpand .ic { color: var(--brand); flex: none; }
+.linkbtn { font: inherit; font-weight: 700; color: var(--brand); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.linkbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
 .mt-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--surface);
           color: var(--sub); font-size: 11.5px; font-weight: 600; letter-spacing: 0; vertical-align: 2px; }
 .rc-cnt { color: var(--sub); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }

@@ -142,6 +142,9 @@ _KW_SAME = [
 ]
 # 브랜드·모델 → 경찰이 흔히 적는 일반 이름(한 방향 — 브랜드로 찾으면 일반 이름으로 적힌 것도, 거꾸로는 아님:
 # '무선이어폰'으로 찾는데 '에어팟'만 나오면 안 되니까). 카드사 → 신용카드, 명품 → 지갑, 차 브랜드 → 차키는 너무 넓어 뺌.
+# 늘 섞지 않음(실무: 좁은 말 → 넓은 말은 결과가 적을 때만 넓히고 넓혔다고 알림) — 사용자가 '비슷한 이름도 보기'를 누르거나
+# 그대로 맞는 게 AUTO_EXPAND_BELOW건 미만일 때만 이어 붙임(browse의 expand).
+AUTO_EXPAND_BELOW = 20
 _KW_GENERIC = {
     "에어팟": ["무선이어폰"], "에어팟프로": ["무선이어폰"], "버즈": ["무선이어폰"], "갤럭시버즈": ["무선이어폰"],
     "아이폰": ["휴대폰", "핸드폰"], "갤럭시폰": ["휴대폰", "핸드폰"], "아이패드": ["태블릿"], "갤럭시탭": ["태블릿"],
@@ -152,15 +155,23 @@ for _grp in _KW_SAME:
     for _w in _grp:
         _KW_SYNONYMS.setdefault(_w, [])
         _KW_SYNONYMS[_w] += [x for x in _grp if x != _w and x not in _KW_SYNONYMS[_w]]
-for _w, _gen in _KW_GENERIC.items():
-    _KW_SYNONYMS.setdefault(_w, [])
-    _KW_SYNONYMS[_w] += [x for x in _gen if x not in _KW_SYNONYMS[_w]]
+_GENERIC_EN = {"무선이어폰": "wireless earbuds", "휴대폰": "phone", "핸드폰": "phone", "태블릿": "tablet",
+               "스마트워치": "smartwatch", "노트북": "laptop", "교통카드": "transit card"}
 
 
-def keyword_query(q: str) -> dict:
+def generic_for(q: str) -> list[str]:
+    """검색어 낱말 중 브랜드·모델이 있으면 그 일반 이름들(넓힐 수 있는 말) — 없으면 []."""
+    out: list[str] = []
+    for t in re.split(r"\s+", (q or "").strip()):
+        out += [g for g in _KW_GENERIC.get(t.lower(), []) if g not in out]
+    return out
+
+
+def keyword_query(q: str, expand: bool = False) -> dict:
     """목록 키워드 → OpenSearch 질의. 낱말 하나(붙여 쓴 '검정지갑'도 그 안의 말 모두) 또는 그 묶음이 있으면 그 낱말은 맞음.
     1~2낱말은 모두, 3낱말 이상은 하나 빼고 맞아야 나옴. 점수: 낱말마다 친 그대로 맞으면 2·묶음으로만 맞으면 1의 합
-    → 다 맞은 것 먼저, 그중 친 낱말 그대로인 것 먼저('에어팟'으로 찾으면 '에어팟'이 '무선이어폰'보다 위, FIND-127)."""
+    → 다 맞은 것 먼저, 그중 친 낱말 그대로인 것 먼저. expand=True면 브랜드 → 일반 이름도(1점) — '에어팟' 그대로가 먼저,
+    이어서 '무선이어폰'으로 적힌 것(FIND-127)."""
     terms = [t for t in re.split(r"\s+", q.strip()) if t][:8]
 
     def mm(a: str, boost: int) -> dict:
@@ -169,6 +180,8 @@ def keyword_query(q: str) -> dict:
     groups = []
     for t in terms:
         alts = [s for s in _KW_SYNONYMS.get(t.lower(), []) if s != t.lower()]
+        if expand:
+            alts += [g for g in _KW_GENERIC.get(t.lower(), []) if g not in alts]
         groups.append({"dis_max": {"queries": [mm(t, 2)] + [mm(a, 1) for a in alts]}})
     need = len(groups) if len(groups) <= 2 else len(groups) - 1
     return {"bool": {"should": groups, "minimum_should_match": need}}
@@ -198,7 +211,7 @@ MAX_WINDOW = 10_000  # OpenSearch 기본 max_result_window — 이 뒤 페이지
 
 
 def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = "",
-           page: int = 1, size: int = 24, photo: str = "", sort: str = "new") -> dict:
+           page: int = 1, size: int = 24, photo: str = "", sort: str = "new", expand: bool = False) -> dict:
     """전체 습득물 둘러보기 — BM25 키워드 + 지역/날짜/사진 필터 + 최신순·오래된순(임베딩 미사용, 즉시).
 
     photo: "with"=사진 있는 것만, "without"=사진 없는 것만, 그 외=전체. sort: "old"=오래된순, 그 외=최신순.
@@ -211,9 +224,11 @@ def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = ""
     if q.strip() and not re.search(r"[가-힣]", q):  # 비-한국어 키워드 → 한국어(예: wallet/財布/cartera→지갑)
         q = translate_keyword(q)
 
+    gens = generic_for(q)
+    expand = expand and bool(gens)
     must: list[dict] = []
     if q.strip():
-        must.append(keyword_query(q))
+        must.append(keyword_query(q, expand))
     filt: list[dict] = []
     if region:  # 시도를 고르면 그 아래 시군구 전부('서울특별시' → '서울특별시 강남구' 포함)
         filt.append({"bool": {"should": [{"term": {"region": region}}, {"prefix": {"region": region + " "}}],
@@ -242,15 +257,35 @@ def browse(q: str = "", region: str = "", date_from: str = "", date_to: str = ""
         "aggs": {"regions": {"terms": {"field": "region", "size": 500}}},
         "track_total_hits": True,
     }
+    def count(query: dict) -> int:
+        t = _os_raw({"size": 0, "track_total_hits": True,
+                     "query": {"bool": {"must": [query], "filter": filt, "must_not": must_not}}})["hits"]["total"]
+        return t["value"] if isinstance(t, dict) else t
+
     res = _os_raw(body)
-    hits = res["hits"]["hits"]
     total = res["hits"]["total"]
     total = total["value"] if isinstance(total, dict) else total
+    # 브랜드 → 일반 이름 넓히기(FIND-127): 기본은 친 그대로만 + '비슷한 이름도 보기' 건수, 그대로가 아주 적으면 자동으로 이어 붙임
+    xp: dict | None = None
+    if gens:
+        if expand:
+            xp = {"words": gens, "on": True, "auto": False, "exact": count(keyword_query(q))}
+        else:
+            wide = count(keyword_query(q, True))
+            if wide > total and total < AUTO_EXPAND_BELOW:
+                body["query"]["bool"]["must"] = [keyword_query(q, True)]
+                res, xp = _os_raw(body), {"words": gens, "on": True, "auto": True, "exact": total}
+                total = wide
+            elif wide > total:
+                xp = {"words": gens, "on": False, "extra": wide - total}
+        if xp:
+            xp["words_en"] = list(dict.fromkeys(_GENERIC_EN.get(g, g) for g in gens))
+    hits = res["hits"]["hits"]
     buckets = res.get("aggregations", {}).get("regions", {}).get("buckets", [])
     return {
         "total": total, "page": page, "size": size, "max_page": max(1, min(-(-total // size), MAX_WINDOW // size)),
         "items": [_item(h["_source"], h["_id"], h.get("_score") or 0.0) for h in hits],
-        "regions": region_tree(buckets),
+        "regions": region_tree(buckets), "expand": xp,
     }
 
 
