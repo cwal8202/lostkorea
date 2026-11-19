@@ -100,12 +100,24 @@ def test_english_guide_page_in_sitemap():
 
 
 def test_search_box_comes_first_and_form_is_minimal():
-    """물건을 막 잃어버린 사람이 바로 입력하게: 검색창이 소개보다 위, 첫 폼엔 이메일 칸 없음(알림은 결과 화면에서)."""
+    """물건을 막 잃어버린 사람이 바로 입력하게: 검색창이 소개보다 위, 사진 검색도 같은 버튼 하나로."""
     t = client.get("/ko", headers=KO_BROWSER).text
     body = t[t.index("<body"):]
     assert body.index('id="text"') < body.index('id="how"')
-    assert 'id="email"' not in body and 'id="goImg"' not in body      # 사진 검색도 같은 버튼 하나로
+    assert 'id="goImg"' not in body
     assert 'aria-live="polite"' in body                                # 진행 상황을 화면낭독기에도
+
+
+@pytest.mark.parametrize("path,confirm", [("/ko", "[알림 받기 확인]"), ("/en", "Confirm")])
+def test_form_has_optional_alert_email_with_confirmation_notice(path, confirm):
+    """알림 이메일은 처음 폼에서도 받음(결과 화면 맨 아래까지 가야 보이던 것, 11/18 운영자 지적) — 선택 항목, 찾기 버튼 위.
+    입력만 하면 켜지는 줄 알기 쉬워서 '확인 메일의 버튼을 눌러야 켜짐'을 폼에서 바로 안내(이중 확인)."""
+    t = client.get(path, headers=KO_BROWSER).text
+    card = t[t.index('class="search-card"'):t.index('id="resultCard"')]
+    assert card.index('id="text"') < card.index('id="formEmail"') < card.index('id="go"')
+    assert 'type="email"' in card and 'autocomplete="email"' in card and "required" not in card
+    note = card[card.index('id="emailNote"'):]
+    assert confirm in note[:note.index("</p>")]
 
 
 @pytest.mark.parametrize("path,ai_line,policy", [("/ko", "Google AI로 분석", 'href="/privacy"'),

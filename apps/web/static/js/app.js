@@ -14,6 +14,7 @@ const IC = {
   camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
   check: '<path d="m5 12 4 4 10-10"/>',
   bell: '<path d="M6 16v-5a6 6 0 1 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
@@ -89,10 +90,14 @@ const I18N = {
     actFail:"저장하지 못했어요. 잠시 후 다시 눌러 주세요.",
     pagerCap:"결과가 많아 앞쪽 1만 건까지만 볼 수 있어요. 지역·날짜·키워드로 좁혀 보세요.",
     moreCands:(n)=>`후보 ${n}건 더 보기`,
-    alertTitle:"알림 설정",
-    alertDesc:"지금 못 찾아도 괜찮아요. 새 습득물이 들어올 때마다 매일 다시 찾아보고, <b>유력 후보가 나오면 이메일</b>로 알려드려요. 이메일을 새로 남기면 지금 결과도 보내드려요.",
+    alertAskT:"이메일로 알림 받기",
+    alertAskD:"매일 다시 찾아보고 <b>유력 후보가 나오면 메일</b>로 알려드려요. 지금 결과도 같이 보내드려요.",
+    alertAskNote:"처음 한 번 <b>이메일 확인</b>이 필요해요. 보내 드리는 메일의 <b>[알림 받기 확인]</b>을 눌러야 알림이 켜져요.",
+    alertGo:"알림 받기", alertMore:(n)=>`알림 기간(${n}일)·비슷한 후보 알림`, alertChange:"이메일·알림 기간 바꾸기",
+    alertPendT:"아직 알림이 꺼져 있어요 — 메일함을 확인해 주세요", alertOnT:"알림이 켜져 있어요",
+    alertSteps:["이메일 입력", "메일의 [알림 받기 확인] 누르기", "알림 켜짐"], alertStepsLbl:"알림 켜는 순서",
     alertPeriod:"알림 기간", days:(n)=>`${n}일`, save:"저장", saving:"저장 중…", alertSaved:"저장했어요.",
-    alertTo:(e, ok)=>`알림 받는 이메일: <b>${e}</b>${ok ? "" : " (확인 대기 중)"}`, alertOff:"이메일 알림 끄기",
+    alertOff:"이메일 알림 끄기",
     alertOffDone:"이메일 알림을 껐어요. 다시 받으려면 이메일을 입력하고 저장하세요.", emailPhChange:"다른 이메일로 바꾸려면 입력",
     viewResult:"결과 보기", linkGone:"이 신고를 찾을 수 없어요. 삭제됐거나 보관 기간이 끝났을 수 있어요.",
     verifySent:(e)=>`<b>${e}</b>로 확인 메일을 보냈어요. 메일의 <b>[알림 받기 확인]</b>을 눌러야 알림이 켜져요. 메일이 안 보이면 스팸함도 확인해 주세요.`,
@@ -175,10 +180,14 @@ const I18N = {
     actFail:"Couldn't save. Please try again shortly.",
     pagerCap:"Only the first 10,000 results can be shown. Narrow it down by region, date or keyword.",
     moreCands:(n)=>`Show ${n} more`,
-    alertTitle:"Alert settings",
-    alertDesc:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b>. A newly entered email also gets these results now.",
+    alertAskT:"Get email alerts",
+    alertAskD:"Not found yet? We re-check daily as new items arrive and <b>email you when a strong candidate appears</b> — plus these results now.",
+    alertAskNote:"You'll need to <b>confirm your email</b> once: press <b>Confirm</b> in the email we send to turn alerts on.",
+    alertGo:"Get alerts", alertMore:(n)=>`Alert period (${n} days) · similar candidates`, alertChange:"Change email or alert period",
+    alertPendT:"Alerts aren't on yet — check your inbox", alertOnT:"Alerts are on",
+    alertSteps:["Enter email", "Press Confirm in the email", "Alerts on"], alertStepsLbl:"Steps to turn on alerts",
     alertPeriod:"Alert for", days:(n)=>`${n} days`, save:"Save", saving:"Saving…", alertSaved:"Saved.",
-    alertTo:(e, ok)=>`Alerts go to <b>${e}</b>${ok ? "" : " (waiting for confirmation)"}`, alertOff:"Turn off email alerts",
+    alertOff:"Turn off email alerts",
     alertOffDone:"Email alerts are off. To turn them back on, enter an email and save.", emailPhChange:"Enter a new email to change it",
     viewResult:"View results", linkGone:"We couldn't find this report. It may have been deleted or expired.",
     verifySent:(e)=>`We sent a confirmation email to <b>${e}</b>. Press <b>Confirm</b> in that email to turn on alerts. If you don't see it, check your spam folder.`,
@@ -535,11 +544,12 @@ function renderResult(d, userPhoto, timing = "") {
   const all = d.matches || [];
   const cards = all.map((m, i) => i < 6 ? matchCard(m, i) : `<div class="more-cand" hidden>${matchCard(m, i)}</div>`).join("")
     + (all.length > 6 ? `<button type="button" class="btn btn-outline btn-sm more-btn" onclick="showMoreCands(this)">${t('moreCands', all.length - 6)}</button>` : "");
+  _alert = { email_masked: d.email_masked || "", email_verified: !!d.email_verified, email_pending: !!d.email_pending,
+             email_prefill: d.email_prefill || "", notify_weak: !!d.notify_weak, watch_until: d.watch_until || "" };
   $("result").innerHTML =
-    `${banner}${photoBlock}
+    `${banner}${alertPanel(_alert)}${photoBlock}
      <div class="cand-head"><b>${t('candCount', d.count)}</b>${cards ? `<span class="muted legend">${t('scoreLegend')}</span>` : ""}</div>
      ${cards || `<span class="muted">${t('noCand')}</span>`}
-     ${alertPanel(d)}
      <details class="how-searched"><summary>${t('howSearched')}</summary>
        <div><b>${userPhoto ? t('fromPhoto') : t('extracted')}</b> ${chips(exChips)}</div>
        ${d.region_set?.length ? `<div>${regionExplain(ex)}<b>${t('searchRegion')}</b> ${chips(d.region_set, "k")}</div>` : ""}
@@ -569,42 +579,71 @@ function regionExplain(ex) {
 
 const WATCH_DAYS = [7, 30, 90, 180];  // 알림 기간 선택지(180 = 습득물 최대 보관 ~6개월)
 
-// 결과창 '알림 설정' — 등록 때 이메일을 넣었든 안 넣었든 항상 표시. 이메일·약한 후보·기간을 여기서 변경.
-// 이메일이 이미 있으면(메일 링크로 연 신고 등) 가린 주소를 보여 주고, 빈 칸으로 저장하면 그 이메일 유지(기간만 바꿀 때 알림이 꺼지지 않게).
-function alertPanel(d) {
-  const email = d.email_masked || "";
-  const opts = WATCH_DAYS.map(n => `<option value="${n}" ${n === 30 ? "selected" : ""}>${t('days', n)}</option>`).join("");
-  return `<div id="alertPanel" class="alert-panel">
-      <div class="alert-title">${ic('bell')}${t('alertTitle')}</div>
-      <div class="muted small" style="margin-top:4px">${t('alertDesc')}</div>
-      ${email ? `<div class="alert-cur" id="alertCur">${t('alertTo', esc(email), d.email_verified)}
-        <button type="button" class="linkish" onclick="alertsOff()">${t('alertOff')}</button></div>` : ""}
-      <div class="row">
-        <input id="alertEmail" type="email" name="email" autocomplete="email" spellcheck="false" class="input" value="" placeholder="${email ? t('emailPhChange') : t('emailPh2')}" />
-        <label class="date-lbl">${t('alertPeriod')} <select id="alertDays" class="input">${opts}</select></label>
-        <button class="btn btn-primary" onclick="saveAlerts()">${t('save')}</button>
-      </div>
-      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; color:var(--sub); cursor:pointer">
-        <input type="checkbox" id="alertWeak" ${d.notify_weak ? "checked" : ""} />
-        <span>${t('notifyWeak')}</span>
-      </label>
-      <div id="alertMsg" style="font-size:13px; margin-top:8px">${d.email_pending ? t('verifySent', esc(email)) : (d.watch_until ? t('alertUntil', d.watch_until.slice(0, 10), d.email_verified ? esc(email) : "") : "")}</div>
-    </div>`;
+// 결과창 알림 — 결과 맨 위(상태 배너 바로 아래)에 항상. 예전엔 후보 목록 아래라 휴대폰에선 스크롤해야 겨우 보였음(11/18 운영자 지적).
+// 세 단계로 그림: ask(이메일 없음) → pending(확인 메일 보냄, 아직 알림 꺼짐) → on(확인됨).
+// 확인 메일의 버튼을 눌러야 켜진다는 걸(double opt-in) 신청 전·후 모두 글로 보여 줌 — 입력만 하면 켜지는 줄 알기 쉬워서.
+// 이메일이 이미 있으면 가린 주소를 보여 주고, 빈 칸으로 저장하면 그 이메일 유지(기간만 바꿀 때 알림이 꺼지지 않게).
+let _alert = {};
+function alertStage(d) {
+  if (d.email_pending || (d.email_masked && !d.email_verified)) return "pending";
+  return d.email_masked ? "on" : "ask";
+}
+
+function alertPanel(d, msg = "") {
+  const email = d.email_masked || "", stage = alertStage(d), days = d.watch_days || 30;
+  const until = (d.watch_until || "").slice(0, 10);
+  const opts = WATCH_DAYS.map(n => `<option value="${n}" ${n === days ? "selected" : ""}>${t('days', n)}</option>`).join("");
+  const enter = `onkeydown="if(event.key==='Enter'&&!event.isComposing&&event.keyCode!==229){event.preventDefault();saveAlerts()}"`;
+  const row = (ph, label) => `<div class="row">
+      <input id="alertEmail" type="email" name="email" autocomplete="email" spellcheck="false" maxlength="254" class="input"
+        value="${esc(d.email_prefill || "")}" placeholder="${ph}" aria-label="${t('emailPh2')}" ${enter} />
+      <button class="btn btn-primary" onclick="saveAlerts()">${label}</button></div>`;
+  const more = `<label class="date-lbl">${t('alertPeriod')} <select id="alertDays" class="input">${opts}</select></label>
+      <label class="weak-opt"><input type="checkbox" id="alertWeak" ${d.notify_weak ? "checked" : ""} /><span>${t('notifyWeak')}</span></label>`;
+  const steps = t('alertSteps').map((s, i) => {
+    const st = stage === "on" || i === 0 ? "done" : i === 1 ? "now" : "";
+    return `<li class="${st}"><span class="n">${st === "done" ? ic('check') : i + 1}</span>${s}</li>`;
+  }).join("");
+  let body;
+  if (stage === "ask") {
+    body = `<div class="alert-title">${ic('bell')}${t('alertAskT')}</div>
+      <div class="alert-desc">${t('alertAskD')}</div>
+      ${row(t('emailPh2'), t('alertGo'))}
+      <div class="alert-note">${t('alertAskNote')}</div>
+      <details class="alert-more"><summary>${t('alertMore', days)}</summary>
+        <div class="opts">${more}<div><button class="btn btn-soft btn-sm" onclick="saveAlerts()">${t('save')}</button></div></div></details>`;
+  } else {
+    body = `<div class="alert-title">${ic(stage === "on" ? 'bell' : 'mail')}${t(stage === "on" ? 'alertOnT' : 'alertPendT')}</div>
+      <ol class="alert-steps" aria-label="${t('alertStepsLbl')}">${steps}</ol>
+      <div class="alert-desc" id="alertCur">${stage === "on" ? t('alertUntil', until, esc(email)) : t('verifySent', esc(email))}</div>
+      <details class="alert-more"><summary>${t('alertChange')}</summary>
+        <div class="opts">${row(t('emailPhChange'), t('save'))}${more}
+          <div><button type="button" class="linkish" onclick="alertsOff()">${t('alertOff')}</button></div></div></details>`;
+  }
+  return `<div id="alertPanel" class="alert-panel ${stage}">${body}<div id="alertMsg" aria-live="polite">${msg}</div></div>`;
+}
+
+function redrawAlert(msg) {
+  const el = $("alertPanel");
+  if (el) el.outerHTML = alertPanel(_alert, msg);
 }
 
 async function saveAlerts() {
-  const email = ($("alertEmail").value || "").trim();
-  if (email && !email.includes("@")) { $("alertMsg").textContent = t('emailInvalid'); return; }
+  const input = $("alertEmail"), email = (input.value || "").trim();
+  if (email && !input.checkValidity()) { $("alertMsg").textContent = t('emailInvalid'); input.focus(); return; }
+  const days = +$("alertDays").value;
   $("alertMsg").textContent = t('saving');
   try {
     const res = await fetch(`/lost-items/${_lid}/alerts`, {
       method:"POST", headers: authHeaders(),
-      body: JSON.stringify({ email: email || null, notify_weak: $("alertWeak").checked, watch_days: +$("alertDays").value }) });
+      body: JSON.stringify({ email: email || null, notify_weak: $("alertWeak").checked, watch_days: days }) });
     if (!res.ok) throw new Error(await errText(res));
     const r = await res.json();
-    $("alertWeak").checked = r.notify_weak;  // 이메일 없으면 서버가 옵트인 무효화 → 화면도 맞춤
-    $("alertMsg").innerHTML = `${ic('check', 'ic ic-sm')} ${t('alertSaved')} ` + (r.verification_sent ? t('verifySent', esc(r.email))
-      : t('alertUntil', r.watch_until.slice(0, 10), r.email_verified ? esc(r.email) : ""));
+    // 이메일 없으면 서버가 약한 후보 옵트인을 무효화 → 화면도 서버 값으로 다시 그림
+    _alert = Object.assign({}, _alert, { email_masked: r.email || "", email_verified: r.email_verified,
+      email_pending: r.verification_sent, notify_weak: r.notify_weak, watch_until: r.watch_until, watch_days: days, email_prefill: "" });
+    redrawAlert(r.verification_sent ? "" : `${ic('check', 'ic ic-sm')} ${t('alertSaved')}`
+      + (alertStage(_alert) === "ask" ? " " + t('alertUntil', r.watch_until.slice(0, 10), "") : ""));
     loadMine();
   } catch (e) {
     $("alertMsg").textContent = t('errPrefix') + e.message;
@@ -616,10 +655,8 @@ async function alertsOff() {
     const res = await fetch(`/lost-items/${_lid}/alerts`, { method: "POST", headers: authHeaders(),
       body: JSON.stringify({ email: "", notify_weak: false, watch_days: +$("alertDays").value }) });
     if (!res.ok) throw new Error(await errText(res));
-    $("alertCur")?.remove();
-    $("alertWeak").checked = false;
-    $("alertEmail").placeholder = t('emailPh2');
-    $("alertMsg").innerHTML = `${ic('check', 'ic ic-sm')} ${t('alertOffDone')}`;
+    _alert = Object.assign({}, _alert, { email_masked: "", email_verified: false, email_pending: false, notify_weak: false, email_prefill: "" });
+    redrawAlert(`${ic('check', 'ic ic-sm')} ${t('alertOffDone')}`);
     loadMine();
   } catch (e) {
     $("alertMsg").textContent = t('errPrefix') + e.message;
@@ -761,6 +798,8 @@ async function runMatchStream(url, body, userPhoto) {
     else progStep(ev, d);
   });
   if (!final) throw new Error(t('streamFail'));
+  // 찾기 전에 넣은 이메일: 확인 메일을 보냈으면 그 주소를(본인 브라우저라 가리지 않음), 못 보냈으면(하루 한도) 칸에 다시 채워 둠
+  if (body.email) final[final.email_pending ? "email_masked" : "email_prefill"] = body.email;
   renderResult(final, userPhoto, final.status === "invalid" ? "" : progTiming());
 }
 
@@ -771,8 +810,14 @@ function onTextKey(e) {
 
 function search() {
   if ($("go").disabled) return;
+  const em = $("formEmail");
+  if (em && em.value.trim() && !em.checkValidity()) {  // 잘못 적은 이메일로 검색하면 서버가 조용히 버려 알림이 안 옴 → 먼저 알림
+    $("hint").textContent = t('emailInvalid'); em.focus(); return;
+  }
   return _photoB64 ? registerImage() : registerLost();
 }
+
+const formEmail = () => ($("formEmail")?.value || "").trim() || null;
 
 async function registerLost() {
   const text = $("text").value.trim();
@@ -781,7 +826,7 @@ async function registerLost() {
   const orig = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + t('searching');
   $("hint").textContent = "";
   try {
-    const body = { text, lost_date: $("lostDate").value || null, lang: userLang(text) };
+    const body = { text, lost_date: $("lostDate").value || null, lang: userLang(text), email: formEmail() };
     await runMatchStream("/lost-items/stream", body);
   } catch (e) {
     $("hint").textContent = t('errPrefix') + e.message;
@@ -837,7 +882,7 @@ async function registerImage() {
   try {
     const body = { image_b64: _photoB64, mime: _photoMime,
                    note: $("text").value.trim(), lost_date: $("lostDate").value || null,
-                   lang: userLang($("text").value.trim()) };
+                   lang: userLang($("text").value.trim()), email: formEmail() };
     await runMatchStream("/lost-items/image/stream", body, _photoDataUrl);
   } catch (e) {
     $("hint").textContent = t('errPrefix') + e.message;

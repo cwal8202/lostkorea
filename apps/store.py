@@ -356,17 +356,34 @@ def set_pending_email(lid: str, email: str, verify_hash: str | None, verify_expi
          (email or "", verify_hash, verify_expires, lid))
 
 
-def verify_email(token: str) -> dict | None:
-    """확인 링크의 토큰 → 해당 신고 이메일을 확인 처리. 만료·불일치면 None."""
+def verify_state(token: str) -> tuple[str, dict | None]:
+    """확인 링크 상태 — 아무것도 바꾸지 않음(링크를 열 때 화면을 고르는 데 씀).
+
+    'ok' 버튼을 누르면 확인됨 · 'verified' 이미 확인 · 'expired' 유효 시간 지남 ·
+    'invalid' 없는 링크(이메일을 바꾸거나 알림을 끄면 예전 링크 해시가 지워져 여기로).
+    """
     if not token:
-        return None
+        return "invalid", None
     row = _one("SELECT * FROM lost_items WHERE verify_hash=?", (hash_token(token),))
-    if not row:
-        return None
+    if not row or not row.get("email"):
+        return "invalid", None
+    if row.get("email_verified"):
+        return "verified", row
     if row.get("verify_expires") and row["verify_expires"] < _now():
+        return "expired", row
+    return "ok", row
+
+
+def verify_email(token: str) -> dict | None:
+    """확인 링크의 토큰 → 해당 신고 이메일을 확인 처리. 'ok' 상태가 아니면 None(이미 확인·만료·불일치).
+
+    확인 뒤에도 링크 해시는 남김 — 같은 링크를 다시 열면 '이미 확인됐어요'. 예전엔 지워서, 확인을 마친 사람이 메일 링크를
+    다시 열면 버튼이 또 나오고 누르면 '만료됐거나 올바르지 않아요'가 떴음(11/18 운영자 지적). 해시만이라 개인정보 아님.
+    """
+    state, row = verify_state(token)
+    if state != "ok":
         return None
-    _run("UPDATE lost_items SET email_verified=1, verify_hash=NULL, verify_expires=NULL, graded_ids=NULL WHERE id=?",
-         (row["id"],))
+    _run("UPDATE lost_items SET email_verified=1, graded_ids=NULL WHERE id=?", (row["id"],))
     return get(row["id"])
 
 

@@ -500,8 +500,10 @@ def update_lost_item_alerts(lid: str, req: AlertSettingsRequest, request: Reques
             "status": status or item.get("status")}
 
 
-_VERIFY_PAGE = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>{settings.brand_name} — 이메일 확인 / Confirm email</title>
+def _mail_page(title: str, body: str, script: str = "") -> str:
+    """메일 링크로 여는 작은 화면(한·영 함께 — 메일 링크라 화면 언어를 알 수 없음). 이메일 확인·알림 그만 받기."""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{settings.brand_name} — {title}</title>
 <meta name="robots" content="noindex"><link rel="icon" type="image/svg+xml" href="/static/logo.svg">
 <link rel="stylesheet" href="/static/fonts/pretendard/pretendard.css?v={site.VERSION}">
 <link rel="stylesheet" href="/static/css/site.css?v={site.VERSION}">
@@ -509,30 +511,35 @@ _VERIFY_PAGE = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 .c .brand{{justify-content:center;margin-bottom:18px}}.c p{{color:#475569;margin:10px 0}}</style></head><body>
 <div class="container"><div class="card c">
 <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span class="wordmark">Lost<span>Korea</span></span></a>
-<p>분실물 알림을 받으려면 아래 버튼을 눌러 이메일을 확인해주세요.<br>
-Press the button below to confirm your email and turn on lost-item alerts.</p>
-<button id="b" class="btn btn-primary btn-lg" onclick="go()">알림 받기 확인 · Confirm</button><p id="m"></p>
-<p class="small"><a href="/">{settings.brand_name} 홈 · Home</a></p></div></div><script>
-async function go(){{const b=document.getElementById("b"),m=document.getElementById("m");b.disabled=true;
-const t=new URLSearchParams(location.search).get("token")||"";
-try{{const r=await fetch("/email/verify",{{method:"POST",headers:{{"Content-Type":"application/json"}},
-body:JSON.stringify({{token:t}})}});const d=await r.json();
-m.textContent=r.ok?"확인됐어요! 이제 새 습득물이 들어오면 알려드려요. · Confirmed — alerts are on.":(d.detail||"오류 · Error")}}
-catch(e){{m.textContent="네트워크 오류 · Network error";b.disabled=false}}}}</script></body></html>"""
+{body}<p class="small"><a href="/">{settings.brand_name} 홈 · Home</a></p></div></div>{script}</body></html>"""
+
+
+# 확인 링크를 열었을 때 상태별 글 — 이미 확인·만료·없는 링크는 버튼 없이 바로(예전엔 늘 버튼, 눌러야 '만료'가 떴음)
+def _verify_done(sent: bool) -> str:
+    return ("<b>확인됐어요!</b> 이제 새 습득물이 들어오면 알려드려요." + (" 지금 결과도 메일로 보냈어요." if sent else "")
+            + "<br><b>Confirmed</b> — alerts are on." + (" We've emailed you the current results too." if sent else ""))
+_VERIFY_MSG = {
+    "verified": ("<b>이미 확인된 이메일이에요.</b> 알림이 켜져 있어서 새 습득물이 들어오면 알려드려요.<br>"
+                 "<b>Already confirmed.</b> Alerts are on — we'll email you when a match comes in."),
+    "expired": (f"<b>확인 링크가 만료됐어요</b>({settings.verify_hours}시간). 결과 화면의 '알림 설정'에서 이메일을 다시 저장하면 "
+                f"새 확인 메일을 보내드려요.<br><b>This link has expired</b> ({settings.verify_hours} hours). "
+                "Save your email again under Alert settings to get a new one."),
+    "invalid": ("<b>더 이상 쓸 수 없는 링크예요.</b> 이메일을 바꿨거나 알림을 껐다면 예전 링크는 쓸 수 없어요. "
+                "결과 화면의 '알림 설정'에서 다시 요청해주세요.<br><b>This link is no longer valid.</b> "
+                "If you changed your email or turned alerts off, request a new one under Alert settings."),
+}
+_VERIFY_JS = """<script>
+async function go(){const b=document.getElementById("b"),m=document.getElementById("m");b.disabled=true;
+m.textContent="확인 중… · Confirming…";const t=new URLSearchParams(location.search).get("token")||"";
+try{const r=await fetch("/email/verify",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({token:t})});const d=await r.json();
+b.remove();m.innerHTML=r.ok?(d.message||""):(typeof d.detail==="string"?d.detail:"오류 · Error")}
+catch(e){m.textContent="네트워크 오류 · Network error";b.disabled=false}}</script>"""
 
 
 def _unsub_page(body: str) -> str:
-    """'알림 그만 받기' 화면(한·영 함께 — 메일 링크라 화면 언어를 알 수 없음)."""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>{settings.brand_name} — 알림 그만 받기 / Stop alerts</title>
-<meta name="robots" content="noindex"><link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-<link rel="stylesheet" href="/static/fonts/pretendard/pretendard.css?v={site.VERSION}">
-<link rel="stylesheet" href="/static/css/site.css?v={site.VERSION}">
-<style>body{{background:var(--bg-soft)}}.c{{max-width:480px;margin:56px auto;text-align:center}}
-.c .brand{{justify-content:center;margin-bottom:18px}}.c p{{color:#475569;margin:10px 0}}</style></head><body>
-<div class="container"><div class="card c">
-<a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34"><span class="wordmark">Lost<span>Korea</span></span></a>
-{body}<p class="small"><a href="/">{settings.brand_name} 홈 · Home</a></p></div></div></body></html>"""
+    """'알림 그만 받기' 화면."""
+    return _mail_page("알림 그만 받기 / Stop alerts", body)
 
 
 @app.get("/unsubscribe", include_in_schema=False)
@@ -565,9 +572,21 @@ def unsubscribe(request: Request, r: str = Query("", max_length=200)) -> HTMLRes
 
 
 @app.get("/email/verify", include_in_schema=False)
-def verify_email_page() -> HTMLResponse:
-    """확인 메일 링크 → 버튼 페이지(GET은 상태를 바꾸지 않음: 메일 보안 스캐너의 링크 선열람으로 자동 확인 방지)."""
-    return HTMLResponse(_VERIFY_PAGE, headers={"Cache-Control": "no-store"})
+def verify_email_page(request: Request, token: str = Query("", max_length=200)) -> HTMLResponse:
+    """확인 메일 링크 → 확인할 수 있으면 버튼, 이미 확인·만료·없는 링크면 그 안내를 바로.
+
+    GET은 상태를 읽기만 함 — 메일 보안 스캐너가 링크를 미리 열어도 저절로 확인되지 않게 확인은 버튼(POST)으로.
+    """
+    limiter.hit(f"verifyview:{client_ip(request)}", 120, _HOUR)
+    state, _ = store.verify_state(token)
+    if state != "ok":
+        return HTMLResponse(_mail_page("이메일 확인 / Confirm email", f"<p>{_VERIFY_MSG[state]}</p>"),
+                            headers={"Cache-Control": "no-store"})
+    body = ("<p>분실물 알림을 받으려면 아래 버튼을 눌러 이메일을 확인해주세요.<br>"
+            "Press the button below to confirm your email and turn on lost-item alerts.</p>"
+            '<button id="b" class="btn btn-primary btn-lg" onclick="go()">알림 받기 확인 · Confirm</button>'
+            '<p id="m" aria-live="polite"></p>')
+    return HTMLResponse(_mail_page("이메일 확인 / Confirm email", body, _VERIFY_JS), headers={"Cache-Control": "no-store"})
 
 
 @app.post("/email/verify")
@@ -578,7 +597,10 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
     limiter.hit(f"verify:{client_ip(request)}", settings.limit_alerts_hour, _HOUR)
     row = store.verify_email(req.token)
     if not row:
-        raise HTTPException(status_code=400, detail="링크가 만료됐거나 올바르지 않아요. 알림 설정에서 다시 요청해주세요.")
+        state, _ = store.verify_state(req.token)
+        if state == "verified":  # 두 번 누름·다른 탭 — 오류가 아니라 '이미 확인'(결과 메일은 다시 안 보냄)
+            return {"ok": True, "already": True, "sent_results": False, "message": _VERIFY_MSG["verified"]}
+        raise HTTPException(status_code=400, detail=_VERIFY_MSG.get(state, _VERIFY_MSG["invalid"]))
     store.bump("email_verified")
     matches = row.get("matches") or []
     top = matches[0] if matches else None
@@ -587,7 +609,7 @@ def verify_email(req: VerifyRequest, request: Request) -> dict:
     if level and row.get("status") in ("open", "candidate"):
         from apps.agent.rematch import send_alert
         sent = send_alert(row, matches, weak=(level == "weak"))  # 실패하면 재발송 대기 — 응답은 그대로
-    return {"ok": True, "sent_results": sent}
+    return {"ok": True, "sent_results": sent, "message": _verify_done(sent)}
 
 
 @app.post("/lost-items/{lid}/confirm")

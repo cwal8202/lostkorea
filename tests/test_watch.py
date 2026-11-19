@@ -142,12 +142,47 @@ def test_verify_turns_on_alerts_and_sends_stored_results(fake):
     client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token},
                 json={"email": "me@x.com", "watch_days": 30})
     vtoken = fake.verify_links[0].split("token=")[1]
-    assert client.get(f"/email/verify?token={vtoken}").status_code == 200          # GET은 상태 안 바꿈
-    assert not store.get(lid)["email_verified"]
+    page = client.get(f"/email/verify?token={vtoken}")
+    assert page.status_code == 200 and 'id="b"' in page.text                        # 확인 전: 버튼
+    assert not store.get(lid)["email_verified"]                                      # GET은 상태 안 바꿈(메일 스캐너)
     r = client.post("/email/verify", json={"token": vtoken})
-    assert r.status_code == 200 and r.json()["sent_results"]
+    assert r.status_code == 200 and r.json()["sent_results"] and "결과도" in r.json()["message"]
     assert store.get(lid)["email_verified"] and fake.sent == ["me@x.com"]
-    assert client.post("/email/verify", json={"token": vtoken}).status_code == 400  # 1회용
+    again = client.post("/email/verify", json={"token": vtoken})                    # 두 번 누름: 오류 아님, 메일 다시 안 감
+    assert again.status_code == 200 and again.json()["already"] and fake.sent == ["me@x.com"]
+
+
+def test_verify_link_shows_its_state_without_pressing(fake):
+    """확인을 마친 링크를 다시 열면 버튼 없이 '이미 확인됨' — 예전엔 버튼이 또 나오고 눌러야 '만료'가 떴음(11/18 운영자 지적).
+    만료·없는 링크도 열자마자 그 안내."""
+    lid, token = _report()
+    client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": "me@x.com"})
+    vtoken = fake.verify_links[0].split("token=")[1]
+    client.post("/email/verify", json={"token": vtoken})
+    page = client.get(f"/email/verify?token={vtoken}").text
+    assert "이미 확인된 이메일" in page and "Already confirmed" in page and 'id="b"' not in page
+
+    lid2, token2 = _report()
+    client.post(f"/lost-items/{lid2}/alerts", headers={"X-Report-Token": token2}, json={"email": "you@x.com"})
+    v2 = fake.verify_links[1].split("token=")[1]
+    store._run("UPDATE lost_items SET verify_expires=? WHERE id=?", (_iso(-1), lid2))
+    page = client.get(f"/email/verify?token={v2}").text
+    assert "만료" in page and "expired" in page and 'id="b"' not in page
+
+    for t in ("nope", ""):
+        page = client.get(f"/email/verify?token={t}").text
+        assert "더 이상 쓸 수 없는 링크" in page and 'id="b"' not in page
+
+
+def test_old_link_after_changing_email_is_not_valid(fake):
+    """이메일을 바꾸면 예전 주소로 간 확인 링크는 '쓸 수 없는 링크'(새 주소의 링크만 유효)."""
+    lid, token = _report()
+    client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": "a@x.com"})
+    client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": "b@x.com"})
+    old, new = (u.split("token=")[1] for u in fake.verify_links[:2])
+    assert "더 이상 쓸 수 없는 링크" in client.get(f"/email/verify?token={old}").text
+    assert client.post("/email/verify", json={"token": old}).status_code == 400
+    assert 'id="b"' in client.get(f"/email/verify?token={new}").text
 
 
 def test_verify_rejects_bad_or_expired_token(fake):
@@ -155,7 +190,8 @@ def test_verify_rejects_bad_or_expired_token(fake):
     client.post(f"/lost-items/{lid}/alerts", headers={"X-Report-Token": token}, json={"email": "me@x.com"})
     vtoken = fake.verify_links[0].split("token=")[1]
     store._run("UPDATE lost_items SET verify_expires=? WHERE id=?", (_iso(-1), lid))
-    assert client.post("/email/verify", json={"token": vtoken}).status_code == 400
+    r = client.post("/email/verify", json={"token": vtoken})
+    assert r.status_code == 400 and "만료" in r.json()["detail"]
     assert client.post("/email/verify", json={"token": "nope"}).status_code == 400
 
 

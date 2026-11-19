@@ -107,6 +107,8 @@ T: dict[str, dict[str, str]] = {
         "search_label": "무엇을, 어디서, 언제 잃어버렸나요?",
         "text_ph": "예: 어제 2호선 홍대입구역 근처에서 검정 가죽 지갑을 잃어버렸어요. 안에 신분증이랑 카드가 있었어요.",
         "photo_add": "사진 추가", "photo_remove": "사진 빼기", "lost_date": "분실일(선택)", "search_btn": "찾기",
+        "email_label": "알림 이메일(선택)", "email_ph": "못 찾으면 알려드려요",
+        "email_note": "입력하면 <b>확인 메일</b>이 가요. 메일의 <b>[알림 받기 확인]</b>을 한 번 눌러야 알림이 켜져요.",
         "photo_tip_title": "사진으로 찾을 때 알아두세요",
         "photo_tip": "습득물은 사진이 없는 경우가 많아요(약 28%만 보유). 그래서 사진 속 <b>종류·색상을 읽어 글로 검색</b>하고 "
                      "후보 중 <b>사진이 있는 건 올린 사진과 직접 비교</b>해요. 설명·장소를 함께 적을수록 정확해져요.",
@@ -202,6 +204,8 @@ T: dict[str, dict[str, str]] = {
         "text_ph": "e.g., I lost a black leather wallet near Hongdae station yesterday. My ID and cards were inside. "
                    "A station, area or landmark is enough.",
         "photo_add": "Add photo", "photo_remove": "Remove photo", "lost_date": "Date lost (optional)", "search_btn": "Search",
+        "email_label": "Email (optional)", "email_ph": "for match alerts",
+        "email_note": "We'll send a <b>confirmation email</b> — press <b>Confirm</b> in it once to turn on alerts.",
         "photo_tip_title": "Searching with a photo — good to know",
         "photo_tip": "Many found items have no photo (only ~28% do). So we <b>read your photo's type and color and search by "
                      "text</b>, and <b>compare directly</b> with candidates that do have a photo. Adding a description and "

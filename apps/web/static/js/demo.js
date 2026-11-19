@@ -17,8 +17,8 @@
     steps: ["설명 이해하기", "잃어버린 지역 넓히기", "검색어 만들기", "습득물 검색", "후보 하나씩 비교"],
     open: "지금은 딱 맞는 게 없어요. 새 습득물이 들어오면 자동으로 다시 찾아 알려드려요.",
     weakName: "검정 반지갑", weakColor: "검정", weakMeta: "보관: 서울영등포경찰서",
-    alertT: "알림 설정", alertD: "유력 후보가 나오면 이메일로 알려드려요.",
-    email: "me@example.com", emailPh: "이메일 주소", save: "저장", period: "알림 기간 30일", weakOpt: "비슷한 후보도 참고로 알림 받기",
+    alertT: "이메일로 알림 받기", alertD: "유력 후보가 나오면 메일로 알려드려요.", emailF: "알림 이메일(선택)",
+    email: "me@example.com", emailPh: "이메일 주소", save: "알림 받기",
     verify: "확인 메일을 보냈어요. 메일의 [알림 받기 확인]을 눌러야 알림이 켜져요.",
     day: "다음 날 · 새 습득물이 들어왔어요", notiApp: "메일 · 지금",
     subj: "[LostKorea] 분실물 매칭 알림 — 검정 가죽 지갑", tagline: "분실물 매칭 AI",
@@ -39,8 +39,8 @@
     steps: ["Understanding your description", "Mapping where it may have gone", "Preparing searches", "Searching found items", "Checking each candidate"],
     open: "No exact match yet. We'll re-check automatically as new items arrive.",
     weakName: "Black bifold wallet", weakColor: "black", weakMeta: "Held at: Yeongdeungpo Police Station",
-    alertT: "Alert settings", alertD: "We'll email you when a strong candidate appears.",
-    email: "me@example.com", emailPh: "Email address", save: "Save", period: "Alert for 30 days", weakOpt: "Also alert me about similar candidates",
+    alertT: "Get email alerts", alertD: "We'll email you when a strong candidate appears.", emailF: "Email (optional)",
+    email: "me@example.com", emailPh: "Email address", save: "Get alerts",
     verify: "We sent a confirmation email. Press Confirm in it to turn on alerts.",
     day: "Next day · new items came in", notiApp: "Mail · now",
     subj: "[LostKorea] Lost item match alert — Black leather wallet", tagline: "Lost item matching AI",
@@ -84,6 +84,7 @@
       <p class="fd-h">${S.ask}</p>
       <div class="fd-ta"><span class="fd-ph">${S.ph}</span><span class="fd-typed"></span><i class="fd-caret"></i></div>
       <div class="fd-row"><span class="fd-chip">${svg(IC.cam)}${S.photo}</span><span class="fd-chip">${svg(IC.cal)}${S.date}</span></div>
+      <span class="fd-chip fd-ef">${svg(IC.mail)}${S.emailF}</span>
       <div class="fd-btn fd-go">${S.find}</div>
     </div>
     <div class="fd-l fd-prog">
@@ -93,14 +94,12 @@
     </div>
     <div class="fd-l fd-res">
       <div class="fd-banner fd-a">${svg(IC.clock)}<span>${S.open}</span></div>
-      <div class="fd-card fd-a"><span class="fd-grade g-gray">41</span><div><b>${S.weakName}</b> <em>/ ${S.weakColor}</em><small>${S.weakMeta}</small></div></div>
       <div class="fd-alert fd-a">
         <b>${svg(IC.bell)}${S.alertT}</b><p>${S.alertD}</p>
-        <div class="fd-email"><span class="fd-ph">${S.emailPh}</span><span class="fd-typed"></span><i class="fd-caret"></i></div>
-        <div class="fd-arow"><span class="fd-sel">${S.period} ▾</span><div class="fd-btn fd-save">${S.save}</div></div>
-        <span class="fd-chk"><i></i>${S.weakOpt}</span>
+        <div class="fd-arow"><div class="fd-email"><span class="fd-ph">${S.emailPh}</span><span class="fd-typed"></span><i class="fd-caret"></i></div><div class="fd-btn fd-save">${S.save}</div></div>
         <p class="fd-msg">${S.verify}</p>
       </div>
+      <div class="fd-card fd-a"><span class="fd-grade g-gray">41</span><div><b>${S.weakName}</b> <em>/ ${S.weakColor}</em><small>${S.weakMeta}</small></div></div>
     </div>
     <div class="fd-l fd-mail">
       <aside class="fd-side">${S.folders.map((f, i) => `<span class="${i ? "" : "on"}">${f}${i ? "" : " <b>1</b>"}</span>`).join("")}

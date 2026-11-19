@@ -57,8 +57,11 @@ def test_pending_email_then_verify():
     assert row["email"] == "me@example.com" and row["email_verified"] is False
     assert row["verify_hash"] != token                  # 토큰 원문은 저장하지 않음(해시만)
     assert store.verify_email("wrong") is None
+    assert store.verify_state(token)[0] == "ok"
     assert store.verify_email(token)["email_verified"] is True
     assert store.verify_email(token) is None            # 1회용
+    assert store.verify_state(token)[0] == "verified"   # 다시 열면 '이미 확인'(링크 해시는 남김)
+    assert store.verify_state("wrong")[0] == "invalid"
 
 
 def test_check_token_constant_and_hashed():
