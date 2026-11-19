@@ -96,6 +96,11 @@ chmod +x scripts/daily_collect.sh
 - 수집은 **별도 일회성 컨테이너**(`docker compose run --rm backend …`)에서 실행 → 수집 중 자동배포가 백엔드를 재생성해도 끊기지 않음.
   (예전 `exec` 방식은 새벽 배포에 수집이 중단돼 작업이 유실됨. 첫 7일 창 실행은 서버에서 ~4.5시간.)
 - 진행 확인: `docker ps | grep backend-run` (수집 컨테이너) · `tail -f /root/lostkorea/daily_collect.log`
+- **작은 사진 미리 만들기**(2026-11-19, FIND-122): 수집 맨 끝(재매칭 뒤)에 `--thumbs 20000 --thumbs-minutes 90` — 습득일 최신순으로
+  없는 작은 사진을 만들고, 색인에서 빠진 습득물의 사진은 지움. 저장 위치는 볼륨 `lostkorea_thumbs`(배포해도 남음, 다 차도 ~0.8GB).
+  로그 줄: `사진 N장 중 없던 N장 → 새로 N장(실패 N), 남은 N장 · 지운 옛 사진 N장`.
+  처음 한 번 채우기(최신 2.6만 장 ≈ 2시간 — 장당 ~1.8초·동시 6장, 밤 수집과 겹치지 않게 낮에):
+  `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.collector.run --thumbs-only --thumbs 26000 --thumbs-minutes 150 --thumbs-workers 6`
 - 수집기는 **500건마다 색인** — 중간에 끊겨도 앞 배치는 남고 다음 실행이 '이미 색인' 스킵으로 이어서 처리.
 - **실패·정체 알림**: 수집이 실패하면, 또는 가장 최근 습득일이 3일 넘게 지나면(새 데이터가 안 들어옴) 관리자
   (`NOTIFY_EMAIL_TO`, 없으면 `SMTP_USER`)에게 메일(`apps/ops.py`). 수동 점검:
@@ -202,7 +207,7 @@ main push → [test] pytest 통과 → [deploy] git pull --ff-only → docker co
 - 재시작: `docker compose -f docker-compose.prod.yml restart backend`
 - 수동 코드 갱신(자동배포 대신): `git pull && docker compose -f docker-compose.prod.yml up -d --build backend caddy`
 - 중지(과금 종료 전, 데이터 볼륨 유지): `docker compose -f docker-compose.prod.yml down`
-- 완전 삭제: 위 + `docker volume rm lostkorea_os-data lostkorea_pg-data lostkorea_caddy-data lostkorea_caddy-config`
+- 완전 삭제: 위 + `docker volume rm lostkorea_os-data lostkorea_pg-data lostkorea_caddy-data lostkorea_caddy-config lostkorea_thumbs`
 - 인증서 갱신은 Caddy가 자동. `lostkorea_caddy-data` 볼륨에 인증서 영속(재기동해도 재발급 안 함).
 - **실시간 진행(SSE)**: 웹 검색은 `POST /lost-items/stream`·`/lost-items/image/stream`(`text/event-stream`)을 씀.
   백엔드가 `X-Accel-Buffering: no`·`Cache-Control: no-cache`를 보냄. 라이브에서 단계가 한꺼번에 뜨면(프록시 버퍼링)

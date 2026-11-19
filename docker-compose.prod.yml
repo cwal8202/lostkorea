@@ -63,6 +63,10 @@ services:
       - OPENSEARCH_URL=http://opensearch:9200   # 컨테이너 내부 DNS(로컬호스트 아님)
       - DATABASE_URL=postgresql://lostkorea:${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 설정하세요}@postgres:5432/lostkorea
       - APP_ENV=production                 # 앱 오류 메일 등 운영 전용 동작
+      - THUMB_CACHE_DIR=/var/cache/lk-thumbs
+    volumes:
+      # 습득물 작은 사진 — 배포해도 남게(전엔 컨테이너 /tmp라 배포마다 비워짐). 밤 수집(run --rm backend)도 같은 볼륨을 씀
+      - thumbs:/var/cache/lk-thumbs
     depends_on:
       opensearch:
         condition: service_healthy
@@ -92,5 +96,6 @@ services:
 volumes:
   os-data:
   pg-data:
+  thumbs:
   caddy-data:
   caddy-config:

@@ -205,6 +205,23 @@ def _real_photo(url: str) -> bool:
     return bool(url) and url.startswith("http") and "no_img" not in url
 
 
+_PHOTO_Q = {"bool": {"filter": [{"prefix": {"image_url": "https"}}],
+                      "must_not": [{"wildcard": {"image_url": "*no_img*"}}]}}
+
+
+def sync_thumbs(max_new: int, budget_s: float, workers: int = 4) -> dict:
+    """작은 사진 미리 만들기(FIND-122) — 색인의 실제 사진 전부를 습득일 최신순으로 보고,
+    빠진 습득물의 사진은 지우고(sweep) 없는 사진은 최신 것부터 만든다(prefill). 둘 다 같은 목록 기준."""
+    from apps.api import thumbs
+
+    docs = _scan_docs(_PHOTO_Q, ["image_url", "found_at"])
+    urls = [s["image_url"] for s in sorted(docs.values(), key=lambda s: s.get("found_at") or "", reverse=True)
+            if _real_photo(s.get("image_url", ""))]
+    swept = thumbs.sweep(urls) if urls else {"files": 0, "removed": 0, "skipped": True}
+    made = thumbs.prefill(urls, max_new=max_new, budget_s=budget_s, workers=workers)
+    return {"photos": len(urls), **{f"sweep_{k}": v for k, v in swept.items()}, **made}
+
+
 def _kst_today() -> str:
     return datetime.now(store.KST).date().isoformat()
 
@@ -426,8 +443,8 @@ def bulk_index(docs: list[dict], chunk: int = 500) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description="LostKorea 습득물 수집기")
     ap.add_argument("--source", choices=["police", "portal", "both"], default="both")
-    ap.add_argument("--start", required=True, help="START_YMD (YYYYMMDD)")
-    ap.add_argument("--end", required=True, help="END_YMD (YYYYMMDD)")
+    ap.add_argument("--start", help="START_YMD (YYYYMMDD) — --thumbs-only가 아니면 필수")
+    ap.add_argument("--end", help="END_YMD (YYYYMMDD) — --thumbs-only가 아니면 필수")
     ap.add_argument("--rows", type=int, default=100, help="페이지당 목록 건수")
     ap.add_argument("--max", type=int, default=100, help="소스별 최대 수집 건수(비용/한도 보호)")
     ap.add_argument("--enrich", action="store_true", help="상세 호출로 습득장소·특이사항 채움(항목당 1콜)")
@@ -446,8 +463,20 @@ def main() -> None:
                     help="색인이 이 건수 이상이면 늦은 등록 수집을 건너뜀(서버 메모리 보호)")
     ap.add_argument("--catch-up-days", type=int, default=90,
                     help="늦은 등록 채우기는 최근 N일 습득분만(30일씩 돌아가며) — 보관 기간이 곧 끝날 옛 물건은 채우지 않음")
+    ap.add_argument("--thumbs", type=int, default=0,
+                    help="작은 사진을 최신 습득물부터 최대 N장 미리 만들고 빠진 습득물의 사진은 지움(0=끔)")
+    ap.add_argument("--thumbs-minutes", type=float, default=90, help="작은 사진 미리 만들기 시간 상한(분)")
+    ap.add_argument("--thumbs-workers", type=int, default=4, help="경찰 사진 서버에서 동시에 받는 수")
+    ap.add_argument("--thumbs-only", action="store_true", help="작은 사진만(수집·대조·재매칭 없이) — 처음 한 번 채울 때")
     args = ap.parse_args()
     args.reconcile = args.reconcile or args.reconcile_only
+    if args.thumbs_only:
+        if args.thumbs <= 0:
+            ap.error("--thumbs-only엔 --thumbs N(만들 최대 장수)이 필요해요")
+        _run_thumbs(args)
+        return
+    if not (args.start and args.end):
+        ap.error("--start·--end가 필요해요")
 
     indexing = not (args.dry_run or args.no_embed)
     sources = ["police", "portal"] if args.source == "both" else [args.source]
@@ -564,6 +593,23 @@ def main() -> None:
         print("\n지속 재매칭...")
         from apps.agent.rematch import rematch_open
         rematch_open()
+
+    if args.thumbs:  # 알림(재매칭)을 늦추지 않게 맨 끝에
+        _run_thumbs(args)
+
+
+def _run_thumbs(args: argparse.Namespace) -> None:
+    """작은 사진 미리 만들기 — 실패해도 수집 결과는 그대로(볼 때 만드는 길이 남아 있음)."""
+    print(f"\n작은 사진 미리 만들기(최대 {args.thumbs}장·{args.thumbs_minutes:g}분)...", flush=True)
+    t = time.monotonic()
+    try:
+        st = sync_thumbs(args.thumbs, args.thumbs_minutes * 60, args.thumbs_workers)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! 작은 사진 미리 만들기 실패: {e}")
+        return
+    print(f"  사진 {st['photos']}장 중 없던 {st['missing']}장 → 새로 {st['made']}장(실패 {st['failed']}), "
+          f"남은 {st['left']}장 · 지운 옛 사진 {st['sweep_removed']}장"
+          f"{'(지울 게 너무 많아 건너뜀)' if st['sweep_skipped'] else ''} · {time.monotonic() - t:.0f}초")
 
 
 if __name__ == "__main__":

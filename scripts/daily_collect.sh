@@ -27,12 +27,15 @@ echo "==== [$(date '+%F %T')] 최근 ${DAYS}일($START~$END) 수집 시작 ===="
 # --reconcile: 경찰 목록과 대조해 종결(주인 반환 등)된 습득물 삭제 + 바뀐 사진 반영 — 수집 창 + 오래된 구간 30일씩 돌아가며.
 # --catch-up: 최근 90일 습득분 중 늦게 등록돼 빠진 것을 출처당 하룻밤 최대 N건 수집(30일씩 순환, 색인 60만 건 이상이면 멈춤,
 #   공공 API가 거절(429)하면 그날 중단).
+# --thumbs: 맨 끝에 습득물 작은 사진을 최신순으로 미리 만들고(하룻밤 최대 N장·90분) 빠진 습득물의 사진은 지움 —
+#   처음 보는 사진이 경찰 서버에서 받느라 1.6~2초씩 늦게 뜨던 것(FIND-122). 하루 새 사진 ~3,400장 + 밀린 것.
 # run --rm: 백엔드 서비스 컨테이너(exec)가 아니라 별도 일회성 컨테이너에서 실행 → 수집 도중 자동배포가
 # 백엔드를 재생성해도 끊기지 않음(2026-09-30: exec 방식이 01:24 배포로 중단돼 1시간 반 작업 유실).
 if ! $COMPOSE run --rm -T backend \
   uv run python -m apps.collector.run \
     --source both --start "$START" --end "$END" \
-    --rows 1000 --max 20000 --enrich --reconcile --catch-up 15000 --rematch; then
+    --rows 1000 --max 20000 --enrich --reconcile --catch-up 15000 --rematch \
+    --thumbs 20000 --thumbs-minutes 90; then
   echo "==== [$(date '+%F %T')] 수집 실패 ===="
   $COMPOSE run --rm -T backend uv run python -m apps.ops alert "일일 수집 실패" \
     "daily_collect.sh 실패 ($(date '+%F %T')). 로그: /root/lostkorea/daily_collect.log" || true

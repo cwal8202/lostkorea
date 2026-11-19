@@ -233,6 +233,52 @@ def test_thumb_falls_back_to_original(monkeypatch, tmp_path):
     assert r.status_code == 302 and r.headers["location"] == _POLICE_IMG                       # 사진이 사라지지 않게
 
 
+def test_thumb_prefill_newest_first_within_cap(monkeypatch, tmp_path):
+    """밤 수집이 미리 만들기 — 없는 것만, 앞(최신)부터 max_new장까지, 실패는 건너뜀."""
+    import io as _io
+
+    from apps.api import thumbs
+    urls = [_POLICE_IMG.replace("/1.do", f"/{i}.do") for i in range(5)]
+    monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
+    (tmp_path / thumbs._name(urls[0])).write_bytes(b"x")          # 이미 있는 사진은 다시 받지 않음
+    got = []
+
+    def fake(req, timeout=0):
+        got.append(req.full_url)
+        if req.full_url == urls[2]:
+            raise OSError("timeout")
+        return _io.BytesIO(_jpeg())
+    monkeypatch.setattr(thumbs.urllib.request, "urlopen", fake)
+    st = thumbs.prefill(urls + ["https://evil.example/x.jpg"], max_new=3, budget_s=60, workers=2)
+    assert sorted(got) == sorted(urls[1:4])                         # 최신순 앞 3장(이미 있는 0번 제외), 남의 주소 제외
+    assert st == {"missing": 4, "made": 2, "failed": 1, "left": 2}
+    assert (tmp_path / thumbs._name(urls[1])).exists() and not (tmp_path / thumbs._name(urls[4])).exists()
+
+
+def test_thumb_sweep_removes_only_gone_and_old(monkeypatch, tmp_path):
+    """색인에서 빠진 습득물의 사진만 지움 — 방금 만든 것·아직 있는 것은 두고, 지울 게 너무 많으면 멈춤."""
+    import os as _os
+    import time as _time
+
+    from apps.api import thumbs
+    monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
+    keep, gone, fresh = (_POLICE_IMG.replace("/1.do", f"/{x}.do") for x in ("k", "g", "f"))
+    old = _time.time() - 7200
+    for u in (keep, gone, fresh):
+        (tmp_path / thumbs._name(u)).write_bytes(b"x")
+    for u in (keep, gone):
+        _os.utime(tmp_path / thumbs._name(u), (old, old))
+    st = thumbs.sweep([keep])
+    assert st["removed"] == 1 and not (tmp_path / thumbs._name(gone)).exists()
+    assert (tmp_path / thumbs._name(keep)).exists() and (tmp_path / thumbs._name(fresh)).exists()
+    # 색인 조회가 잘못돼 대부분을 지우게 되면 하나도 안 지움
+    for i in range(1200):
+        f = tmp_path / f"{i:040d}.jpg"
+        f.write_bytes(b"x")
+        _os.utime(f, (old, old))
+    assert thumbs.sweep([keep])["skipped"] and len(list(tmp_path.iterdir())) == 1202
+
+
 def test_email_photo_uses_small_thumbnail():
     from apps.notifier import build_email
     m = {"atc_id": "A_1", "name": "지갑", "color": "검정", "grade": 90, "image_url": _POLICE_IMG}
