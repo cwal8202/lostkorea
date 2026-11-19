@@ -110,7 +110,7 @@ const I18N = {
     resultsSent:(x)=>`지금 결과도 ${x}로 보냈어요.`,
     emailPh2:"이메일 주소", emailInvalid:"유효한 이메일을 입력하세요.",
     browseXlate:"", browseMt:"", mtTag:"", perPage:"개씩",
-    xpBtn:(w, n)=>`비슷한 이름도 보기 — ‘${w}’${ro(w)} 적힌 것 +${n.toLocaleString()}건`, xpWhy:"경찰이 브랜드 없이 일반 이름으로만 적기도 해요",
+    xpBtn:(w)=>`‘${w}’도 같이 보기`, xpWhy:(w)=>`경찰이 브랜드 없이 <b>‘${w}’</b>처럼 일반 이름으로만 적기도 해요. 내 물건이 그쪽에 있을 수 있어요.`,
     xpOn:(q, n, w)=>`‘${q}’ 그대로 ${n.toLocaleString()}건이 먼저, 그 뒤는 ‘${w}’${ro(w)} 적힌 것이에요.`, xpOff:(q)=>`‘${q}’ 그대로만 보기`,
     xpAuto:(q, n, w)=>`‘${q}’ 그대로는 ${n.toLocaleString()}건뿐이라, 이어서 ‘${w}’${ro(w)} 적힌 것도 보여 드려요.`, browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
     prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", retry:"다시 시도", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
@@ -203,7 +203,7 @@ const I18N = {
     resultsSent:(x)=>`Current results sent to ${x}.`,
     emailPh2:"Email address", emailInvalid:"Enter a valid email.",
     browseMt:"Item names and notes are <b>auto-translated</b> from the Korean police records. Open <b>“Show original listing”</b> to see the original.",
-    xpBtn:(w, n)=>`Also show similar listings — “${w}” +${n.toLocaleString()}`, xpWhy:"Police often list items by a generic name, without the brand",
+    xpBtn:(w)=>`Also show “${w}”`, xpWhy:(w)=>`Police often list items by a generic name like <b>“${w}”</b>, without the brand. Yours may be there.`,
     xpOn:(q, n, w)=>`${n.toLocaleString()} listed as “${q}” come first, then items listed as “${w}”.`, xpOff:(q)=>`Only “${q}”`,
     xpAuto:(q, n, w)=>`Only ${n.toLocaleString()} listed as “${q}”, so items listed as “${w}” follow.`,
     mtTag:"Auto-translated",
@@ -1295,9 +1295,11 @@ function setExpand(on) { $("bexpand").value = on ? "1" : ""; doBrowse(1); }
 function expandBar(x) {
   if (!x) return "";
   const q = esc($("bq").value.trim()), w = esc(LANG === "en" ? (x.words_en || x.words)[0] : x.words[0]);
-  if (!x.on) return `<div class="xpand">${ic('search', 'ic ic-sm')}<button type="button" class="linkbtn" onclick="setExpand(true)">${t('xpBtn', w, x.extra)}</button><span class="muted">${t('xpWhy')}</span></div>`;
-  if (x.auto) return `<div class="xpand">${ic('info', 'ic ic-sm')}<span>${t('xpAuto', q, x.exact, w)}</span></div>`;
-  return `<div class="xpand">${ic('info', 'ic ic-sm')}<span>${t('xpOn', q, x.exact, w)}</span><button type="button" class="linkbtn" onclick="setExpand(false)">${t('xpOff', q)}</button></div>`;
+  if (!x.on) return `<div class="xpand"><span class="xpand-txt">${t('xpWhy', w)}</span>
+    <button type="button" class="xpand-btn" onclick="setExpand(true)">${ic('search', 'ic')}<span class="l">${t('xpBtn', w)}</span><span class="n">+${x.extra.toLocaleString()}</span></button></div>`;
+  if (x.auto) return `<div class="xpand">${ic('info', 'ic')}<span class="xpand-txt">${t('xpAuto', q, x.exact, w)}</span></div>`;
+  return `<div class="xpand">${ic('info', 'ic')}<span class="xpand-txt">${t('xpOn', q, x.exact, w)}</span>
+    <button type="button" class="xpand-btn ghost" onclick="setExpand(false)">${t('xpOff', q)}</button></div>`;
 }
 
 // 사진 없는 항목도 같은 자리에 회색 칸을 둬 목록 줄이 맞게(사진 불러오기 실패 시에도 이 칸으로 바뀜)
