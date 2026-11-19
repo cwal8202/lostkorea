@@ -745,6 +745,10 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .rc-kid::before { content: ""; position: absolute; left: 2px; top: 50%; width: 7px; height: 1px; background: var(--line-strong); }
 .rc-sub { margin-left: 4px; color: var(--sub); font-size: 13px; font-weight: 500; }
 .rc-ko { margin-left: 4px; color: var(--muted); font-size: 12.5px; font-weight: 500; }
+/* 영어 화면: 기관 이름 뒤 한국어(작게) · 자동 번역 표시 */
+.ko-sm { margin-left: 2px; color: var(--muted); font-size: .9em; font-weight: 500; }
+.mt-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--surface);
+          color: var(--sub); font-size: 11.5px; font-weight: 600; letter-spacing: 0; vertical-align: 2px; }
 .rc-cnt { color: var(--sub); font-size: 13px; font-variant-numeric: tabular-nums; flex: none; }
 .rc-none { padding: 14px 12px; color: var(--sub); font-size: 14px; }
 @media (max-width: 640px) { .rcombo .rcombo-input { width: 10.5em; } }

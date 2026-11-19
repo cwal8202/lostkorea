@@ -24,6 +24,13 @@ class FoundItem(BaseModel):
     found_place: str = ""    # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
     region: str = ""         # 해석된 구/시
     region_en: str = ""      # 영어 화면용 지역(로마자 표기 규칙, 'Samcheok-si, Gangwon State')
+    category_en: str = ""    # 영어 화면용 — 분류·색·습득 장소는 표(apps/api/vocab_en.py)
+    color_en: str = ""
+    found_place_en: str = ""
+    name_mt: str = ""        # 물품명 영어(수집 때 AI로 한 번, 번역 기억) — 못 옮겼으면 ''(화면은 원문)
+    note_mt: str = ""        # 특이사항 영어(상투 문장 뺀 것)
+    org_mt: str = ""         # 보관 기관 영어(경찰은 규칙, 그 밖은 AI)
+    dep_mt: str = ""         # 보관 장소 영어
     found_at: str = ""       # 습득일
     org_name: str = ""       # 보관기관(수령 문의)
     tel: str = ""            # 보관기관 연락처

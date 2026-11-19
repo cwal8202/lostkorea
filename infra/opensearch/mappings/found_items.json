@@ -50,6 +50,11 @@
       },
       "indexed_at": { "type": "date", "format": "yyyy-MM-dd" },
 
+      "name_mt": { "type": "keyword", "ignore_above": 512 },
+      "note_mt": { "type": "keyword", "ignore_above": 512 },
+      "org_mt": { "type": "keyword", "ignore_above": 512 },
+      "dep_mt": { "type": "keyword", "ignore_above": 512 },
+
       "embedding": {
         "type": "knn_vector",
         "dimension": 768,

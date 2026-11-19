@@ -181,6 +181,16 @@ def init() -> None:
             action TEXT
         )
     """)
+    # 습득물 영어 번역 기억(FIND-124) — 같은 물품명·특이사항·기관 이름은 한 번만 AI로. en=''은 '옮기지 못함'(다시 안 부름)
+    _run("""
+        CREATE TABLE IF NOT EXISTS tr_cache (
+            kind TEXT NOT NULL,
+            ko TEXT NOT NULL,
+            en TEXT NOT NULL,
+            at TEXT,
+            PRIMARY KEY (kind, ko)
+        )
+    """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
@@ -448,6 +458,32 @@ def report_counts() -> dict[str, int]:
 CLOSURE_COLS = ("item_id", "kind", "source", "category_top", "category_sub", "color", "region", "dep_place",
                 "found_place", "has_photo", "has_desc", "found_at", "first_seen", "detected_at", "check_window",
                 "our_report")
+
+
+def tr_get(kind: str, kos: list[str]) -> dict[str, str]:
+    """번역 기억에서 {한국어: 영어} — 없는 건 빠짐(''은 옮기지 못한 것으로 들어 있음)."""
+    out: dict[str, str] = {}
+    kos = list(dict.fromkeys(k for k in kos if k))
+    for i in range(0, len(kos), 500):
+        part = kos[i : i + 500]
+        rows = _rows(f"SELECT ko, en FROM tr_cache WHERE kind = ? AND ko IN ({','.join('?' * len(part))})",
+                     (kind, *part))
+        out.update({r["ko"]: r["en"] for r in rows})
+    return out
+
+
+def tr_put(kind: str, pairs: dict[str, str]) -> None:
+    """번역 기억 저장(한 연결·한 커밋). 같은 한국어는 새 값으로."""
+    if not pairs:
+        return
+    sql = _q("INSERT INTO tr_cache (kind, ko, en, at) VALUES (?, ?, ?, ?) "
+             "ON CONFLICT (kind, ko) DO UPDATE SET en = excluded.en, at = excluded.at")
+    conn = _conn()
+    try:
+        conn.cursor().executemany(sql, [(kind, ko, en, _now()) for ko, en in pairs.items()])
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def record_closures(rows: list[dict]) -> int:

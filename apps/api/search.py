@@ -15,6 +15,7 @@ from . import gemini
 from .config import settings
 from .region import resolver
 from .region_en import region_en, sido_en, sigungu_en
+from .vocab_en import category_en, color_en, found_place_en, police_en
 
 
 def _os_raw(body: dict) -> dict:
@@ -45,6 +46,14 @@ def _item(s: dict, _id: str = "", score: float = 0.0) -> dict:
         "found_place": s.get("found_place", ""),  # 습득 장소 유형(택시·노상·지하철 등, 상세에만 있음)
         "region": region,
         "region_en": region_en(region),
+        # 영어 화면용(FIND-124): 정해진 낱말은 표·규칙, 물품명·특이사항·경찰 아닌 기관은 수집 때 AI로 옮겨 색인에 둔 것(_mt)
+        "category_en": category_en(s.get("category_top", ""), s.get("category_sub", ""), s.get("category", "")),
+        "color_en": color_en(s.get("color", "")),
+        "found_place_en": found_place_en(s.get("found_place", "")),
+        "name_mt": s.get("name_mt", ""),
+        "note_mt": s.get("note_mt", ""),
+        "org_mt": s.get("org_mt") or police_en(s.get("org_name", "")),
+        "dep_mt": s.get("dep_mt") or police_en(s.get("dep_place", "")),
         "found_at": s.get("found_at", ""),
         "org_name": s.get("org_name", ""),
         "tel": s.get("tel", ""),
@@ -283,26 +292,10 @@ def search(
         if w_region and region_set and resolver.match(region, region_set):
             score += w_region
         score -= date_penalty(s.get("found_at", ""), lost_date, near)  # 분실일 전날 습득 → 조금 낮춤
-        scored.append({
-            "atc_id": s.get("atc_id", h["_id"].split("_")[0]),
-            "fd_sn": s.get("fd_sn", "1"),
-            "name": s.get("name", ""),
-            "subject": s.get("subject", ""),
-            "description": s.get("description", ""),
-            "category": s.get("category", ""),
-            "color": s.get("color", ""),
-            "dep_place": s.get("dep_place", ""),
-            "found_place": s.get("found_place", ""),
-            "region": region,
-            "found_at": s.get("found_at", ""),
-            "org_name": s.get("org_name", ""),
-            "tel": s.get("tel", ""),
-            "source": s.get("source", ""),
-            "image_url": s.get("image_url", ""),
-            "score": round(score, 4),
-            "grade": None,
-            "reason": None,
-        })
+        # 둘러보기와 같은 _item(영어 화면 칸 포함 — 전엔 따로 만들어 region_en 등이 AI 결과에 안 실림). 지역은 보관장소 해석 그대로
+        it = _item(s, h["_id"], score)
+        it.update(region=region, region_en=region_en(region))
+        scored.append(it)
 
     scored.sort(key=lambda it: -it["score"])
     top = scored[:size]

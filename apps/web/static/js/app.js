@@ -108,7 +108,7 @@ const I18N = {
                           : `<b>${d}</b>까지 매일 다시 찾아요. <b>이메일을 남기면</b> 알림을 보내드려요.`,
     resultsSent:(x)=>`지금 결과도 ${x}로 보냈어요.`,
     emailPh2:"이메일 주소", emailInvalid:"유효한 이메일을 입력하세요.",
-    browseXlate:"", perPage:"개씩", browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
+    browseXlate:"", browseMt:"", mtTag:"", perPage:"개씩", browseCount:(n)=>`총 ${n.toLocaleString()}건`, noItems:"조건에 맞는 습득물이 없어요.", noName:"(이름 없음)",
     prev:"‹ 이전", next:"다음 ›", loadFail:"불러오지 못했어요.", retry:"다시 시도", mineEmpty:"이 브라우저에서 등록한 신고가 없어요.",
     mineLoadFail:"목록을 불러오지 못했어요.", bestMatch:"최고 매칭",
     showMore:(n)=>`더 보기 (전체 ${n}건)`, collapse:"접기",
@@ -198,6 +198,8 @@ const I18N = {
                           : `We'll re-check daily until <b>${d}</b>. <b>Leave an email</b> to get alerts.`,
     resultsSent:(x)=>`Current results sent to ${x}.`,
     emailPh2:"Email address", emailInvalid:"Enter a valid email.",
+    browseMt:"Item names and notes are <b>auto-translated</b> from the Korean police records. Open <b>“Show original listing”</b> to see the original.",
+    mtTag:"Auto-translated",
     browseXlate:"Item names &amp; descriptions here are in Korean. To read them in your language, use your browser's <b>“Translate page”</b> (right-click → Translate, or the translate icon in the address bar).",
     perPage:"per page", browseCount:(n)=>`${n.toLocaleString()} total`, noItems:"No found items match.", noName:"(no name)",
     prev:"‹ Prev", next:"Next ›", loadFail:"Couldn't load.", retry:"Try again", mineEmpty:"No reports from this browser yet.",
@@ -243,9 +245,16 @@ const mapLinks = (m) => (m.org_name || m.region)
   ? `<a href="${naverUrl(m)}" target="_blank" rel="noopener" class="maplink">${ic('map', 'ic ic-sm')}${t('naverMap')}</a>
      <a href="${mapUrl(m)}" target="_blank" rel="noopener" class="maplink">${ic('map', 'ic ic-sm')}${t('googleMap')}</a>` : "";
 // EN 모드: grade가 함께 만든 영어 물품명·설명 사용(없으면 한국어 원문). 둘러보기 항목은 번역 없음.
-const dispName = (m) => (LANG === "en" && m.name_en) ? m.name_en : m.name;
+// 영어 화면(FIND-124): 판정이 신고자 언어로 만든 name_en·desc_en이 먼저, 없으면 수집 때 옮겨 둔 영어(_mt), 정해진 낱말은 서버 표(_en)
+const dispName = (m) => LANG === "en" ? (m.name_en || m.name_mt || m.name) : m.name;
+const dispColor = (m) => (LANG === "en" && m.color_en) ? m.color_en : m.color;
+const dispCat = (m) => (LANG === "en" && m.category_en) ? m.category_en : m.category;
+const dispFoundPlace = (m) => (LANG === "en" && m.found_place_en) ? m.found_place_en : m.found_place;
+// 기관·보관 장소: 영어 뒤에 한국어 작게 — 경찰서에 보여 주거나 지도·표지판과 맞춰 보게(HTML)
+const placeHtml = (en, ko) => (LANG === "en" && en) ? `${esc(en)} <span class="ko-sm" lang="ko">${esc(ko)}</span>` : esc(ko);
+const mtTag = (m) => (LANG === "en" && !m.name_en && m.name_mt) ? ` <span class="mt-tag">${t('mtTag')}</span>` : "";
 const dispRegion = (m) => (LANG === "en" && m.region_en) ? m.region_en : m.region;  // 지도 검색은 한국어 그대로(mapQuery)
-const dispDesc = (m) => (LANG === "en" && m.desc_en) ? m.desc_en : cleanDesc(m.description);
+const dispDesc = (m) => (LANG === "en" && (m.desc_en || m.note_mt)) ? (m.desc_en || m.note_mt) : cleanDesc(m.description);
 
 // 경찰청 원문(특이사항 칸)은 대개 "○○에서는 [날짜] [물건]을 습득/보관 하였습니다 … 특이사항 : …" 틀이라
 // 정작 단서인 '특이사항'이 맨 끝에 있음 → 끝의 특이사항만 뽑아 먼저 보여 주고, 원문 전체는 '원본 글 보기'로 펼침.
@@ -272,6 +281,7 @@ const origLink = (m, cls = "") => origUrl(m)
 // 설명 칸: 특이사항이 있으면 그것만, 틀이 아닌 글이면 앞부분, '특이사항 없음'이면 생략(원문은 origDetails로)
 function descBlock(m, n = 160) {
   if (LANG === "en" && m.desc_en) return `<div class="m-reason">${ic('note')}<span>${esc(cut(m.desc_en, n))}</span></div>`;
+  if (LANG === "en" && m.note_mt) return `<div class="m-reason m-note">${ic('note')}<span><b>${t('noteLbl')}</b> ${esc(cut(m.note_mt, n))}</span></div>`;
   const note = descNote(m.description);
   if (note) return `<div class="m-reason m-note">${ic('note')}<span><b>${t('noteLbl')}</b> ${esc(cut(note, n))}</span></div>`;
   const d = note === null ? cleanDesc(stripBoiler(m.description)) : "";
@@ -408,9 +418,9 @@ function matchCard(m, idx, preview = false) {
     <div class="grade" style="background:${gradeColor(g)}" title="${esc(t('scoreLegend'))}">${g==null?'–':g}<small>${t('scoreLabel')}</small></div>
     ${thumb}
     <div class="m-body">
-      <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-      <div class="m-meta">${m.category ? esc(m.category) + " · " : ""}${t('lblHeld')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
-      ${(m.org_name||m.tel) ? `<div class="m-meta"><span>${ic('building')}${esc(m.org_name)||'-'}</span>${m.tel?`<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>`:''}</div>` : ''}
+      <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(dispColor(m))}</span>${mtTag(m)}</div>
+      <div class="m-meta">${m.category ? esc(dispCat(m)) + " · " : ""}${t('lblHeld')}: ${m.dep_place ? placeHtml(m.dep_mt, m.dep_place) : '-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
+      ${(m.org_name||m.tel) ? `<div class="m-meta"><span>${ic('building')}${m.org_name ? placeHtml(m.org_mt, m.org_name) : '-'}</span>${m.tel?`<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>`:''}</div>` : ''}
       ${descBlock(m)}
       ${m.reason ? `<div class="m-reason">${ic('spark')}<span>${esc(m.reason)}</span></div>` : ''}
       ${m.visual_score != null ? `<div class="m-reason" style="color:${gradeColor(m.visual_score)}">${ic('camera')}<span><b>${t('visualSim')} ${m.visual_score}</b>${m.visual_reason ? ` <span class="muted">— ${esc(m.visual_reason)}</span>` : ''}</span></div>` : ''}
@@ -500,10 +510,10 @@ function claimGuide(m, stage = null) {
     <div class="match">
       ${thumb}
       <div class="m-body">
-        <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(m.color)}</span></div>
-        <div class="m-meta">${t('claimHeldAt')}: ${esc(m.dep_place)||'-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
+        <div class="m-title">${esc(dispName(m))} <span class="muted">/ ${esc(dispColor(m))}</span>${mtTag(m)}</div>
+        <div class="m-meta">${t('claimHeldAt')}: ${m.dep_place ? placeHtml(m.dep_mt, m.dep_place) : '-'} · ${t('lblRegion')}: ${esc(dispRegion(m))||'-'} · ${t('lblFound')}: ${esc(m.found_at)||'-'}</div>
         <div style="margin-top:8px; font-size:14px">
-          ${ic('building')} <b>${esc(m.org_name)||t('claimNoOrg')}</b>
+          ${ic('building')} <b>${m.org_name ? placeHtml(m.org_mt, m.org_name) : t('claimNoOrg')}</b>
           ${m.tel ? `· ${ic('phone')} <a href="tel:${esc(m.tel)}">${esc(m.tel)}</a>` : '· '+t('claimTelFallback').replace(/^· /,'')}
         </div>
         <ol style="margin:10px 0 0; padding-left:20px; font-size:13px; line-height:1.7">
@@ -1255,7 +1265,8 @@ function renderBrowse(d) {
     regionSync();
   }
   $("bcount").textContent = t('browseCount', d.total || 0);
-  const xl = t('browseXlate');
+  const koLeft = (d.items || []).some(m => !m.name_mt && /[가-힣]/.test(m.name || ""));
+  const xl = koLeft ? t('browseXlate') : t('browseMt');
   $("browseList").innerHTML = (xl ? `<div class="note info" style="margin-bottom:8px">${ic('info', 'ic ic-sm')} ${xl}</div>` : "") +
     ((d.items || []).map(browseItem).join("") || `<span class="muted">${t('noItems')}</span>`);
   const pages = Math.ceil((d.total || 0) / (d.size || 24));
@@ -1277,15 +1288,15 @@ function browseItem(m) {
          referrerpolicy="no-referrer" title="${t('zoom')}" />`
     : noPhotoBox();
   const links = [
-    m.org_name ? `<span>${ic('building')}${esc(m.org_name)}</span>` : "",
+    m.org_name ? `<span>${ic('building')}${placeHtml(m.org_mt, m.org_name)}</span>` : "",
     m.tel ? `<span>${ic('phone')}<a href="tel:${esc(m.tel)}">${esc(m.tel)}</a></span>` : "",
     (m.org_name || m.region) ? `<span>${ic('map')}<a href="${naverUrl(m)}" target="_blank" rel="noopener">${t('naverMap')}</a> · <a href="${mapUrl(m)}" target="_blank" rel="noopener">${t('googleMap')}</a></span>` : "",
     origUrl(m) ? `<span>${origLink(m)}</span>` : "",
   ].join("");
   return `<div class="bitem">${thumb}
     <div class="m-body">
-      <div class="m-title">${esc(m.name) || t('noName')} <span class="muted">/ ${esc(m.color) || "-"}</span></div>
-      <div class="m-meta">${esc(m.category) || "-"} · ${t('lblRegion')}: ${esc(dispRegion(m)) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}${m.found_place ? ` · ${t('lblPlace')}: ${esc(m.found_place)}` : ""}</div>
+      <div class="m-title">${esc(dispName(m)) || t('noName')} <span class="muted">/ ${esc(dispColor(m)) || "-"}</span>${mtTag(m)}</div>
+      <div class="m-meta">${esc(dispCat(m)) || "-"} · ${t('lblRegion')}: ${esc(dispRegion(m)) || "-"} · ${t('lblFound')}: ${esc(m.found_at) || "-"}${m.found_place ? ` · ${t('lblPlace')}: ${esc(dispFoundPlace(m))}` : ""}</div>
       ${links ? `<div class="m-meta">${links}</div>` : ""}
       ${descBlock(m)}
       ${origDetails(m)}

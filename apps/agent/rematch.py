@@ -55,7 +55,9 @@ def alert_level(grade: int | None, notify_weak: bool, match: dict | None = None)
 
 _SLIM_KEYS = ("atc_id", "fd_sn", "name", "subject", "description", "category", "color", "dep_place",
               "found_place", "region", "found_at", "org_name", "tel", "source", "image_url", "score", "grade", "reason",
-              "name_en", "desc_en", "visual_score", "visual_reason", "link_place", "link_date")
+              "name_en", "desc_en", "visual_score", "visual_reason", "link_place", "link_date",
+              # 영어 화면(FIND-123·124) — 다시 열어도·메일 링크로 와도 영어로
+              "region_en", "category_en", "color_en", "found_place_en", "name_mt", "note_mt", "org_mt", "dep_mt")
 
 
 def is_dismissed(m: dict, dismissed: set) -> bool:

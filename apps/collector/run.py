@@ -468,8 +468,18 @@ def main() -> None:
     ap.add_argument("--thumbs-minutes", type=float, default=90, help="작은 사진 미리 만들기 시간 상한(분)")
     ap.add_argument("--thumbs-workers", type=int, default=4, help="경찰 사진 서버에서 동시에 받는 수")
     ap.add_argument("--thumbs-only", action="store_true", help="작은 사진만(수집·대조·재매칭 없이) — 처음 한 번 채울 때")
+    ap.add_argument("--translate", type=int, default=0,
+                    help="영어 칸이 없는 습득물을 최신순으로 최대 N건 영어로(물품명·특이사항·기관 — AI, 번역 기억)(0=끔)")
+    ap.add_argument("--translate-minutes", type=float, default=20, help="영어 번역 시간 상한(분)")
+    ap.add_argument("--translate-calls", type=int, default=300, help="영어 번역 AI 호출 상한(1회 ≈ 글 60개 ≈ $0.004)")
+    ap.add_argument("--translate-only", action="store_true", help="영어 번역만(수집·대조·재매칭 없이) — 처음 한 번 채울 때")
     args = ap.parse_args()
     args.reconcile = args.reconcile or args.reconcile_only
+    if args.translate_only:
+        if args.translate <= 0:
+            ap.error("--translate-only엔 --translate N(최대 건수)이 필요해요")
+        _run_translate(args)
+        return
     if args.thumbs_only:
         if args.thumbs <= 0:
             ap.error("--thumbs-only엔 --thumbs N(만들 최대 장수)이 필요해요")
@@ -594,8 +604,27 @@ def main() -> None:
         from apps.agent.rematch import rematch_open
         rematch_open()
 
+    if args.translate:  # 알림(재매칭) 뒤, 사진 미리 만들기(최대 90분) 앞 — 새 습득물이 영어 화면에 바로 영어로
+        _run_translate(args)
     if args.thumbs:  # 알림(재매칭)을 늦추지 않게 맨 끝에
         _run_thumbs(args)
+
+
+def _run_translate(args: argparse.Namespace) -> None:
+    """영어 번역(FIND-124) — 실패해도 수집 결과는 그대로(화면은 한국어 원문)."""
+    from apps.collector import translate_en
+
+    print(f"\n영어 번역(최대 {args.translate}건·{args.translate_minutes:g}분·AI {args.translate_calls}회)...", flush=True)
+    t = time.monotonic()
+    try:
+        st = translate_en.sync(args.translate, args.translate_minutes * 60, args.translate_calls)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ! 영어 번역 실패: {e}")
+        return
+    cost = st["ai_in"] * 0.75e-6 + st["ai_out"] * 3.75e-6
+    print(f"  영어 칸 없는 {st['missing_docs']}건 중 {st['docs']}건 · 글 {st['strings']}개(기억 {st['cached']}) → "
+          f"새로 옮김 {st['translated']}개(못 옮김 {st['rejected']}) · 색인 {st['updated']}건 · "
+          f"AI {st['ai_calls']}회(실패 {st['ai_failed_calls']}) ≈ ${cost:.3f} · {time.monotonic() - t:.0f}초")
 
 
 def _run_thumbs(args: argparse.Namespace) -> None:
