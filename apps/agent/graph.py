@@ -8,6 +8,7 @@ v1은 선형. 추후 분기/루프(예: grade 낮으면 fanout 확장 후 재검
 from __future__ import annotations
 
 import base64
+import re
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypedDict
@@ -70,6 +71,15 @@ def _search_queries(state: AgentState) -> list[str]:
     return stored[:1] or ([text[:200]] if text else [])
 
 
+def foreign_writer(state: AgentState) -> bool:
+    """외국어로 쓴 신고인가 — 신고 언어가 한국어가 아니거나, 신고 글에 한글이 없음(MCP는 언어를 안 주면 ko라 글자로도 봄).
+    검색이 '운전면허증'을 외국 면허로 볼지에 씀(search.query_groups)."""
+    if (state.get("lang") or "ko") != "ko":
+        return True
+    text = (state.get("text") or "").strip()
+    return bool(text) and not re.search(r"[가-힣]", text)
+
+
 def n_search(state: AgentState) -> dict:
     ex = state["extracted"]
     region_set = state.get("region_set") or []
@@ -81,7 +91,7 @@ def n_search(state: AgentState) -> dict:
     for q in queries:
         for it in search_mod.search(
             q, region_set=region_set, lost_date=lost_date, do_grade=False,
-            size=per, candidates=100,
+            size=per, candidates=100, foreign_writer=foreign_writer(state),
         ):
             key = cand_key(it)
             if key not in merged or it["score"] > merged[key]["score"]:

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
 from . import gemini
@@ -29,6 +31,18 @@ def _os_raw(body: dict) -> dict:
 
 def _os_search(body: dict) -> list[dict]:
     return _os_raw(body)["hits"]["hits"]
+
+
+def _os_msearch(bodies: list[dict]) -> list[list[dict]]:
+    """여러 질의를 한 요청으로(_msearch). 결과 순서 = 질의 순서, 실패한 질의는 빈 목록."""
+    nd = "".join(f"{{}}\n{json.dumps(b)}\n" for b in bodies)
+    req = urllib.request.Request(
+        f"{settings.opensearch_url}/{settings.opensearch_index}/_msearch",
+        nd.encode("utf-8"), {"Content-Type": "application/x-ndjson"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        res = json.load(r)
+    return [(x.get("hits") or {}).get("hits", []) for x in res.get("responses", [])]
 
 
 def _item(s: dict, _id: str = "", score: float = 0.0) -> dict:
@@ -316,6 +330,193 @@ def date_penalty(found_at: str, lost_date: str | None, near: float) -> float:
     return near if days >= 1 else 0.0
 
 
+# ── 특이사항 레인 (2026-11-17) ──
+# 임베딩 글은 이름·분류·색뿐(collector.normalize.embed_text)이라, 내용물이 특이사항에만 적힌 습득물은 의미 검색 후보
+# 100개에 못 듦. 경찰서 우체통 지갑이 대표적: 이름은 '지갑'뿐이고 '신용카드 : 1 건, 기타 : 외국인등록증'은 특이사항에만 있음
+# (서울 지갑 2,000건 중 우체통 430건). 실제 사례(Reddit, ARC 든 지갑)의 유력 후보가 지역을 맞춰도 100위 밖이었음.
+# 신고에 신분증 종류 같은 '내용물 낱말'이 있으면
+#   1) 같은 지역·날짜 안에서 특이사항엔 그 낱말이 있고 이름·분류엔 없는 습득물을 따로 모아(같은 질의 벡터로 점수) 후보에 합치고
+#   2) 정리한 특이사항(clean_desc)에 그 낱말이 있으면 가점 — 드문 내용물일수록 크게, 합쳐서 최대 w_desc.
+# 이름·분류에 이미 있는 낱말은 임베딩이 본 것이라 가점 없음(이중 계산 방지).
+# 크기: 같은 낱말을 이름에 넣으면 임베딩 점수가 신분증류 +0.041~0.063, 현금·명함 +0.022~0.032 오름(11/17, 질의 7개)
+#   → w_desc 0.05 = '특이사항 낱말을 이름에 있는 것처럼', 현금·명함은 그 절반(0.5). 여러 개 맞아도 w_desc까지(과가점 금지).
+# 신분증류 무게 = 이름엔 없고 특이사항에만 그 낱말이 있는 습득물 수(운영 21.9만 건, 11/17)로 잰 희소도 ln(N/df),
+# 외국인등록증(188건)을 1로: 여권 30·사원증 101 → 1, 학생증 571 → 0.84, 운전면허증 2,177 → 0.65, 주민등록증 2,586 → 0.63
+# (임베딩은 신분증 종류를 잘 못 가름 — 특이사항을 붙여 다시 임베딩하면 주민등록증 지갑도 외국인등록증 지갑만큼 오름).
+# 카드는 거의 모든 지갑에 있어(신용카드 6,748) 넣지 않음.
+# '신분증'은 경찰 상투 문장("신분증을 지참하시어…")에 들어 있어 1만 건 넘게 걸리므로 뺌.
+# 짧은 영문 약자(ARC)는 대문자 그대로만 — 'Arc'teryx' 같은 브랜드에 걸리지 않게.
+#
+# 외국 운전면허증(2026-11-21) — 실제 사례: Reddit 홍대 지갑(주인이 마포경찰서 보관 확인), 정답 특이사항
+# '신용카드 : 8 건, 일반카드 : 2 건, 기타 : 외국 운전면허증(미국 캘리포니아)'. 운전면허증 묶음만으로는 흔해서 같은 지역의
+# '운전면허증 : 1 건' 지갑들(국내 면허)이 같은 가점으로 앞을 차지 → 정답이 레인으로 후보엔 들지만 29~31위(판정 8개 밖).
+# 외국·국제 면허로 적힌 습득물은 색인 전체에 수십 건(국제운전면허 37·외국 운전면허 7·미국 운전면허 4, 11/21) → 무게 1.
+# 나라 이름이 붙은 면허만 셈('인도'는 길(人道)과 헷갈려 뺌). 영어는 US·UK 같은 약자는 대문자로만.
+_NATIONS = ("외국", "해외", "국제", "미국", "중국", "일본", "베트남", "캐나다", "영국", "호주", "독일", "프랑스", "러시아",
+            "필리핀", "태국", "대만", "몽골", "뉴질랜드")
+_FOREIGN_LICENSE = (tuple(f"{n} 운전면허" for n in _NATIONS) + tuple(f"운전면허증 {n}" for n in _NATIONS)
+                    + ("외국인 운전면허", "국제면허", "국제 면허", "외국 면허", "해외 면허"))
+_NATION_ALT = "|".join(_NATIONS + ("외국인",))
+_LICENSE_EN = r"driv(?:er['’]?s['’]?|ers|ing)\s+(?:licen[cs]e|permit)"
+_FOREIGN_LICENSE_RES = (
+    re.compile(rf"(?:{_NATION_ALT})\s*(?:의\s*)?운전\s*면허|(?:국제|외국|해외)\s*면허"
+               rf"|운전\s*면허증?\s*[(\[（]\s*(?:{_NATION_ALT})"),
+    re.compile(rf"(?<![A-Za-z])(?:US|U\.S\.?|USA|UK)\s+(?i:{_LICENSE_EN})"),
+    re.compile(r"(?<![A-Za-z])(?:international|foreign|overseas|out-of-state|american|canadian|british|australian|"
+               r"german|french|chinese|japanese|vietnamese|filipino|philippine|taiwanese|mongolian|russian|thai|"
+               rf"california|texas|new\s+york|florida|ontario|state)\s+{_LICENSE_EN}", re.I),
+    re.compile(r"(?<![A-Za-z])IDP(?![A-Za-z])"),
+    re.compile(r"国際(?:運転)?免許|(?:外国|海外)の?運転免許|(?:国际|外国|美国)驾(?:照|驶证)"),
+)
+_EXTRA_RES = {"외국운전면허증": _FOREIGN_LICENSE_RES}  # 낱말 목록으로 못 적는 꼴(띄어쓰기·나라 이름·영어 어순)
+_CONTENTS: tuple[tuple[str, float, tuple[str, ...]], ...] = (
+    ("외국인등록증", 1.0, ("외국인등록증", "외국인 등록증", "외국인등록카드", "외국인신분증", "외국인 신분증", "영주증",
+                         "거소증", "ARC", "residence card", "residence permit", "alien registration",
+                         "在留カード", "外国人登録", "外国人登录", "居留证", "居留卡")),
+    ("여권", 1.0, ("여권", "passport", "パスポート", "护照", "護照")),
+    ("사원증", 1.0, ("사원증", "직원증", "출입증", "employee id", "employee card", "staff id", "staff card",
+                   "社員証", "工作证")),
+    ("학생증", 0.84, ("학생증", "student id", "student card", "学生証", "学生证")),
+    ("명함", 0.5, ("명함", "business card", "名刺", "名片")),
+    ("현금", 0.5, ("현금", "지폐", "cash", "現金", "现金")),   # '만원권'은 상품권에도 붙어 뺌
+    ("외국운전면허증", 1.0, _FOREIGN_LICENSE),               # 아래 운전면허증보다 좁은 묶음(_NARROWER)
+    ("운전면허증", 0.65, ("운전면허증", "면허증", "driver's license", "driver’s license", "driver license",
+                       "drivers license", "driving licence", "driving license", "運転免許", "驾照", "驾驶证")),
+    ("주민등록증", 0.63, ("주민등록증", "주민증")),
+)
+# 신고에 좁은 묶음이 있으면 넓은 묶음은 신고 쪽에서 뺌(습득물 쪽은 그대로 — 그냥 'driver's license'라고 쓴 신고엔
+# 외국 면허 습득물도 운전면허증 가점: 외국인이 쓴 신고면 대개 외국 면허라서).
+_NARROWER = {"외국운전면허증": "운전면허증"}
+# '국세청현금영수증카드'는 현금이 아님 / '현금 없음'은 없다는 뜻(색인 30건 — 판정 A/B에서 'none' 후보를 8위에 올림, 11/18).
+# 신고 문장도 같은 규칙: '현금은 없었어요'면 현금을 찾지 않음.
+_DESC_NOISE = re.compile(r"현금\s*영수증|(?:현금|지폐|여권|학생증|사원증|명함|운전면허증|면허증|주민등록증|주민증|외국인\s*등록증)"
+                         r"\s*(?:은|는|이|가)?\s*(?:없음|없습니다|없었|없어|없다|미포함|無)")
+# 한 사람이 함께 갖지 않는 신분증 — 외국인은 외국인등록증, 국민은 주민등록증. 임베딩은 둘을 같은 '신분증'으로 봐서
+# 외국인등록증 신고에 '지갑 주민등록증 현금'을 올려 줌(실제 사례 질의에서 판정 8개 중 3개) → 어긋나면 w_desc만큼 감점.
+_EXCLUSIVE = (("외국인등록증", "주민등록증"), ("주민등록증", "외국인등록증"))
+DESC_LANE_K = 30  # 특이사항 레인에서 더 모으는 후보 수(같은 지역·날짜 안)
+
+
+def _alias_re(word: str) -> re.Pattern:
+    if re.fullmatch(r"[A-Z]{2,4}", word):                    # ARC — 대문자 약자만
+        return re.compile(rf"(?<![A-Za-z]){word}(?![A-Za-z])")
+    if re.search(r"[A-Za-z]", word):                          # 영문 낱말 — 대소문자 무시, 낱말 경계
+        return re.compile(rf"(?<![A-Za-z]){re.escape(word)}(?![A-Za-z])", re.I)
+    return re.compile(re.escape(word))                        # 한글·한자 — 붙여 써도(한양대학생증) 맞음
+
+
+_CONTENT_RES = tuple((key, w, tuple(_alias_re(a) for a in aliases) + _EXTRA_RES.get(key, ()))
+                     for key, w, aliases in _CONTENTS)
+
+
+def content_groups(text: str) -> list[str]:
+    """글에 든 내용물 묶음(외국인등록증·학생증 등) — 순서는 _CONTENTS 순."""
+    t = _DESC_NOISE.sub(" ", text or "")
+    return [key for key, _, rxs in _CONTENT_RES if any(rx.search(t) for rx in rxs)]
+
+
+def query_groups(text: str, foreign_writer: bool = False) -> list[str]:
+    """신고(검색어) 쪽 내용물 묶음 — 좁은 묶음(외국 운전면허증)이 있으면 넓은 묶음(운전면허증)은 뺌.
+
+    foreign_writer: 외국어로 쓴 신고면 그냥 '운전면허증'도 외국 면허로 봄. 관광객의 면허는 늘 외국에서 발급됐고, 경찰은
+    외국 면허를 '외국·국제·미국 운전면허증'처럼 따로 적음(실제 사례 홍대 지갑: 원글엔 'drivers license'뿐, 미국 관광객).
+    국내 면허를 가진 거주 외국인이면 그 습득물은 이 가점만 못 받음(감점 없음 — 레인을 넣기 전과 같은 자리).
+    """
+    gs = content_groups(text)
+    if foreign_writer and "운전면허증" in gs and "외국운전면허증" not in gs:
+        gs = ["외국운전면허증" if g == "운전면허증" else g for g in gs]
+    drop = {_NARROWER[g] for g in gs if g in _NARROWER}
+    return [g for g in gs if g not in drop]
+
+
+_WEIGHT = {key: w for key, w, _ in _CONTENTS}
+
+
+def content_score(src: dict, groups: list[str], w_desc: float) -> tuple[float, list[str], list[str]]:
+    """내용물 낱말로 점수 조정 — (조정값, 특이사항에서 맞은 묶음, 어긋난 신분증).
+
+    - 가점: 신고의 묶음 중 습득물 특이사항(상투 문장 걷어냄)에만 있는 것의 무게 합(최대 1) × w_desc.
+      이름·분류에 이미 있는 묶음은 임베딩이 본 것이라 셈하지 않음.
+    - 감점: 신고는 외국인등록증인데 습득물(이름·분류·특이사항)엔 주민등록증만 있으면(또는 그 반대) w_desc.
+    """
+    if not (groups and w_desc):
+        return 0.0, [], []
+    from .desc import clean_desc
+
+    in_desc = set(content_groups(clean_desc(src.get("description"))))
+    seen = set(content_groups(f"{src.get('name', '')} {src.get('category', '')}"))
+    hit = [g for g in groups if g in in_desc and g not in seen]
+    have = in_desc | seen
+    clash = [b for a, b in _EXCLUSIVE if a in groups and b not in groups and b in have and a not in have]
+    delta = w_desc * min(1.0, sum(_WEIGHT[g] for g in hit)) - (w_desc if clash else 0.0)
+    return delta, hit, clash
+
+
+_REGION_VALUES: dict[str, object] = {"at": 0.0, "values": []}
+_REGION_TTL = 6 * 3600  # 색인의 지역 값 목록(시도 시군구, 수백 개)은 거의 안 바뀜 — 6시간마다 다시 읽음
+
+
+def _region_values() -> list[str]:
+    if time.time() - float(_REGION_VALUES["at"]) > _REGION_TTL or not _REGION_VALUES["values"]:
+        res = _os_raw({"size": 0, "aggs": {"r": {"terms": {"field": "region", "size": 3000}}}})
+        _REGION_VALUES["values"] = [b["key"] for b in res["aggregations"]["r"]["buckets"] if b.get("key")]
+        _REGION_VALUES["at"] = time.time()
+    return list(_REGION_VALUES["values"])  # type: ignore[arg-type]
+
+
+def desc_lane_query(qv: list[float], groups: list[str], regions: list[str], date_filter: dict | None,
+                    k: int = DESC_LANE_K) -> dict:
+    """특이사항 레인 질의 — 지역(정확한 값 목록)·날짜 안에서, 묶음 하나라도 특이사항엔 있고 이름·분류엔 없는 습득물을
+    같은 질의 벡터로 k개(점수 척도가 의미 검색과 같아 그대로 합칠 수 있음). 낱말 일치는 거르기에만 쓰고 점수엔 안 씀."""
+    aliases = {key: [a for a in al if re.search(r"[가-힣A-Za-z]", a)] for key, _, al in _CONTENTS}
+    should = []
+    for g in groups:
+        words = aliases[g]
+        should.append({"bool": {
+            "should": [{"match_phrase": {"description": a}} for a in words], "minimum_should_match": 1,
+            "must_not": [{"match_phrase": {f: a}} for a in words for f in ("name", "category")],
+        }})
+    filt: list[dict] = [{"terms": {"region": regions}}]
+    if date_filter:
+        filt.append(date_filter)
+    return {
+        "size": k,
+        "query": {"knn": {"embedding": {"vector": qv, "k": k, "filter": {
+            "bool": {"filter": filt, "should": should, "minimum_should_match": 1}}}}},
+        "_source": {"excludes": ["embedding"]},
+    }
+
+
+_LANE_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="desc-lane")
+
+
+def _desc_lane(qv: list[float], groups: list[str], region_set: list[str], date_filter: dict | None) -> list[dict]:
+    """특이사항 레인 후보. 지역을 모르면(전국은 너무 넓어 근거가 약함) 돌리지 않음. 실패해도 검색은 계속.
+
+    묶음을 OR로 합쳐 k개 + 가장 드문 신분증(무게 1: 외국인등록증·여권·사원증)은 다른 낱말과 함께 있으면 따로 k개
+    (한 요청 _msearch). 합쳐서만 뽑으면 흔한 현금·학생증 습득물이 자리를 다 차지해 외국인등록증 습득물이 밀려났고
+    (실제 사례 551: 외국인등록증만 보면 레인 안 16~20위, 합치면 124~144위), 묶음마다 다 따로 뽑으면 현금·주민등록증
+    습득물만 늘어 한국인 신고에서 strong 후보가 9위로 밀렸음(LOST112 29건 비교, 11/18).
+    """
+    if not (groups and region_set):
+        return []
+    try:
+        regions = [v for v in _region_values() if resolver.match(v, region_set)]
+        if not regions:
+            return []
+        bodies = [desc_lane_query(qv, groups, regions, date_filter)]
+        if len(groups) > 1:
+            bodies += [desc_lane_query(qv, [g], regions, date_filter) for g in groups if _WEIGHT[g] >= 1.0]
+        out: dict[str, dict] = {}
+        for hits in _os_msearch(bodies):        # 현금·주민등록증이 함께 적힌 습득물은 두 묶음에서 다 나옴 → 한 번만
+            for h in hits:
+                out.setdefault(h["_id"], h)
+        return list(out.values())
+    except Exception as e:  # noqa: BLE001
+        print(f"[search] 특이사항 레인 실패({type(e).__name__}) → 의미 검색 후보만")
+        return []
+
+
 def search(
     q: str,
     region_set: list[str] | None = None,
@@ -325,15 +526,23 @@ def search(
     candidates: int = 100,
     w_region: float = 0.05,
     w_time_near: float | None = None,
+    w_desc: float | None = None,
+    foreign_writer: bool = False,
 ) -> list[dict]:
-    """의미 검색 + 지역 가점 (+ 분실일을 알면 그 전날 이후 습득물만).
+    """의미 검색 + 지역 가점 (+ 분실일을 알면 그 전날 이후 습득물만) + 특이사항 레인·가점(내용물 낱말이 있을 때).
 
     분실일 처리: 검색 단계에서 거름(KNN filter) → 후보 100개가 모두 가능한 날짜의 물건. 전날 습득물은 near만큼 낮춤.
+    특이사항: 질의에 외국인등록증·학생증 같은 내용물 낱말이 있으면 같은 지역·날짜에서 특이사항에만 그 낱말이 있는 습득물을
+    더 모으고(최대 DESC_LANE_K개), 특이사항이 맞는 후보에 최대 w_desc 가점. 낱말이 없으면 예전과 똑같음.
+    foreign_writer: 외국어로 쓴 신고 — 운전면허증을 외국 면허로 봄(query_groups).
     """
     region_set = region_set or []
     near = settings.search_w_date_near if w_time_near is None else w_time_near
+    w_desc = settings.search_w_desc if w_desc is None else w_desc
+    groups = query_groups(q, foreign_writer) if w_desc else []
     floor = date_floor(lost_date, settings.search_date_grace_days)
     date_filter = {"range": {"found_at": {"gte": floor}}} if floor else None
+    qv = None
     try:
         qv = gemini.embed_query(q)
         knn = {"vector": qv, "k": candidates}
@@ -346,13 +555,20 @@ def search(
         if date_filter:
             query = {"bool": {"must": [query], "filter": [date_filter]}}
 
+    # 특이사항 레인은 본 검색과 동시에(같은 벡터만 있으면 됨 — 기다리는 시간이 늘지 않게)
+    lane = None
+    if qv is not None and groups and region_set:
+        lane = _LANE_POOL.submit(_desc_lane, qv, groups, region_set, date_filter)
     hits = _os_search({
         "size": candidates,
         "query": query,
         "_source": {"excludes": ["embedding"]},
     })
+    if lane is not None:  # 같은 벡터 점수라 그대로 합침(이미 있는 문서는 건너뜀). _desc_lane은 실패해도 []
+        have = {h["_id"] for h in hits}
+        hits += [h for h in lane.result() if h["_id"] not in have]
 
-    # 가점: 임베딩 점수(base)에 지역/시간 가산
+    # 가점: 임베딩 점수(base)에 지역/시간/특이사항 가산
     scored = []
     for h in hits:
         s = h["_source"]
@@ -362,9 +578,15 @@ def search(
         if w_region and region_set and resolver.match(region, region_set):
             score += w_region
         score -= date_penalty(s.get("found_at", ""), lost_date, near)  # 분실일 전날 습득 → 조금 낮춤
+        delta, desc_hit, clash = content_score(s, groups, w_desc)
+        score += delta
         # 둘러보기와 같은 _item(영어 화면 칸 포함 — 전엔 따로 만들어 region_en 등이 AI 결과에 안 실림). 지역은 보관장소 해석 그대로
         it = _item(s, h["_id"], score)
         it.update(region=region, region_en=region_en(region))
+        if desc_hit:
+            it["desc_match"] = desc_hit  # 특이사항에서 맞은 내용물(측정·디버깅용, 화면엔 안 씀)
+        if clash:
+            it["id_clash"] = clash       # 어긋난 신분증 종류(측정·디버깅용)
         scored.append(it)
 
     scored.sort(key=lambda it: -it["score"])

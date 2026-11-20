@@ -32,7 +32,12 @@ def normalize(source: str, li: dict, detail: dict | None = None) -> dict:
 
 
 def embed_text(doc: dict) -> str:
-    """기존 색인과 동일한 임베딩 텍스트 공식(일관성). 향후 특이사항 포함 재색인은 별도 결정."""
+    """기존 색인과 동일한 임베딩 텍스트 공식(일관성). 특이사항은 넣지 않음.
+
+    특이사항에만 적힌 내용물(우체통 지갑의 '외국인등록증' 등)은 검색 쪽 특이사항 레인(apps/api/search.py)이 맡음
+    (2026-11-17 비교: 특이사항을 붙여 다시 임베딩해도 주민등록증 지갑이 외국인등록증 지갑만큼 올라 신분증 종류를 못 가름 +
+    21.9만 건 재색인 → 낱말 일치 레인 채택).
+    """
     return f"{doc['name']}. 분류:{doc['category']}. 색상:{doc['color']}"
 
 
