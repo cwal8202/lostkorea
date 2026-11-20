@@ -104,10 +104,11 @@ chmod +x scripts/daily_collect.sh
   — **Gemini 선불 잔액이 $5 이상인지 먼저 확인**
   (잔액 0이면 같은 결제 계정의 운영 키까지 멈춤), 밤 수집과 겹치지 않게 낮에:
   `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.collector.run --translate-only --translate 260000 --translate-minutes 120 --translate-calls 1700`
-- **작은 사진 미리 만들기**(2026-11-19, FIND-122): 수집 맨 끝(재매칭 뒤)에 `--thumbs 20000 --thumbs-minutes 90` — 습득일 최신순으로
+- **작은 사진 미리 만들기**(2026-11-19, FIND-122): 수집 맨 끝(재매칭 뒤)에 `--thumbs 20000 --thumbs-minutes 90 --thumbs-workers 12` — 습득일 최신순으로
   없는 작은 사진을 만들고, 색인에서 빠진 습득물의 사진은 지움. 저장 위치는 볼륨 `lostkorea_thumbs`(배포해도 남음, 다 차도 ~0.8GB).
   로그 줄: `사진 N장 중 없던 N장 → 새로 N장(실패 N), 남은 N장 · 지운 옛 사진 N장`.
-  처음 한 번 채우기(최신 2.6만 장 ≈ 2시간 — 장당 ~1.8초·동시 6장, 밤 수집과 겹치지 않게 낮에):
+  동시 12장(11/20): 서버(헬싱키)에서 경찰 사진은 장당 7~11초라 4장씩이면 90분에 3,746장(하루 새 사진 ~3,400장도 겨우) — 12장씩 ≈1.5장/초.
+  처음 한 번 채우기(밤 수집과 겹치지 않게 낮에, 위 속도로 계산 — 아래 '장당 ~1.8초'는 한국에서 잰 값):
   `docker compose -f docker-compose.prod.yml run --rm -T backend uv run python -m apps.collector.run --thumbs-only --thumbs 26000 --thumbs-minutes 150 --thumbs-workers 6`
 - 수집기는 **500건마다 색인** — 중간에 끊겨도 앞 배치는 남고 다음 실행이 '이미 색인' 스킵으로 이어서 처리.
 - **실패·정체 알림**: 수집이 실패하면, 또는 가장 최근 습득일이 3일 넘게 지나면(새 데이터가 안 들어옴) 관리자

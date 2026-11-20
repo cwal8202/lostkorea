@@ -31,6 +31,7 @@ echo "==== [$(date '+%F %T')] 최근 ${DAYS}일($START~$END) 수집 시작 ===="
 #   모델은 gemini-3.1-flash-lite(FIND-126), 하룻밤 AI 300회(≈$0.5) 상한, 평소엔 새 글만이라 그보다 적음. 정해진 낱말(분류·색·경찰 기관)은 표라 AI 안 씀.
 # --thumbs: 맨 끝에 습득물 작은 사진을 최신순으로 미리 만들고(하룻밤 최대 N장·90분) 빠진 습득물의 사진은 지움 —
 #   처음 보는 사진이 경찰 서버에서 받느라 1.6~2초씩 늦게 뜨던 것(FIND-122). 하루 새 사진 ~3,400장 + 밀린 것.
+#   서버(헬싱키)에서 경찰 사진은 장당 7~11초라 4장씩이면 90분에 ~3,700장(새 사진도 겨우) → 12장씩(≈1.5장/초, ~8,000장/밤).
 # run --rm: 백엔드 서비스 컨테이너(exec)가 아니라 별도 일회성 컨테이너에서 실행 → 수집 도중 자동배포가
 # 백엔드를 재생성해도 끊기지 않음(2026-09-30: exec 방식이 01:24 배포로 중단돼 1시간 반 작업 유실).
 if ! $COMPOSE run --rm -T backend \
@@ -38,7 +39,7 @@ if ! $COMPOSE run --rm -T backend \
     --source both --start "$START" --end "$END" \
     --rows 1000 --max 20000 --enrich --reconcile --catch-up 15000 --rematch \
     --translate 20000 --translate-minutes 20 --translate-calls 300 \
-    --thumbs 20000 --thumbs-minutes 90; then
+    --thumbs 20000 --thumbs-minutes 90 --thumbs-workers 12; then
   echo "==== [$(date '+%F %T')] 수집 실패 ===="
   $COMPOSE run --rm -T backend uv run python -m apps.ops alert "일일 수집 실패" \
     "daily_collect.sh 실패 ($(date '+%F %T')). 로그: /root/lostkorea/daily_collect.log" || true
