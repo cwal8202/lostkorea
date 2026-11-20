@@ -216,7 +216,7 @@ def test_thumb_resizes_and_caches(monkeypatch, tmp_path):
     from apps.api import thumbs
     calls = []
     monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
-    monkeypatch.setattr(thumbs.urllib.request, "urlopen", lambda req, timeout=0: calls.append(1) or _io.BytesIO(_jpeg()))
+    monkeypatch.setattr(thumbs, "_fetch", lambda u: calls.append(1) or _jpeg())
     r = client.get("/thumb.jpg", params={"u": _POLICE_IMG})
     assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
     assert "public" in r.headers["cache-control"] and "max-age" in r.headers["cache-control"]   # Cloudflare가 저장
@@ -228,7 +228,7 @@ def test_thumb_resizes_and_caches(monkeypatch, tmp_path):
 def test_thumb_falls_back_to_original(monkeypatch, tmp_path):
     from apps.api import thumbs
     monkeypatch.setattr(thumbs, "CACHE_DIR", tmp_path)
-    monkeypatch.setattr(thumbs.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(OSError("timeout")))
+    monkeypatch.setattr(thumbs, "_fetch", lambda u: (_ for _ in ()).throw(OSError("timeout")))
     r = client.get("/thumb.jpg", params={"u": _POLICE_IMG}, follow_redirects=False)
     assert r.status_code == 302 and r.headers["location"] == _POLICE_IMG                       # 사진이 사라지지 않게
 
@@ -243,16 +243,66 @@ def test_thumb_prefill_newest_first_within_cap(monkeypatch, tmp_path):
     (tmp_path / thumbs._name(urls[0])).write_bytes(b"x")          # 이미 있는 사진은 다시 받지 않음
     got = []
 
-    def fake(req, timeout=0):
-        got.append(req.full_url)
-        if req.full_url == urls[2]:
+    def fake(u):
+        got.append(u)
+        if u == urls[2]:
             raise OSError("timeout")
-        return _io.BytesIO(_jpeg())
-    monkeypatch.setattr(thumbs.urllib.request, "urlopen", fake)
+        return _jpeg()
+    monkeypatch.setattr(thumbs, "_fetch", fake)
     st = thumbs.prefill(urls + ["https://evil.example/x.jpg"], max_new=3, budget_s=60, workers=2)
     assert sorted(got) == sorted(urls[1:4])                         # 최신순 앞 3장(이미 있는 0번 제외), 남의 주소 제외
     assert st == {"missing": 4, "made": 2, "failed": 1, "left": 2}
     assert (tmp_path / thumbs._name(urls[1])).exists() and not (tmp_path / thumbs._name(urls[4])).exists()
+
+
+def test_thumb_fetch_reuses_pool_and_retries_only_dropped(monkeypatch):
+    """경찰 서버 연결은 묶음에서 다시 씀 — 쉬던 연결이 끊겼으면 한 번만 다시, 시간 초과는 다시 안 함, 큰 원본·오류 응답은 연결을 닫음."""
+    import urllib3
+
+    from apps.api import thumbs
+
+    class Resp:
+        def __init__(self, status=200, body=b"jpg"):
+            self.status, self.body, self.closed, self.released = status, body, False, False
+
+        def read(self, n):
+            return self.body[:n]
+
+        def close(self):
+            self.closed = True
+
+        def release_conn(self):
+            self.released = True
+
+    class Pool:
+        def __init__(self, *outcomes):
+            self.outcomes, self.calls = list(outcomes), 0
+
+        def request(self, method, url, preload_content=True):
+            assert method == "GET" and preload_content is False   # 끝까지 다 읽어야 연결을 돌려줌
+            self.calls += 1
+            o = self.outcomes.pop(0)
+            if isinstance(o, Exception):
+                raise o
+            return o
+
+    dropped = urllib3.exceptions.MaxRetryError(None, _POLICE_IMG, urllib3.exceptions.ProtocolError("Connection aborted."))
+    ok = Resp()
+    monkeypatch.setattr(thumbs, "_POOL", Pool(dropped, ok))
+    assert thumbs._fetch(_POLICE_IMG) == b"jpg" and thumbs._POOL.calls == 2
+    assert ok.released and not ok.closed                              # 다 읽은 연결은 묶음으로 돌아감
+
+    timeout = urllib3.exceptions.MaxRetryError(None, _POLICE_IMG, urllib3.exceptions.ReadTimeoutError(None, _POLICE_IMG, "timed out"))
+    monkeypatch.setattr(thumbs, "_POOL", Pool(timeout, Resp()))
+    with pytest.raises(urllib3.exceptions.MaxRetryError):
+        thumbs._fetch(_POLICE_IMG)
+    assert thumbs._POOL.calls == 1                                    # 시간 초과는 다시 안 함(방문자가 오래 기다리지 않게)
+
+    for bad in (Resp(status=404), Resp(body=b"x" * (thumbs.MAX_SRC + 2))):
+        monkeypatch.setattr(thumbs, "_POOL", Pool(bad))
+        with pytest.raises((OSError, ValueError)):
+            thumbs._fetch(_POLICE_IMG)
+        assert bad.closed and bad.released                            # 다 안 읽은 연결은 닫고 돌려보냄(다음엔 새 연결)
 
 
 def test_thumb_sweep_removes_only_gone_and_old(monkeypatch, tmp_path):
