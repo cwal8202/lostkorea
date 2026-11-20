@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--HEAD-->
+</head>
+<body class="page-doc">
+<!--HEADER-->
+<main id="main" class="container doc ai-doc">
+    <h1>Use LostKorea in your AI app</h1>
+    <p class="meta">MCP connection · <a href="/ai-tools">한국어</a></p>
+    <p>Connect the address below to an AI app such as Claude, and the AI can search items handed in to police stations and
+       lost-and-found centers across Korea for you. MCP is the common standard AI apps use to call outside tools.
+       No sign-up — just paste the address.</p>
+    <div class="mcp-url">
+      <span class="lbl">MCP address</span>
+      <div class="copy-row"><code>https://lostkorea.com/mcp</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="https://lostkorea.com/mcp">Copy</button></div>
+    </div>
+
+    <h2>Connect</h2>
+    <ul>
+      <li><b>Claude (web & desktop)</b>: Settings → Connectors → <b>Add custom connector</b> → name 'LostKorea', URL above.
+          (Which plans can use it follows Claude's policy.)</li>
+      <li><b>Claude Code</b>: one line in your terminal<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp">Copy</button></div></li>
+      <li><b>Cursor and others</b>: in the MCP config file<div class="copy-row"><code>{ &quot;mcpServers&quot;: { &quot;lostkorea&quot;: { &quot;url&quot;: &quot;https://lostkorea.com/mcp&quot; } } }</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="{ &quot;mcpServers&quot;: { &quot;lostkorea&quot;: { &quot;url&quot;: &quot;https://lostkorea.com/mcp&quot; } } }">Copy</button></div>
+          Other apps: put the address in their 'remote (HTTP) MCP server URL' field.</li>
+    </ul>
+
+    <h2>What it can do</h2>
+    <div class="tbl"><table>
+      <tr><th>Tool</th><th>What it does</th></tr>
+      <tr><td>find_matches</td><td>Runs lost-item reports (any language) through the same AI matcher as this site and returns
+        candidates with scores, reasons, the holding agency, phone and the police listing. Reports are <b>not saved</b>.</td></tr>
+      <tr><td>search_found_items</td><td>Browse found items by keyword, area and date (like the 'All found items' page).</td></tr>
+      <tr><td>get_found_item</td><td>Checks whether one item is still held by the police ('보관중') or closed ('종결').</td></tr>
+    </table></div>
+    <p>Try asking: "I lost a black card wallet on subway line 2 near Hongdae yesterday — find it with LostKorea",
+       "Show AirPods found in Gangnam-gu", "Is item F2026111800003998 still at the police station?"</p>
+
+    <h2>Limits and notes</h2>
+    <ul>
+      <li>Without a key: <b>3 AI matches per day</b> (3 per call). Searching and status checks: 60 per hour.</li>
+      <li>Results are AI-picked <b>candidates</b>. Confirm with the holding agency by phone or in person.</li>
+      <li>Phone and card numbers in your text are masked before AI. See the <a href="/en/privacy">Privacy Policy</a>.</li>
+    </ul>
+
+    <h2 id="key">Organization keys</h2>
+    <p>Organizations that handle lost items or help visitors can get a key for more use (10 per call, from 300 per day).</p>
+    <ul>
+      <li><b>Who</b>: police stations and police boxes; subway, rail, bus and airport lost-and-found centers; large venues such as
+          theme parks and department stores; tourist information centers and interpretation hotlines; embassies and consulates;
+          hotels and guesthouses; universities, research institutes and non-profits working on lost property.</li>
+      <li><b>Not eligible</b>: individuals (please use the free 3 per day), and anyone reselling or bulk-collecting results.</li>
+      <li><b>Apply</b>: email <a href="mailto:{{HELP_EMAIL}}?subject=%5BLostKorea%5D%20MCP%20organization%20key%20request&amp;body=Organization%3A%0AContact%20name%3A%0AOrganization%20email%3A%0APurpose%3A%0AExpected%20reports%20per%20day%3A%0A%0AI%20agree%3A%20results%20are%20candidates%20and%20owners%20confirm%20with%20the%20holding%20agency%20/%20no%20unnecessary%20personal%20data%20in%20reports%20/%20no%20redistribution%20or%20resale%20of%20results%20/%20the%20key%20may%20be%20revoked%20for%20misuse.">{{HELP_EMAIL}}</a>
+          from your <b>organization email</b> with the organization, contact, purpose and expected daily volume.
+          We reply to that address with a key.</li>
+      <li><b>Conditions</b>: results are candidates and owners confirm with the agency · no unnecessary personal data in reports ·
+          no redistribution or resale · keys may be revoked for misuse (<a href="/en/terms">Terms</a>).</li>
+      <li><b>Using a key</b>: add the header <code>X-MCP-Key: your-key</code> in your AI app's MCP settings. In Claude Code<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;">Copy</button></div></li>
+    </ul>
+</main>
+<!--FOOTER-->
+</body>
+</html>

@@ -93,8 +93,9 @@
   IP별 레이트리밋 + 하루 AI 사용량 상한, 사진·검색어 크기 상한.
   [개인정보처리방침](https://lostkorea.com/privacy)·[이용약관](https://lostkorea.com/terms) — 사진 미저장,
   신고는 알림 기간 종료 30일 뒤 자동 삭제, '내 신고'에서 즉시 삭제 가능.
-- **MCP(AI 도구)** — Claude 같은 AI가 LostKorea 매칭을 도구로: 분실 신고 1~20건을 한꺼번에 AI 매칭(저장·알림 없음), 습득물 찾기,
-  습득물의 지금 경찰 상태. 기관이 신고 묶음을 일괄 처리하거나 실제 사례를 검증할 때. [mcp-server/README.md](mcp-server/README.md)
+- **MCP(AI 도구)** — Claude 같은 AI 앱에 **`https://lostkorea.com/mcp`** 주소만 붙여 넣으면 AI가 LostKorea 매칭을 도구로:
+  분실 신고 AI 매칭(저장·알림 없음, 키 없이 하루 3건), 습득물 찾기, 습득물의 지금 경찰 상태. 기관은 신청해 키를 받아 일괄 처리
+  (운영 화면에서 발급·회수). 사이트 '/ai-tools'에 [복사]·연결 방법. 내 PC 실행판은 [mcp-server/README.md](mcp-server/README.md)
 - **운영 화면**(`/admin`, 운영자 전용): 들어오면 **이상 항목만 위로**(검색 엔진·새벽 수집·최근 습득일·백업·알림 재발송·디스크·예비 AI 모델·
   AI 상한·앱 오류·로그인 실패, 정상은 한 줄로 접음) → 기간(7·30·90일)별 **신고 대장**(신고 → 유력 후보 → 내 물건 → 연락·방문 → 찾음을
   한 줄씩 20건씩 쪽으로, 줄을 열면 신고 문장·AI가 뽑은 항목·후보 3개·진행 기록, 외국어 신고는 처음 열 때 AI가 한국어로 옮겨 저장 —
@@ -123,7 +124,7 @@
 신고 46건(15%) 중 67%를 1위로(3위 안 83%) 찾음. 브랜드·모델·여권 국적처럼 양쪽에 적힌 특징까지 맞는 보수적 하한은 16건(5%), 그중 1위 12건.
 영·중·일 문장으로는 하한 16건 중 12~15건(`eval/results/lost112.md`·`lost112_lang.md`, 판정은 AI라 정답 아님).
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 494개(운영 화면 인증·신고 대장·번역 저장·검색어 만들기·지역가점·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 500개(운영 화면 인증·신고 대장·번역 저장·검색어 만들기·지역가점·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API·MCP(원격·기관 키·운영자 모드)), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -150,7 +151,7 @@ eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, O
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache) · build_bus_routes(버스 노선표, 월 1회 로컬)
-tests/       pytest 494개 (외부 서비스 목킹)
+tests/       pytest 500개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)

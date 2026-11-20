@@ -78,10 +78,10 @@ class Settings(BaseSettings):
 
     # 운영 화면(/admin) — 신고 문장이 보이므로 이 값이 있을 때만 열림(HTTP Basic, 사용자 이름은 아무거나). 비우면 /admin은 404.
     admin_password: str = ""
-    # MCP(FIND-128): 키가 있을 때만 /mcp-api 열림(쉼표로 여러 개 — 기관마다 따로 주고 따로 막을 수 있게). 키마다 하루 신고 수,
-    # 시간당 습득물 상태 확인 수(경찰청 공개 API 하루 10만 회 한도 보호). 신고 1건은 서비스 하루 AI 상한에서도 1단위.
-    mcp_api_keys: str = ""
-    limit_mcp_reports_day: int = 300
+    # MCP(FIND-128): 키 없이(누구나) IP당 하루 AI 매칭 3건, 습득물 상태 확인 시간당 60건. 기관 키는 운영 화면에서 발급(키마다
+    # 하루 한도, 0 = 한도 없음), 상태 확인은 키마다 시간당 600건(경찰청 공개 API 하루 10만 회 보호). 매칭 1건 = 하루 AI 상한 1단위.
+    limit_mcp_public_day: int = 3
+    limit_mcp_public_items_hour: int = 60
     limit_mcp_items_hour: int = 600
     limit_admin_fail_hour: int = 10    # 같은 IP의 관리자 비밀번호 실패 — 넘으면 한 시간 동안 맞는 비밀번호도 429
 

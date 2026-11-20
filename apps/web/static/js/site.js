@@ -1,5 +1,15 @@
-// 모든 페이지 공통 — 모바일 메뉴 토글, 언어 선택(한국어·영어는 해당 페이지로, 그 외 언어는 번역 위젯).
+// 모든 페이지 공통 — 모바일 메뉴 토글, 언어 선택(한국어·영어는 해당 페이지로, 그 외 언어는 번역 위젯), 복사 버튼(data-copy).
 (function () {
+  document.addEventListener("click", (e) => {     // [복사] — AI 앱에서 쓰기(MCP) 주소·명령
+    const b = e.target.closest("[data-copy]");
+    if (!b) return;
+    const done = document.documentElement.lang === "ko" ? "복사했어요" : "Copied";
+    const label = b.textContent;
+    navigator.clipboard.writeText(b.dataset.copy).then(() => {
+      b.textContent = done;
+      setTimeout(() => { b.textContent = label; }, 1600);
+    });
+  });
   const toggle = document.querySelector(".nav-toggle");
   const nav = document.getElementById("siteNav");
   if (toggle && nav) {

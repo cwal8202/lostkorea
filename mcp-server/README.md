@@ -1,5 +1,8 @@
 # LostKorea MCP
 
+> **보통은 이 프로그램이 필요 없어요.** AI 앱에 원격 주소 **`https://lostkorea.com/mcp`**를 붙여 넣으면 돼요
+> (연결 방법: https://lostkorea.com/ai-tools). 이 폴더는 내 PC에서 직접 돌리거나 시험할 때 쓰는 실행판이에요.
+
 AI(Claude 등 MCP를 쓰는 AI)가 LostKorea의 습득물 AI 매칭을 **도구로** 쓰게 하는 MCP 서버예요.
 경찰청 공개 습득물(최근 약 6개월, 경찰서·유실물센터)과 분실 신고를 이어 줍니다.
 기관·연구용으로 분실 신고 묶음을 한꺼번에 돌려 보거나, 실제 분실 사례를 모아 매칭해 볼 때 씁니다.
@@ -16,7 +19,8 @@ AI(Claude 등 MCP를 쓰는 AI)가 LostKorea의 습득물 AI 매칭을 **도구�
 
 ## 붙이기
 
-필요한 것: [uv](https://docs.astral.sh/uv/), 운영자가 준 **MCP 키**(`find_matches`·`get_found_item`에 필요).
+필요한 것: [uv](https://docs.astral.sh/uv/), 운영자가 운영 화면에서 발급한 **기관 키**(`find_matches`·`get_found_item`에 필요).
+원격 주소에서도 같은 키를 머리글 `X-MCP-Key`로 넣으면 키 한도로 쓸 수 있어요.
 
 **Claude Code**
 ```bash
@@ -41,6 +45,6 @@ claude mcp add lostkorea -e LOSTKOREA_MCP_KEY=<키> -- uv run --script <이 폴�
 
 ## 한도·개인정보
 
-- 키마다 하루 신고 300건, 시간당 습득물 상태 확인 600건. 신고 1건은 서비스 하루 AI 상한에서도 1단위.
+- 키 한도는 운영자가 키마다 정해요(보통 하루 신고 300건). 시간당 습득물 상태 확인 600건. 신고 1건은 서비스 하루 AI 상한에서도 1단위.
 - 서버가 신고 문장의 전화번호·카드번호·주민번호·여권번호·이메일을 AI로 보내기 전에 가려요. 신고는 저장하지 않아요.
 - 한 번에 많이 보내면 MCP가 5건씩 나눠 보내요(신고 1건 약 9초, 5건 동시 → 요청 하나 약 15초).

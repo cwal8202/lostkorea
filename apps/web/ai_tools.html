@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!--HEAD-->
+</head>
+<body class="page-doc">
+<!--HEADER-->
+<main id="main" class="container doc ai-doc">
+    <h1>AI 앱에서 LostKorea 쓰기</h1>
+    <p class="meta">MCP 연결 · <a href="/en/ai-tools">English</a></p>
+    <p>Claude 같은 AI 앱에 아래 주소를 연결하면, AI가 직접 전국 경찰서·유실물센터에 들어온 습득물을 찾아 줘요.
+       MCP는 AI 앱이 바깥 도구를 쓰는 공통 규격이에요. 가입 없이 주소만 붙여 넣으면 돼요.</p>
+    <div class="mcp-url">
+      <span class="lbl">MCP 주소</span>
+      <div class="copy-row"><code>https://lostkorea.com/mcp</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="https://lostkorea.com/mcp">복사</button></div>
+    </div>
+
+    <h2>연결하기</h2>
+    <ul>
+      <li><b>Claude(웹·데스크톱)</b>: 설정 → 커넥터 → <b>사용자 지정 커넥터 추가</b> → 이름 'LostKorea', 주소에 위 MCP 주소.
+          (쓸 수 있는 요금제는 Claude 쪽 정책을 따라요.)</li>
+      <li><b>Claude Code</b>: 터미널에서 한 줄<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp">복사</button></div></li>
+      <li><b>Cursor 등</b>: MCP 설정 파일에<div class="copy-row"><code>{ &quot;mcpServers&quot;: { &quot;lostkorea&quot;: { &quot;url&quot;: &quot;https://lostkorea.com/mcp&quot; } } }</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="{ &quot;mcpServers&quot;: { &quot;lostkorea&quot;: { &quot;url&quot;: &quot;https://lostkorea.com/mcp&quot; } } }">복사</button></div>
+          그 밖의 앱은 '원격(HTTP) MCP 서버 주소'를 넣는 칸에 위 주소를 넣으면 돼요.</li>
+    </ul>
+
+    <h2>할 수 있는 일</h2>
+    <div class="tbl"><table>
+      <tr><th>도구</th><th>하는 일</th></tr>
+      <tr><td>find_matches</td><td>분실 신고(어느 언어든)를 이 사이트와 같은 AI 매칭에 넣어 후보·점수·근거·보관 기관·전화·원본 링크를 받아요.
+        신고는 <b>저장하지 않아요</b>.</td></tr>
+      <tr><td>search_found_items</td><td>키워드·지역·날짜로 습득물을 찾아요(전체 습득물 화면과 같음).</td></tr>
+      <tr><td>get_found_item</td><td>습득물 하나가 지금도 경찰서에 있는지(보관중·종결) 확인해요.</td></tr>
+    </table></div>
+    <p>이렇게 물어보세요 — "어제 홍대입구역 2호선에서 검정 카드지갑을 잃어버렸어. LostKorea로 찾아 줘",
+       "강남구에 들어온 에어팟 보여 줘", "이 습득물 아직 경찰서에 있어? F2026111800003998"</p>
+
+    <h2>한도와 주의할 점</h2>
+    <ul>
+      <li>키 없이 쓰면 <b>하루 AI 매칭 3건</b>까지예요(한 번에 3건). 습득물 찾기·상태 확인은 시간당 60번까지.</li>
+      <li>결과는 AI가 고른 <b>후보</b>예요. 내 물건인지는 보관 기관에 전화하거나 찾아가 직접 확인해야 해요.</li>
+      <li>신고 문장의 전화번호·카드번호 등은 AI로 보내기 전에 가려요. 처리 방식은 <a href="/privacy">개인정보처리방침</a>을 따라요.</li>
+    </ul>
+
+    <h2 id="key">기관 키 신청</h2>
+    <p>분실물을 다루거나 외국인을 응대하는 기관은 키를 받아 더 많이 쓸 수 있어요(한 번에 10건, 하루 300건부터).</p>
+    <ul>
+      <li><b>대상</b>: 경찰서·지구대, 지하철·철도·버스·공항 유실물센터, 놀이공원·백화점 같은 큰 시설, 관광안내소·관광통역안내,
+          대사관·영사관, 호텔·게스트하우스, 분실물 관련 공익·연구 목적의 대학·연구소·비영리 단체.</li>
+      <li><b>받을 수 없음</b>: 개인(키 없이 하루 3건으로 써 주세요), 결과를 되팔거나 대량으로 모으려는 곳.</li>
+      <li><b>신청</b>: <a href="mailto:{{HELP_EMAIL}}?subject=%5BLostKorea%5D%20MCP%20%EA%B8%B0%EA%B4%80%20%ED%82%A4%20%EC%8B%A0%EC%B2%AD&amp;body=%EA%B8%B0%EA%B4%80%20%EC%9D%B4%EB%A6%84%3A%0A%EB%8B%B4%EB%8B%B9%EC%9E%90%20%EC%9D%B4%EB%A6%84%3A%0A%EA%B8%B0%EA%B4%80%20%EB%A9%94%EC%9D%BC%3A%0A%EC%93%B0%EB%8A%94%20%EB%AA%A9%EC%A0%81%3A%0A%ED%95%98%EB%A3%A8%20%EC%98%88%EC%83%81%20%EA%B1%B4%EC%88%98%3A%0A%0A%EC%95%84%EB%9E%98%20%EC%A1%B0%EA%B1%B4%EC%97%90%20%EB%8F%99%EC%9D%98%ED%95%A9%EB%8B%88%EB%8B%A4%20%E2%80%94%20%EA%B2%B0%EA%B3%BC%EB%8A%94%20%ED%9B%84%EB%B3%B4%EC%9D%B4%EB%A9%B0%20%EC%A3%BC%EC%9D%B8%20%ED%99%95%EC%9D%B8%EC%9D%80%20%EB%B3%B4%EA%B4%80%20%EA%B8%B0%EA%B4%80%EC%97%90%EC%84%9C%20%ED%95%A8%20/%20%EC%8B%A0%EA%B3%A0%20%EB%AC%B8%EC%9E%A5%EC%97%90%20%ED%95%84%EC%9A%94%20%EC%97%86%EB%8A%94%20%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EB%A5%BC%20%EB%84%A3%EC%A7%80%20%EC%95%8A%EC%9D%8C%20/%20%EA%B2%B0%EA%B3%BC%EB%A5%BC%20%EC%9E%AC%EB%B0%B0%ED%8F%AC%C2%B7%ED%8C%90%EB%A7%A4%ED%95%98%EC%A7%80%20%EC%95%8A%EC%9D%8C%20/%20%EC%96%B4%EA%B8%B0%EB%A9%B4%20%ED%82%A4%20%ED%9A%8C%EC%88%98.">{{HELP_EMAIL}}</a>로
+          기관 이름·담당자·<b>기관 메일</b>·쓰는 목적·하루 예상 건수를 보내 주세요. 확인한 뒤 기관 메일로 키를 보내 드려요.</li>
+      <li><b>조건</b>: 결과는 후보이며 주인 확인은 보관 기관에서 해요 · 신고 문장에 필요 없는 개인정보를 넣지 않아요 ·
+          결과를 재배포·판매하지 않아요 · 어기면 키를 회수해요(<a href="/terms">이용약관</a>).</li>
+      <li><b>키 쓰기</b>: AI 앱의 MCP 설정에 머리글 <code>X-MCP-Key: 키</code>를 넣어요. Claude Code라면<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;">복사</button></div></li>
+    </ul>
+</main>
+<!--FOOTER-->
+</body>
+</html>

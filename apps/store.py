@@ -191,6 +191,27 @@ def init() -> None:
             PRIMARY KEY (kind, ko)
         )
     """)
+    # MCP 키(FIND-128) — 운영 화면에서 기관마다 발급·회수. 키 원문은 저장하지 않고 sha256만(한 번만 보여 줌).
+    # daily_limit 0 = 한도 없음(운영자용). 사용량은 하루 단위로 DB에(배포해도 0으로 안 돌아감).
+    _run("""
+        CREATE TABLE IF NOT EXISTS mcp_keys (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            key_hash TEXT NOT NULL UNIQUE,
+            daily_limit INTEGER NOT NULL DEFAULT 300,
+            created_at TEXT,
+            revoked_at TEXT,
+            last_used_at TEXT
+        )
+    """)
+    _run("""
+        CREATE TABLE IF NOT EXISTS mcp_usage (
+            day TEXT NOT NULL,
+            key_id TEXT NOT NULL,
+            n INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, key_id)
+        )
+    """)
     # 기존 DB 누락 컬럼 마이그레이션 (운영 Postgres도 테이블이 이미 있어 CREATE로는 안 생김)
     added = {"email": "TEXT", "dismissed": "TEXT", "notify_weak": "INTEGER DEFAULT 0",
              "weak_notified": "TEXT", "watch_until": "TEXT", "lang": "TEXT DEFAULT 'ko'",
@@ -458,6 +479,57 @@ def report_counts() -> dict[str, int]:
 CLOSURE_COLS = ("item_id", "kind", "source", "category_top", "category_sub", "color", "region", "dep_place",
                 "found_place", "has_photo", "has_desc", "found_at", "first_seen", "detected_at", "check_window",
                 "our_report")
+
+
+def _key_hash(key: str) -> str:
+    return hashlib.sha256((key or "").encode()).hexdigest()
+
+
+def mcp_key_create(name: str, daily_limit: int) -> tuple[str, str]:
+    """MCP 키 발급 → (id, 키 원문). 원문은 여기서 한 번만 — DB엔 해시만."""
+    key = "lk_" + secrets.token_urlsafe(24)
+    kid = new_id()
+    _run("INSERT INTO mcp_keys (id, name, key_hash, daily_limit, created_at) VALUES (?, ?, ?, ?, ?)",
+         (kid, name.strip()[:80], _key_hash(key), max(0, int(daily_limit)), _now()))
+    return kid, key
+
+
+def mcp_key_find(key: str) -> dict | None:
+    """회수되지 않은 키 → 행(이름·한도). 없거나 회수됐으면 None."""
+    if not key or not key.startswith("lk_"):
+        return None
+    return _one("SELECT id, name, daily_limit FROM mcp_keys WHERE key_hash = ? AND revoked_at IS NULL",
+                (_key_hash(key),))
+
+
+def mcp_key_revoke(kid: str) -> bool:
+    row = _one("SELECT id FROM mcp_keys WHERE id = ? AND revoked_at IS NULL", (kid,))
+    if row:
+        _run("UPDATE mcp_keys SET revoked_at = ? WHERE id = ?", (_now(), kid))
+    return bool(row)
+
+
+def mcp_usage_today(kid: str, day: str | None = None) -> int:
+    day = day or datetime.now(KST).date().isoformat()
+    r = _one("SELECT n FROM mcp_usage WHERE day = ? AND key_id = ?", (day, kid))
+    return int(r["n"]) if r else 0
+
+
+def mcp_use(kid: str, n: int, day: str | None = None) -> None:
+    """키 사용량 +n(오늘, KST) + 마지막 사용 시각."""
+    day = day or datetime.now(KST).date().isoformat()
+    _run("INSERT INTO mcp_usage (day, key_id, n) VALUES (?, ?, ?) "
+         "ON CONFLICT (day, key_id) DO UPDATE SET n = mcp_usage.n + excluded.n", (day, kid, n))
+    _run("UPDATE mcp_keys SET last_used_at = ? WHERE id = ?", (_now(), kid))
+
+
+def mcp_key_list() -> list[dict]:
+    """운영 화면 목록 — 최근 발급순, 오늘 사용량 포함(키 원문·해시는 안 실음)."""
+    day = datetime.now(KST).date().isoformat()
+    rows = _rows("SELECT id, name, daily_limit, created_at, revoked_at, last_used_at FROM mcp_keys "
+                 "ORDER BY created_at DESC")
+    used = {r["key_id"]: int(r["n"]) for r in _rows("SELECT key_id, n FROM mcp_usage WHERE day = ?", (day,))}
+    return [{**r, "today": used.get(r["id"], 0)} for r in rows]
 
 
 def tr_get(kind: str, kos: list[str]) -> dict[str, str]:

@@ -80,6 +80,14 @@ PAGES: dict[str, dict[str, dict[str, str]]] = {
         "ko": {"path": "/privacy", "title": f"개인정보처리방침 — {BRAND}", "desc": f"{BRAND} 개인정보처리방침"},
         "en": {"path": "/en/privacy", "title": f"Privacy Policy — {BRAND}", "desc": f"{BRAND} Privacy Policy"},
     },
+    "ai": {  # AI 앱에서 쓰기(MCP, FIND-128) — 주소 복사 버튼·연결 방법·기관 키 신청
+        "ko": {"path": "/ai-tools", "title": f"AI 앱에서 쓰기(MCP) — {BRAND}",
+               "desc": "Claude 같은 AI 앱에 LostKorea MCP 주소를 붙여 넣으면 AI가 전국 경찰서·유실물센터 습득물을 찾아 줘요. "
+                       "가입 없이, 기관은 키 신청."},
+        "en": {"path": "/en/ai-tools", "title": f"Use LostKorea in your AI app (MCP) — {BRAND}",
+               "desc": "Paste the LostKorea MCP address into Claude or another AI app to search lost-and-found items "
+                       "across Korea. No sign-up; organizations can request a key."},
+    },
     "terms": {
         "ko": {"path": "/terms", "title": f"이용약관 — {BRAND}", "desc": f"{BRAND} 이용약관"},
         "en": {"path": "/en/terms", "title": f"Terms of Service — {BRAND}", "desc": f"{BRAND} Terms of Service"},
@@ -88,11 +96,11 @@ PAGES: dict[str, dict[str, dict[str, str]]] = {
 # 사이트맵 수정 날짜(lastmod) — 페이지 글(제목·설명·본문)을 바꾸면 **그 페이지 날짜를 그날로** 올릴 것.
 # 구글은 날짜가 꾸준히 맞을 때만 믿으므로 배포 날짜가 아니라 내용이 바뀐 날. 전체 습득물(browse)은 목록이 매일 바뀌므로
 # 색인의 가장 최근 습득일을 씀(못 읽으면 이 날짜).
-UPDATED = {"home": "2026-11-17", "browse": "2026-11-15", "guide": "2026-11-17", "privacy": "2026-11-15",
-           "terms": "2026-11-14"}
+UPDATED = {"home": "2026-11-17", "browse": "2026-11-15", "guide": "2026-11-17", "privacy": "2026-11-20",
+           "terms": "2026-11-20", "ai": "2026-11-20"}
 _TEMPLATE = {"home": "index.html", "browse": "index.html", "guide": "guide_en.html",
-             "privacy": "privacy.html", "terms": "terms.html"}
-_TEMPLATE_EN = {"privacy": "privacy_en.html", "terms": "terms_en.html"}
+             "privacy": "privacy.html", "terms": "terms.html", "ai": "ai_tools.html"}
+_TEMPLATE_EN = {"privacy": "privacy_en.html", "terms": "terms_en.html", "ai": "ai_tools_en.html"}
 _LOCALE = {"ko": "ko_KR", "en": "en_US"}
 
 # ── 화면 문구(서버가 채움). 동적 문구(검색 진행·결과)는 static/js/app.js의 I18N ──
@@ -189,6 +197,7 @@ T: dict[str, dict[str, str]] = {
         "f_tagline": "한국에서 잃어버린 물건, AI가 공공 습득물 데이터에서 찾아드려요.",
         "f_service": "서비스", "f_info": "정보", "f_contact": "문의",
         "f_guide": "", "f_privacy": "개인정보처리방침", "f_terms": "이용약관", "f_issues": "문의하기 (이메일)",
+        "f_ai": "AI 앱에서 쓰기(MCP)",
         "f_source": "습득물 정보 출처: 경찰청 유실물 통합포털(LOST112), 공공데이터포털",
         "f_copy": f"© 2026 {BRAND}", "f_owner": "개인이 운영하는 서비스입니다", "f_other_lang": "English",
         "back_home": f"{BRAND} 홈으로",
@@ -293,6 +302,7 @@ T: dict[str, dict[str, str]] = {
         "f_tagline": "Lost something in Korea? AI searches public lost-and-found data for you.",
         "f_service": "Service", "f_info": "Info", "f_contact": "Contact",
         "f_guide": "Guide: lost something in Korea?", "f_privacy": "Privacy Policy", "f_terms": "Terms of Service",
+        "f_ai": "Use in AI apps (MCP)",
         "f_issues": "Contact us (email)",
         "f_source": "Found-item data: Korean National Police Agency LOST112, Public Data Portal",
         "f_copy": f"© 2026 {BRAND}", "f_owner": "An independently run service", "f_other_lang": "한국어",
@@ -438,6 +448,7 @@ def render(page: str, lang: str) -> str:
         "BRAND": BRAND, "V": VERSION, "LANG": lang, "VIEW": page,
         "HOME": home, "BROWSE": _url("browse", lang), "GUIDE": "/en/guide",
         "PRIVACY": _url("privacy", lang), "TERMS": _url("terms", lang), "CONTACT": CONTACT_URL,
+        "AI": _url("ai", lang),
         "HELP_EMAIL": settings.contact_email, "PRIVACY_EMAIL": settings.privacy_email,
         "ALT_KO": _url(page, "ko") if "ko" in PAGES[page] else "/", "ALT_EN": _url(page, "en"),
         "OTHER_LANG_URL": (_url(page, other) if other in PAGES[page] else _url("home", other)),
@@ -521,6 +532,16 @@ def privacy_en(request: Request) -> HTMLResponse:
 @router.get("/en/terms", include_in_schema=False)
 def terms_en(request: Request) -> HTMLResponse:
     return _page(request, "terms", "en")
+
+
+@router.get("/ai-tools", include_in_schema=False)
+def ai_tools(request: Request) -> HTMLResponse:
+    return _page(request, "ai", "ko", "view_ai")
+
+
+@router.get("/en/ai-tools", include_in_schema=False)
+def ai_tools_en(request: Request) -> HTMLResponse:
+    return _page(request, "ai", "en", "view_ai")
 
 
 @router.get("/robots.txt", include_in_schema=False)

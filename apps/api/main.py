@@ -10,6 +10,7 @@ import json
 import re
 import traceback
 import urllib.request
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -28,8 +29,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from apps import ops, store
 
+from . import admin, mcp_api, mcp_remote, pii, site, thumbs
 from . import search as search_mod
-from . import admin, mcp_api, pii, site, thumbs
 from .config import settings
 from .gemini import normalize_lang
 from .limits import client_ip, limiter
@@ -118,7 +119,36 @@ async def _http_error(request: Request, exc: StarletteHTTPException):
 app.mount("/static", StaticFiles(directory=_WEB / "static"), name="static")
 app.include_router(site.router)  # 웹사이트 페이지(홈·전체 습득물·가이드·방침·약관·robots·sitemap·manifest)
 app.include_router(admin.router)  # 운영 화면(/admin) — ADMIN_PASSWORD가 있을 때만, 없으면 404
-app.include_router(mcp_api.router)  # AI 도구(MCP)용 — MCP_API_KEYS가 있을 때만, 저장·메일 없이 매칭 결과만
+app.include_router(mcp_api.router)  # 내 PC용 MCP가 부르는 /mcp-api/* — 기관 키 필수, 저장·메일 없이 매칭 결과만
+# 원격 MCP(https://lostkorea.com/mcp) — AI 앱에 주소만 붙여 넣으면 됨. 키 없이 하루 3건, 기관 키는 그 키 한도(FIND-128)
+class _McpRoute:
+    """/mcp → 시작할 때 만든 MCP 앱으로(세션 관리자는 인스턴스마다 한 번만 돌 수 있어 시작마다 새로)."""
+
+    async def __call__(self, scope, receive, send) -> None:
+        target = getattr(app.state, "mcp_http", None)
+        if target is None:
+            await JSONResponse({"detail": "MCP not started"}, status_code=503)(scope, receive, send)
+            return
+        await target(scope, receive, send)
+
+
+app.add_route("/mcp", _McpRoute(), include_in_schema=False)
+
+
+@app.on_event("startup")
+async def _mcp_start() -> None:
+    # 세션 관리자는 웹 서버가 떠 있는 동안 계속(붙인 앱의 lifespan은 FastAPI가 대신 돌려주지 않음)
+    app.state.mcp_http = mcp_remote.http_app()
+    app.state.mcp_cm = mcp_remote.server.session_manager.run()
+    await app.state.mcp_cm.__aenter__()
+
+
+@app.on_event("shutdown")
+async def _mcp_stop() -> None:
+    cm = getattr(app.state, "mcp_cm", None)
+    if cm is not None:
+        await cm.__aexit__(None, None, None)
+    app.state.mcp_http = app.state.mcp_cm = None
 
 
 @app.get("/health")
@@ -154,8 +184,9 @@ def search_found_items(
     candidates: int = Query(100, ge=10, le=200, description="KNN 후보 수 (넉넉히)"),
     w_region: float = Query(0.05, ge=0.0, le=1.0, description="지역 가점 가중치 (eval 권장 ~0.05)"),
 ) -> SearchResponse:
-    limiter.hit(f"search:{client_ip(request)}", settings.limit_search_hour, _HOUR)
-    limiter.spend(2 if grade else 1)  # 임베딩 1 + (판정 LLM 1)
+    if not admin.is_admin_request(request):  # 운영자 쿠키면 한도 없음
+        limiter.hit(f"search:{client_ip(request)}", settings.limit_search_hour, _HOUR)
+        limiter.spend(2 if grade else 1)  # 임베딩 1 + (판정 LLM 1)
     store.bump("search_api")
     region_set = [r.strip() for r in region.split(",") if r.strip()] if region else []
     items = search_mod.search(
@@ -215,6 +246,7 @@ def _persist_and_respond(text: str, result: dict, email: str,
     lid = store.add(
         text, result.get("extracted", {}), result.get("region_set", []),
         result.get("queries", []), top, best_grade, status=status, email="",
+        user_id="admin" if _ADMIN_REPORT.get() else "anon",
         notify_weak=notify_weak, watch_until=watch_until, lang=lang,
         token_hash=store.hash_token(token), matches=slim_matches(raw_matches),
         graded_ids=graded_keys(raw_matches),  # 재매칭이 같은 후보를 다시 판정하지 않게
@@ -277,8 +309,19 @@ def _stream_match(steps, email: str, notify_weak: bool, text: str | None = None,
         yield _sse("error", {"detail": "처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."})
 
 
+_ADMIN_REPORT: ContextVar[bool] = ContextVar("admin_report", default=False)
+
+
 def _guard_report(request: Request, image: bool = False) -> None:
-    """신고 1건 = 추출·임베딩·판정 LLM(사진은 Vision·사진 대조까지) → IP별 한도 + 하루 전체 상한."""
+    """신고 1건 = 추출·임베딩·판정 LLM(사진은 Vision·사진 대조까지) → IP별 한도 + 하루 전체 상한.
+
+    운영자 쿠키(/admin에 로그인한 브라우저)면 한도를 건너뛰고, 신고에 '운영자 시험' 표시(user_id=admin)·통계는 따로(report_admin).
+    """
+    if admin.is_admin_request(request):
+        _ADMIN_REPORT.set(True)
+        store.bump("report_admin")
+        return
+    _ADMIN_REPORT.set(False)
     ip = client_ip(request)
     if image:
         limiter.hit(f"img10:{ip}", settings.limit_image_10min, 600)
@@ -365,7 +408,7 @@ def browse_found_items(
     """전체 습득물 둘러보기 — 키워드/지역/날짜/사진 필터 + 최신순·오래된순. 임베딩 미사용(외국어 키워드만 번역 1회·캐시)."""
     if page * size > 10_000:  # OpenSearch 기본 max_result_window
         raise HTTPException(status_code=400, detail="더 이상 볼 수 없는 페이지예요. 검색 조건을 좁혀주세요.")
-    if search_mod.needs_translation(q):  # 캐시에 없는 외국어 검색어만 LLM 호출 → 한도·예산 소비
+    if search_mod.needs_translation(q) and not admin.is_admin_request(request):  # 캐시에 없는 외국어 검색어만 LLM → 한도
         limiter.hit(f"translate:{client_ip(request)}", settings.limit_translate_hour, _HOUR)
         limiter.spend(1)
     if page == 1 and not _is_bot(request):  # 첫 페이지 조회만(페이지 넘김은 같은 조회)
@@ -477,7 +520,8 @@ def update_lost_item_alerts(lid: str, req: AlertSettingsRequest, request: Reques
     """
     from apps.agent.rematch import watch_until_after
 
-    limiter.hit(f"alerts:{client_ip(request)}", settings.limit_alerts_hour, _HOUR)
+    if not admin.is_admin_request(request):
+        limiter.hit(f"alerts:{client_ip(request)}", settings.limit_alerts_hour, _HOUR)
     item = _owned(lid, x_report_token)
     # email 생략(None) = 지금 이메일 유지 — 기간만 바꾸려다 빈 칸 때문에 알림이 꺼지지 않게. ""는 알림 끄기.
     email = (item.get("email") or "") if req.email is None else req.email.strip()

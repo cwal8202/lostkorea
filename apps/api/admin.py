@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import json
 import re
+import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -74,6 +75,32 @@ def require_admin(request: Request) -> None:
             store.bump("admin_auth_fail")
         raise HTTPException(status_code=401, detail="로그인이 필요해요.",
                             headers={"WWW-Authenticate": _REALM, **_NO_STORE})
+
+
+# ── 운영자 쿠키(FIND-128): /admin에 로그인하면 12시간 동안 사이트(신고·검색)를 한도 없이 — 운영자 시험용 ──
+# 브라우저는 Basic 로그인을 /admin 아래에만 실어 보내므로, 사이트 쪽에선 서명한 쿠키로 알아봄. 비밀번호를 바꾸면 쿠키도 무효.
+ADMIN_COOKIE = "lk_admin"
+_COOKIE_TTL = 12 * 3600
+
+
+def _cookie_sig(exp: int) -> str:
+    secret = hashlib.sha256(("lk-admin-cookie:" + (settings.admin_password or "")).encode()).digest()
+    return hmac.new(secret, str(exp).encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def make_admin_cookie(now: float | None = None) -> str:
+    exp = int(now or time.time()) + _COOKIE_TTL
+    return f"{exp}.{_cookie_sig(exp)}"
+
+
+def is_admin_request(request: Request) -> bool:
+    """운영자 쿠키가 있고 서명·기한이 맞는가(비밀번호가 없으면 늘 False)."""
+    if not settings.admin_password:
+        return False
+    exp_s, _, sig = (request.cookies.get(ADMIN_COOKIE) or "").partition(".")
+    if not exp_s.isdigit() or int(exp_s) < time.time():
+        return False
+    return hmac.compare_digest(sig, _cookie_sig(int(exp_s)))
 
 
 def _require_xhr(request: Request) -> None:
@@ -208,6 +235,7 @@ def ledger_row(row: dict) -> dict:
         "at": _kdt(created), "lang": lang, "lang_label": LANG_LABEL.get(lang, lang),
         "cat": (ex.get("category") or ex.get("item") or "기타").strip()[:20],
         "image": is_image_report(row), "alert": bool(row.get("email_verified")),
+        "admin": row.get("user_id") == "admin",   # 운영자가 한도 없이 해 본 신고(운영자 시험)
         "stages": stages(row), "now": now_label(row), "found": "found" in _history(row),
     }
 
@@ -514,7 +542,51 @@ def translate_ko(text: str) -> str | None:
 def admin_page() -> HTMLResponse:
     from .site import VERSION
 
-    return HTMLResponse(_PAGE.read_text(encoding="utf-8").replace("{{V}}", VERSION), headers=_NO_STORE)
+    resp = HTMLResponse(_PAGE.read_text(encoding="utf-8").replace("{{V}}", VERSION), headers=_NO_STORE)
+    resp.set_cookie(ADMIN_COOKIE, make_admin_cookie(), max_age=_COOKIE_TTL, httponly=True, samesite="lax", path="/",
+                    secure=settings.app_env == "production")
+    return resp
+
+
+@router.get("/admin/logout", dependencies=[Depends(require_admin)])
+def admin_logout() -> HTMLResponse:
+    """운영자 쿠키 지우기(사이트 한도가 다시 적용). Basic 로그인은 브라우저를 닫아야 지워짐."""
+    resp = HTMLResponse("<!doctype html><meta charset=utf-8><title>LostKorea 운영</title><p style='font:16px sans-serif;"
+                        "padding:24px'>운영자 쿠키를 지웠어요. 이제 사이트에 보통 한도가 적용돼요. "
+                        "<a href='/admin'>운영 화면으로</a></p>", headers=_NO_STORE)
+    resp.delete_cookie(ADMIN_COOKIE, path="/")
+    return resp
+
+
+# ── MCP 키(FIND-128): 기관마다 발급·회수. 원문은 발급 응답에 한 번만 ──
+@router.get("/admin/mcp-keys", dependencies=[Depends(require_admin), Depends(_require_xhr)])
+def admin_mcp_keys() -> JSONResponse:
+    return JSONResponse({"keys": store.mcp_key_list()}, headers=_NO_STORE)
+
+
+@router.post("/admin/mcp-keys", dependencies=[Depends(require_admin), Depends(_require_xhr)])
+async def admin_mcp_key_create(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    name = str(body.get("name") or "").strip()
+    try:
+        limit = int(body.get("daily_limit", 300))
+    except (TypeError, ValueError):
+        limit = -1
+    if not 1 <= len(name) <= 80 or not 0 <= limit <= 100_000:
+        raise HTTPException(status_code=400, detail="기관 이름(1~80자)과 하루 한도(0~100,000, 0은 한도 없음)를 넣어 주세요.",
+                            headers=_NO_STORE)
+    kid, key = store.mcp_key_create(name, limit)
+    return JSONResponse({"id": kid, "key": key, "name": name, "daily_limit": limit}, headers=_NO_STORE)
+
+
+@router.post("/admin/mcp-keys/{kid}/revoke", dependencies=[Depends(require_admin), Depends(_require_xhr)])
+def admin_mcp_key_revoke(kid: str) -> JSONResponse:
+    if not re.fullmatch(r"[0-9a-f]{32}", kid or "") or not store.mcp_key_revoke(kid):
+        raise HTTPException(status_code=404, detail="키가 없거나 이미 회수됐어요.", headers=_NO_STORE)
+    return JSONResponse({"ok": True}, headers=_NO_STORE)
 
 
 @router.get("/admin/data", dependencies=[Depends(require_admin), Depends(_require_xhr)])

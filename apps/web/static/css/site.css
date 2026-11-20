@@ -710,6 +710,14 @@ details.orig[open] summary::after { transform: translateY(2px) rotate(-135deg); 
 .doc table { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 12px 0; }
 .doc th, .doc td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
 .doc th { background: var(--surface); color: var(--navy); }
+/* AI 앱에서 쓰기(MCP) — 주소·명령 복사 */
+.mcp-url { margin: 20px 0 8px; padding: 18px; border-radius: 18px; background: var(--brand-50); }
+.mcp-url .lbl { display: block; font-size: 13.5px; font-weight: 700; color: var(--brand-700); margin-bottom: 8px; }
+.mcp-url .copy-row code { font-size: 17px; font-weight: 700; color: var(--navy); }
+.copy-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0 4px; }
+.copy-row code { flex: 1 1 260px; min-width: 0; padding: 10px 12px; border-radius: 10px; background: var(--bg);
+                 border: 1px solid var(--line); font-size: 14px; word-break: break-all; color: var(--ink); }
+.copy-btn { flex: none; }
 .doc .tip { background: var(--brand-50); border: 1px solid var(--brand-100); border-radius: var(--r-sm); padding: 14px 16px; margin: 14px 0; }
 .doc .doc-cta { margin: 20px 0; }
 

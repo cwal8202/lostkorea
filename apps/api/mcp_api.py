@@ -1,53 +1,101 @@
-"""MCP용 API(FIND-128) — AI 도구(MCP 서버 `mcp-server/lostkorea_mcp.py`)가 부르는 주소. 신고를 저장하지 않고 결과만 돌려줌.
+"""MCP 공통(FIND-128) — 원격 MCP(`/mcp`, apps/api/mcp_remote.py)와 내 PC용 MCP(`mcp-server/lostkorea_mcp.py`가 부르는
+`/mcp-api/*`)가 함께 쓰는 확인·한도·매칭. 신고는 저장하지 않고 결과만 돌려줌.
 
-왜: 웹 신고(POST /lost-items)는 신고를 저장하고 알림·메일까지 건다. 기관·연구용으로 실제 분실 사례를 한꺼번에 돌려 보거나
-경찰 분실 신고 묶음을 일괄 매칭할 때는 저장·메일 없이 '이 신고 → 이 후보들'만 필요하다.
-- `MCP_API_KEYS`(쉼표로 여러 개)가 있을 때만 열림 — 없으면 404. 헤더 `X-MCP-Key`. 키마다 하루 신고 수 상한
-  (`LIMIT_MCP_REPORTS_DAY`) + 서비스 하루 AI 상한을 함께 씀(신고 1건 = 1단위).
+왜: 웹 신고(POST /lost-items)는 신고를 저장하고 알림·메일까지 건다. AI가 실제 분실 사례를 한꺼번에 돌려 보거나 기관이 분실
+신고 묶음을 일괄 매칭할 때는 저장·메일 없이 '이 신고 → 이 후보들'만 필요하다.
+- 누가 부르나: MCP 키(운영 화면에서 기관마다 발급, DB엔 해시만)가 있으면 그 키의 하루 한도(0 = 한도 없음, 운영자용),
+  없으면 누구나 — IP당 하루 AI 매칭 3건(`LIMIT_MCP_PUBLIC_DAY`), 한 번에 3건까지. 키는 `X-MCP-Key` 또는 `Authorization: Bearer`.
 - 신고 문장의 전화번호·카드번호 등은 AI로 보내기 전에 가림(웹 신고와 같은 apps/api/pii).
-- 결과는 웹 결과 화면과 같은 정보(점수·AI 근거·장소·날짜가 이어지는지·보관 기관·전화·사진·경찰청 원본·지도 링크, 영어 칸)를 데이터로.
+- 결과는 웹 결과 화면과 같은 정보(점수·AI 근거·장소·날짜가 이어지는지·보관 기관·전화·사진·경찰청 원본·지도 링크, 영어 칸).
 """
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from apps import store
+
 from . import pii
 from .config import settings
 from .desc import clean_desc
 from .gemini import normalize_lang
-from .limits import limiter
+from .limits import client_ip, limiter
 from .models import MAX_TEXT
 from .search import _item
 
 router = APIRouter(include_in_schema=False)
-_DAY = 86400
-# 한 요청 최대 신고 수·동시 실행 — 신고 1건 ~9초, Cloudflare가 100초 넘는 응답을 끊으므로 10건을 5개씩(~20초).
-# 더 많이 돌릴 땐 MCP 도구가 여러 요청으로 나눔.
+_DAY, _HOUR = 86400, 3600
+# 한 번에 받는 신고 수·동시 실행 — 신고 1건 ~9초, Cloudflare가 100초 넘는 응답을 끊으므로 10건을 5개씩(~20초).
 MAX_REPORTS = 10
+PUBLIC_MAX_REPORTS = 3
 WORKERS = 5
 _NO_STORE = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex"}
 POLICE_URL = "https://minwon24.police.go.kr/cvlcpt/selectFindListDetail.do?cvlcptId=MW-201&pkupCmdtyMngId={}&sortSn={}"
 
 
-def _key(request: Request) -> str:
-    """MCP 키 확인 → 키 지문(한도 계산용). 키가 설정 안 됐으면 404(기능이 없는 것처럼), 틀리면 401."""
-    keys = [k.strip() for k in (settings.mcp_api_keys or "").split(",") if k.strip()]
-    if not keys:
-        raise HTTPException(status_code=404, detail="Not Found")
-    got = request.headers.get("x-mcp-key", "")
-    if not any(hmac.compare_digest(got, k) for k in keys):
-        raise HTTPException(status_code=401, detail="MCP 키가 맞지 않아요.", headers=_NO_STORE)
-    return hashlib.sha256(got.encode()).hexdigest()[:12]
+@dataclass
+class Caller:
+    """부르는 쪽 — 키가 있으면 그 키(id·이름·하루 한도), 없으면 IP(누구나 한도)."""
+    ip: str
+    key: dict | None = None
+
+    @property
+    def label(self) -> str:
+        return f"key:{self.key['id']}" if self.key else f"ip:{self.ip}"
+
+
+def caller_from(headers, ip: str, require_key: bool = False) -> Caller:
+    """헤더의 MCP 키 확인. 키를 냈는데 틀리면(회수 포함) 401 — 조용히 누구나 한도로 내려가지 않게."""
+    raw = (headers.get("x-mcp-key") or "").strip()
+    auth = headers.get("authorization") or ""
+    if not raw and auth.lower().startswith("bearer "):
+        raw = auth[7:].strip()
+    if raw:
+        row = store.mcp_key_find(raw)
+        if not row:
+            raise HTTPException(status_code=401, detail="MCP 키가 맞지 않거나 회수됐어요.", headers=_NO_STORE)
+        return Caller(ip=ip, key=row)
+    if require_key:
+        raise HTTPException(status_code=401, detail="MCP 키가 필요해요.", headers=_NO_STORE)
+    return Caller(ip=ip)
+
+
+def charge_reports(c: Caller, n: int) -> None:
+    """신고 n건을 돌리기 전에 한도 확인·차감 — 넘으면 하나도 안 돌림(429). 키 한도 0은 한도 없음(운영자)."""
+    if c.key:
+        if n > MAX_REPORTS:
+            raise HTTPException(status_code=400, detail=f"한 번에 {MAX_REPORTS}건까지 보내 주세요.")
+        limit = int(c.key.get("daily_limit") or 0)
+        if limit and store.mcp_usage_today(c.key["id"]) + n > limit:
+            raise HTTPException(status_code=429, detail=f"이 키의 하루 한도({limit}건)를 넘어요. 내일 다시 쓰거나 운영자에게 문의하세요.")
+        if limit:
+            limiter.spend(n)  # 운영자 키(한도 0)는 서비스 하루 AI 상한도 건너뜀
+        store.mcp_use(c.key["id"], n)
+        store.bump("mcp_report_key", n)
+        return
+    if n > PUBLIC_MAX_REPORTS:
+        raise HTTPException(status_code=400, detail=f"키 없이는 한 번에 {PUBLIC_MAX_REPORTS}건까지예요. 기관 키는 운영자에게 신청하세요.")
+    for _ in range(n):
+        limiter.hit(f"mcppub:{c.ip}", settings.limit_mcp_public_day, _DAY,
+                    message=f"키 없이는 하루 {settings.limit_mcp_public_day}건까지예요. 기관 키는 help@lostkorea.com 으로 신청하세요.")
+    limiter.spend(n)
+    store.bump("mcp_report_public", n)
+
+
+def charge_item(c: Caller) -> None:
+    """습득물 상태 확인(경찰청 공개 API) — 키마다·IP마다 시간당."""
+    lim = settings.limit_mcp_items_hour if c.key else settings.limit_mcp_public_items_hour
+    if c.key and not int(c.key.get("daily_limit") or 0):
+        return
+    limiter.hit(f"mcpitem:{c.label}", lim, _HOUR, message="습득물 상태 확인이 너무 많아요. 잠시 뒤 다시 하세요.")
 
 
 def _links(m: dict) -> dict:
@@ -114,31 +162,11 @@ def match_one(text: str, lost_date: str | None, lang: str, top: int) -> dict:
     }
 
 
-class McpReport(BaseModel):
-    text: str = Field(min_length=2, max_length=MAX_TEXT)
-    lost_date: str | None = Field(None, max_length=10)
-    lang: str | None = Field(None, max_length=10)
-
-
-class McpMatchReq(BaseModel):
-    reports: list[McpReport] = Field(min_length=1, max_length=MAX_REPORTS)
-    top: int | None = Field(None, ge=1, le=8)
-
-
-@router.post("/mcp-api/match")
-def mcp_match(req: McpMatchReq, request: Request) -> JSONResponse:
-    """{reports: [{text, lost_date?, lang?}] (1~10), top?} → 신고마다 AI 매칭 결과(입력 순서 그대로)."""
-    who = _key(request)
-    items = [(r.text.strip(), (r.lost_date or "")[:10] or None, normalize_lang(r.lang or "ko")) for r in req.reports]
-    top = req.top or (8 if len(items) == 1 else 3)
-    for _ in items:  # 먼저 한도 확인 — 넘으면 하나도 안 돌림
-        limiter.hit(f"mcpday:{who}", settings.limit_mcp_reports_day, _DAY,
-                    message="이 MCP 키의 하루 신고 상한을 넘었어요.")
-    limiter.spend(len(items))
+def run_matches(items: list[tuple[str, str | None, str]], top: int) -> list[dict]:
+    """[(문장, 분실일, 언어)] → 결과(입력 순서 그대로), 5개씩 동시."""
     with ThreadPoolExecutor(WORKERS) as ex:
         res = list(ex.map(lambda it: match_one(it[0], it[1], it[2], top), items))
-    return JSONResponse({"results": [{"input": it[0], **r} for it, r in zip(items, res, strict=True)]},
-                        headers=_NO_STORE)
+    return [{"input": it[0], **r} for it, r in zip(items, res, strict=True)]
 
 
 def _police_status(atc_id: str, fd_sn: str) -> dict:
@@ -163,15 +191,48 @@ def _index_doc(atc_id: str, fd_sn: str) -> dict | None:
     return d.get("_source") if d.get("found") else None
 
 
-@router.get("/mcp-api/items/{atc_id}")
-def mcp_item(atc_id: str, request: Request, fd_sn: str = "1") -> JSONResponse:
+def valid_item_id(atc_id: str, fd_sn: str) -> bool:
+    return atc_id[:1] in ("F", "V") and atc_id[1:].isalnum() and len(atc_id) <= 32 and fd_sn.isdigit()
+
+
+def item_status(atc_id: str, fd_sn: str) -> dict:
     """습득물 한 건 — 우리 색인의 내용(있으면) + 경찰 쪽 지금 상태. 색인에서 빠졌어도(종결 등) 경찰 상태는 확인."""
-    who = _key(request)
-    if not (atc_id[:1] in ("F", "V") and atc_id[1:].isalnum() and len(atc_id) <= 32 and fd_sn.isdigit()):
-        raise HTTPException(status_code=400, detail="습득물 번호 형식이 아니에요(F… 또는 V…).", headers=_NO_STORE)
-    limiter.hit(f"mcpitem:{who}", settings.limit_mcp_items_hour, 3600, message="습득물 상태 확인이 너무 많아요.")
     src = _index_doc(atc_id, fd_sn)
     item = found_item(_item(src, f"{atc_id}_{fd_sn}")) if src else {"atc_id": atc_id, "fd_sn": fd_sn,
                                                                      **_links({"atc_id": atc_id, "fd_sn": fd_sn})}
-    return JSONResponse({"in_our_index": bool(src), "police": _police_status(atc_id, fd_sn), "item": item},
-                        headers=_NO_STORE)
+    return {"in_our_index": bool(src), "police": _police_status(atc_id, fd_sn), "item": item}
+
+
+# ── 내 PC용 MCP(mcp-server/lostkorea_mcp.py)가 부르는 주소 — 키 필수 ──
+class McpReport(BaseModel):
+    text: str = Field(min_length=2, max_length=MAX_TEXT)
+    lost_date: str | None = Field(None, max_length=10)
+    lang: str | None = Field(None, max_length=10)
+
+
+class McpMatchReq(BaseModel):
+    reports: list[McpReport] = Field(min_length=1, max_length=MAX_REPORTS)
+    top: int | None = Field(None, ge=1, le=8)
+
+
+def to_items(reports: list[McpReport]) -> list[tuple[str, str | None, str]]:
+    return [(r.text.strip(), (r.lost_date or "")[:10] or None, normalize_lang(r.lang or "ko")) for r in reports]
+
+
+@router.post("/mcp-api/match")
+def mcp_match(req: McpMatchReq, request: Request) -> JSONResponse:
+    """{reports: [{text, lost_date?, lang?}] (1~10), top?} → 신고마다 AI 매칭 결과(입력 순서 그대로)."""
+    c = caller_from(request.headers, client_ip(request), require_key=True)
+    items = to_items(req.reports)
+    charge_reports(c, len(items))
+    top = req.top or (8 if len(items) == 1 else 3)
+    return JSONResponse({"results": run_matches(items, top)}, headers=_NO_STORE)
+
+
+@router.get("/mcp-api/items/{atc_id}")
+def mcp_item(atc_id: str, request: Request, fd_sn: str = "1") -> JSONResponse:
+    c = caller_from(request.headers, client_ip(request), require_key=True)
+    if not valid_item_id(atc_id, fd_sn):
+        raise HTTPException(status_code=400, detail="습득물 번호 형식이 아니에요(F… 또는 V…).", headers=_NO_STORE)
+    charge_item(c)
+    return JSONResponse(item_status(atc_id, fd_sn), headers=_NO_STORE)

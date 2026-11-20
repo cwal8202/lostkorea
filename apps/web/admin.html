@@ -199,6 +199,22 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
 .err { font-size: var(--fs-2); color: var(--crit-ink); margin-top: 8px; }
 
 .foot-note { font-size: var(--fs-2); color: var(--sub); margin-top: 32px; line-height: 1.8; }
+/* MCP 키(FIND-128) · 운영자 모드 */
+.op-mode { font-size: var(--fs-1); color: var(--sub); }
+.keys-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 12px; }
+.keys-form label { display: grid; gap: 4px; font-size: var(--fs-1); color: var(--sub); }
+.keys-form input, .keys-form select { font: inherit; font-size: var(--fs-2); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 10px; min-height: 40px; padding: 6px 12px; }
+.keys-form input { width: min(320px, 70vw); }
+.key-once { margin-top: 12px; padding: 14px 16px; border-radius: 12px; background: var(--brand-50); color: var(--brand-700);
+  font-size: var(--fs-2); display: grid; gap: 8px; }
+.key-once code { font-size: var(--fs-3); color: var(--ink); background: var(--bg); border-radius: 8px; padding: 8px 10px;
+  word-break: break-all; user-select: all; }
+.key-once .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.keys-tbl td.st-off { color: var(--muted); }
+.keys-tbl td, .keys-tbl th { text-align: left !important; }
+.tag-admin { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2);
+  color: var(--sub); font-size: var(--fs-1); font-weight: 700; }
 .need { color: var(--amber); font-weight: 700; }
 .load-fail { background: var(--crit-bg); color: var(--crit-ink); border-radius: var(--r-lg); padding: 20px 24px; font-size: var(--fs-2); }
 
@@ -244,7 +260,9 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
       <span class="admin-badge">운영</span>
     </a>
     <div class="nav-right">
+      <span class="op-mode" title="이 브라우저로 사이트를 쓰면 신고·검색 한도가 적용되지 않아요(12시간)">운영자 모드 — 사이트 한도 없음</span>
       <a class="btn btn-soft btn-sm" href="/" target="_blank" rel="noopener">사이트 열기</a>
+      <a class="btn btn-ghost btn-sm" href="/admin/logout">운영자 모드 끄기</a>
     </div>
   </div>
 </header>
@@ -327,6 +345,22 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
       <span class="range">기간 버튼과 상관없이 지금 값이에요.</span>
     </div>
     <div class="now-grid" id="nowGrid"></div>
+  </section>
+
+  <section class="block" aria-labelledby="h-keys">
+    <h3 id="h-keys">MCP 키 — 기관용</h3>
+    <p class="sub">AI 앱에서 <b>https://lostkorea.com/mcp</b>를 쓸 때, 키가 없으면 하루 AI 매칭 3건이에요. 신청한 기관에 키를 주면
+      그 키의 하루 한도까지 한 번에 10건씩 돌릴 수 있어요. 키는 발급할 때 <b>한 번만</b> 보여요(서버엔 변형한 값만 저장).
+      한도 없음은 운영자용이에요.</p>
+    <form class="keys-form" id="keyForm" autocomplete="off">
+      <label>기관 이름<input id="keyName" maxlength="80" required placeholder="예: 서울역 유실물센터" /></label>
+      <label>하루 한도<select id="keyLimit">
+        <option value="300" selected>300건</option><option value="1000">1,000건</option>
+        <option value="3000">3,000건</option><option value="0">한도 없음(운영자)</option></select></label>
+      <button type="submit" class="btn btn-soft btn-sm">발급</button>
+    </form>
+    <div class="key-once" id="keyOnce" hidden></div>
+    <div class="tbl-wrap" style="max-height:none"><table class="tbl keys-tbl" id="keysTbl"></table></div>
   </section>
 
   <p class="foot-note">
@@ -634,7 +668,8 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
     reps.slice((page - 1) * PER, page * PER).forEach((x) => {
       const tr = el("tr", "row", null, tb), on = x.stages;
       el("td", "c-date", md(x.day), tr); el("td", "c-lang", x.lang_label, tr);
-      el("td", "c-item", x.cat + (x.image ? " · 사진" : ""), tr);
+      const ci = el("td", "c-item", x.cat + (x.image ? " · 사진" : ""), tr);
+      if (x.admin) el("span", "tag-admin", "운영자 시험", ci);
       el("td", "c-alert", x.alert ? "알림 켬" : "", tr);
       on.forEach((v, i) => {
         const cls = ["stg", i === 0 ? "first" : "", i === 4 ? "last" : "", v && i > 0 && on[i - 1] ? "l-on" : "", v && i < 4 && on[i + 1] ? "r-on" : ""];
@@ -852,6 +887,55 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
   });
   document.getElementById("lqClear").addEventListener("click", () => { clearFind(); redrawLedger(); document.getElementById("lq").focus(); });
   document.getElementById("reload").addEventListener("click", load);
+
+  // ── MCP 키 ──
+  // 서버 시각은 UTC — 한국 시간으로
+  const dt = (s) => s ? new Date(s).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric",
+                                                             hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+  async function loadKeys() {
+    const t = document.getElementById("keysTbl");
+    let keys = [];
+    try { keys = (await api("/admin/mcp-keys")).keys || []; } catch (e) { t.textContent = ""; el("caption", null, `키 목록을 읽지 못했어요(${e.message}).`, t); return; }
+    t.textContent = "";
+    const hr = el("tr", null, null, el("thead", null, null, t));
+    ["기관", "발급", "오늘 / 하루 한도", "마지막 사용", "상태", ""].forEach((h) => el("th", null, h, hr));
+    const tb = el("tbody", null, null, t);
+    if (!keys.length) { const r = el("tr", null, null, tb); const c = el("td", null, "아직 발급한 키가 없어요.", r); c.colSpan = 6; return; }
+    keys.forEach((k) => {
+      const r = el("tr", null, null, tb), off = !!k.revoked_at;
+      el("td", off ? "st-off" : null, k.name, r);
+      el("td", null, dt(k.created_at), r);
+      el("td", null, `${fmt(k.today)} / ${k.daily_limit ? fmt(k.daily_limit) : "한도 없음"}`, r);
+      el("td", null, dt(k.last_used_at), r);
+      el("td", off ? "st-off" : null, off ? `회수됨(${dt(k.revoked_at)})` : "사용 중", r);
+      const c = el("td", null, null, r);
+      if (!off) {
+        const b = el("button", "btn btn-ghost btn-sm", "회수", c); b.type = "button";
+        b.addEventListener("click", async () => {
+          if (!confirm(`'${k.name}' 키를 회수할까요? 이 키로는 바로 못 쓰게 돼요.`)) return;
+          try { await api(`/admin/mcp-keys/${k.id}/revoke`, "POST", {}); loadKeys(); } catch (e) { alert(`회수하지 못했어요(${e.message}).`); }
+        });
+      }
+    });
+  }
+  document.getElementById("keyForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("keyName").value.trim(), limit = +document.getElementById("keyLimit").value;
+    const box = document.getElementById("keyOnce");
+    try {
+      const k = await api("/admin/mcp-keys", "POST", { name, daily_limit: limit });
+      box.hidden = false; box.textContent = "";
+      el("b", null, `'${k.name}' 키를 발급했어요. 지금 복사해 두세요 — 다시 볼 수 없어요.`, box);
+      const row = el("div", "row", null, box);
+      el("code", null, k.key, row);
+      const cp = el("button", "btn btn-soft btn-sm", "복사", row); cp.type = "button";
+      cp.addEventListener("click", () => navigator.clipboard.writeText(k.key).then(() => { cp.textContent = "복사했어요"; }));
+      el("span", null, "기관에는 기관 메일로 보내 주세요. AI 앱 설정에 X-MCP-Key 머리글(또는 Authorization: Bearer)로 넣어요.", box);
+      document.getElementById("keyName").value = "";
+      loadKeys();
+    } catch (err) { alert(`발급하지 못했어요(${err.message}).`); }
+  });
+  loadKeys();
   load();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (D) renderPeriod(); }, 120); });
 })();

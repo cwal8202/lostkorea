@@ -6,7 +6,8 @@
 
 실행(이 PC의 Claude Code에 붙이기 예):
   claude mcp add lostkorea -e LOSTKOREA_MCP_KEY=<키> -- uv run --script <저장소>/mcp-server/lostkorea_mcp.py
-환경변수: LOSTKOREA_MCP_KEY(운영 서버 .env의 MCP_API_KEYS 중 하나 — find_matches·get_found_item에 필요),
+보통은 원격 주소(https://lostkorea.com/mcp)를 AI 앱에 붙여 넣는 게 쉬움 — 이 파일은 내 PC에서 돌리거나 시험할 때.
+환경변수: LOSTKOREA_MCP_KEY(운영 화면에서 발급한 기관 키 — find_matches·get_found_item에 필요),
           LOSTKOREA_API_URL(기본 https://lostkorea.com).
 도구 3개 — find_matches(신고 1~20건 → AI 매칭, 저장 안 함), search_found_items(키워드·지역·날짜로 찾기, AI 없음),
 get_found_item(습득물 한 건 + 경찰 쪽 지금 상태). 서버가 신고 문장의 전화번호 등을 가린 뒤 AI로 보냄.
