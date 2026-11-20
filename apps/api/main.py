@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import traceback
 import urllib.request
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -121,6 +123,36 @@ app.include_router(site.router)  # 웹사이트 페이지(홈·전체 습득물�
 app.include_router(admin.router)  # 운영 화면(/admin) — ADMIN_PASSWORD가 있을 때만, 없으면 404
 app.include_router(mcp_api.router)  # 내 PC용 MCP가 부르는 /mcp-api/* — 기관 키 필수, 저장·메일 없이 매칭 결과만
 # 원격 MCP(https://lostkorea.com/mcp) — AI 앱에 주소만 붙여 넣으면 됨. 키 없이 하루 3건, 기관 키는 그 키 한도(FIND-128)
+_KEY_IN_URL = re.compile(r"([?&]key=)[^&\s\"]*", re.I)
+
+
+class _HideUrlKey(logging.Filter):
+    """접속 기록(uvicorn.access)에 주소의 key= 값이 남지 않게 — /mcp/ 이동·옛 주소 이동처럼 키를 떼기 전에 남는 줄까지."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(_KEY_IN_URL.sub(lambda m: m.group(1) + "***", a) if isinstance(a, str) else a for a in record.args)
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_HideUrlKey())
+
+
+def _key_from_url(scope) -> None:
+    """주소의 ?key= → X-MCP-Key 머리글로 옮기고 주소에선 지움(FIND-130). Claude 앱(웹·데스크톱) 커넥터처럼 주소 칸만 있고
+    머리글을 못 넣는 곳용. 머리글로 낸 키가 있으면 그쪽이 먼저. 같은 scope를 접속 기록도 쓰므로 거기에도 안 남음."""
+    qs = scope.get("query_string") or b""
+    if b"key=" not in qs.lower():
+        return
+    pairs = parse_qsl(qs.decode("latin-1"), keep_blank_values=True)
+    key = next((v.strip() for k, v in pairs if k.lower() == "key"), "")
+    scope["query_string"] = urlencode([(k, v) for k, v in pairs if k.lower() != "key"]).encode("latin-1")
+    headers = list(scope.get("headers") or [])
+    if key and not any(k.lower() in (b"x-mcp-key", b"authorization") for k, _ in headers):
+        headers.append((b"x-mcp-key", key.encode("latin-1", "ignore")))
+    scope["headers"] = headers
+
+
 class _McpRoute:
     """/mcp → 시작할 때 만든 MCP 앱으로(세션 관리자는 인스턴스마다 한 번만 돌 수 있어 시작마다 새로)."""
 
@@ -129,6 +161,7 @@ class _McpRoute:
         if target is None:
             await JSONResponse({"detail": "MCP not started"}, status_code=503)(scope, receive, send)
             return
+        _key_from_url(scope)
         await target(scope, receive, send)
 
 

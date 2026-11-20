@@ -20,7 +20,8 @@ AI(Claude 등 MCP를 쓰는 AI)가 LostKorea의 습득물 AI 매칭을 **도구�
 ## 붙이기
 
 필요한 것: [uv](https://docs.astral.sh/uv/), 운영자가 운영 화면에서 발급한 **기관 키**(`find_matches`·`get_found_item`에 필요).
-원격 주소에서도 같은 키를 머리글 `X-MCP-Key`로 넣으면 키 한도로 쓸 수 있어요.
+원격 주소에서도 같은 키를 머리글 `X-MCP-Key`로 넣으면 키 한도로 쓸 수 있어요. Claude 앱(웹·데스크톱) 커넥터처럼 머리글을 못 넣는
+곳은 주소를 `https://lostkorea.com/mcp?key=키`로 — 이 주소는 키와 같으니 남에게 보이지 않게.
 
 **Claude Code**
 ```bash

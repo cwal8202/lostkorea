@@ -930,7 +930,14 @@ details.as-table summary { cursor: pointer; color: var(--brand); width: max-cont
       el("code", null, k.key, row);
       const cp = el("button", "btn btn-soft btn-sm", "복사", row); cp.type = "button";
       cp.addEventListener("click", () => navigator.clipboard.writeText(k.key).then(() => { cp.textContent = "복사했어요"; }));
-      el("span", null, "기관에는 기관 메일로 보내 주세요. AI 앱 설정에 X-MCP-Key 머리글(또는 Authorization: Bearer)로 넣어요.", box);
+      // Claude 앱(웹·데스크톱) 커넥터는 주소 칸만 있어 머리글을 못 넣음 → 키를 넣은 주소(FIND-130)
+      const url = `${location.origin}/mcp?key=${encodeURIComponent(k.key)}`;
+      el("span", null, "Claude 앱(웹·데스크톱)처럼 주소만 넣는 곳은 이 주소를 커넥터 주소로 — 키와 같으니 남에게 보이지 않게.", box);
+      const urow = el("div", "row", null, box);
+      el("code", null, url, urow);
+      const cu = el("button", "btn btn-soft btn-sm", "주소 복사", urow); cu.type = "button";
+      cu.addEventListener("click", () => navigator.clipboard.writeText(url).then(() => { cu.textContent = "복사했어요"; }));
+      el("span", null, "기관에는 기관 메일로 보내 주세요. 머리글을 넣을 수 있는 앱(Claude Code 등)은 X-MCP-Key 머리글(또는 Authorization: Bearer)로 넣어요.", box);
       document.getElementById("keyName").value = "";
       loadKeys();
     } catch (err) { alert(`발급하지 못했어요(${err.message}).`); }

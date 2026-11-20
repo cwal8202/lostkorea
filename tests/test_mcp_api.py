@@ -91,17 +91,17 @@ def test_item_status_with_key():
 
 
 # ── 원격 MCP /mcp — 주소만 붙여 넣으면 됨 ──
-def _rpc(c, method, params=None, headers=None, rid=1):
-    r = c.post("/mcp", headers={**MCP_H, **(headers or {})},
+def _rpc(c, method, params=None, headers=None, rid=1, path="/mcp"):
+    r = c.post(path, headers={**MCP_H, **(headers or {})},
                json={"jsonrpc": "2.0", "id": rid, "method": method, "params": params or {}})
     assert r.status_code == 200, r.text
     return r.json()
 
 
-def _call(c, name, args, headers=None):
+def _call(c, name, args, headers=None, path="/mcp"):
     import json as _json
 
-    res = _rpc(c, "tools/call", {"name": name, "arguments": args}, headers)["result"]
+    res = _rpc(c, "tools/call", {"name": name, "arguments": args}, headers, path=path)["result"]
     out = res.get("structuredContent") or res["content"][0]["text"]
     if isinstance(out, str) and not res.get("isError"):
         out = _json.loads(out)
@@ -132,6 +132,34 @@ def test_remote_mcp_with_key_allows_more_and_rejects_bad_key():
         assert not err and len(out["results"]) == 5
         err, out = _call(c, "find_matches", {"reports": [{"text": "검정 지갑"}]}, {"X-MCP-Key": "lk_nope"})
         assert err and "키" in str(out)
+
+
+def test_remote_mcp_key_in_url_for_apps_without_headers():
+    """Claude 앱 커넥터처럼 주소 칸만 있는 곳 — /mcp?key=키 로도 그 키 한도(FIND-130)."""
+    kid, key = _key()
+    with TestClient(app) as c:
+        err, out = _call(c, "find_matches", {"reports": [{"text": "검정 지갑"}] * 5}, path=f"/mcp?key={key}")
+        assert not err and len(out["results"]) == 5                               # 키 없이는 한 번에 3건인데 5건
+        err, out = _call(c, "find_matches", {"reports": [{"text": "검정 지갑"}]}, path="/mcp?key=lk_nope")
+        assert err and "키" in str(out)                                            # 틀린 키는 누구나 한도로 안 내려감
+    assert store.mcp_usage_today(kid) == 5
+
+
+def test_url_key_moves_to_header_and_is_hidden_in_access_log():
+    import logging
+
+    from apps.api.main import _HideUrlKey, _key_from_url
+
+    s = {"query_string": b"key=lk_a%2Bb&x=1", "headers": [(b"host", b"lostkorea.com")]}
+    _key_from_url(s)
+    assert s["query_string"] == b"x=1" and (b"x-mcp-key", b"lk_a+b") in s["headers"]   # 주소에선 지우고 머리글로
+    s = {"query_string": b"key=lk_url", "headers": [(b"x-mcp-key", b"lk_head")]}
+    _key_from_url(s)
+    assert s["headers"] == [(b"x-mcp-key", b"lk_head")] and s["query_string"] == b""  # 머리글 키가 먼저
+    r = logging.LogRecord("uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d',
+                          ("1.2.3.4:5", "POST", "/mcp/?key=lk_secret&a=1", "1.1", 307), None)
+    assert _HideUrlKey().filter(r) and "lk_secret" not in r.getMessage() and "key=***&a=1" in r.getMessage()
+    assert any(isinstance(f, _HideUrlKey) for f in logging.getLogger("uvicorn.access").filters)
 
 
 # ── 운영자: 쿠키로 사이트 한도 없이 + 키 발급·회수 ──

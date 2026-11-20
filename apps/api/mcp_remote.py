@@ -4,6 +4,7 @@
 MCP(mcp-server/lostkorea_mcp.py)와 같고, 확인·한도·매칭은 apps/api/mcp_api.py를 함께 씀:
 - 키 없이 누구나 — IP당 하루 AI 매칭 3건(한 번에 3건까지), 습득물 상태 확인 시간당 60건.
 - 기관 키(`X-MCP-Key` 또는 `Authorization: Bearer`) — 운영 화면에서 발급한 하루 한도, 한 번에 10건.
+  머리글을 못 넣는 Claude 앱 커넥터용으로 주소 `https://lostkorea.com/mcp?key=키`도 받음(main._key_from_url이 머리글로 옮김).
 도구 응답에 신고를 저장하지 않음. 신고 문장의 전화번호 등은 AI 전에 가림.
 """
 

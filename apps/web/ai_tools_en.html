@@ -57,7 +57,8 @@
           We reply to that address with a key.</li>
       <li><b>Conditions</b>: results are candidates and owners confirm with the agency · no unnecessary personal data in reports ·
           no redistribution or resale · keys may be revoked for misuse (<a href="/en/terms">Terms</a>).</li>
-      <li><b>Using a key</b>: add the header <code>X-MCP-Key: your-key</code> in your AI app's MCP settings. In Claude Code<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;">Copy</button></div></li>
+      <li><b>Using a key</b>: in apps that only take a URL, like Claude (web &amp; desktop), use <code>https://lostkorea.com/mcp?key=your-key</code>
+          as the connector URL. That URL works like the key, so keep it private. In apps that take headers, add <code>X-MCP-Key: your-key</code>. In Claude Code<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;key&gt;&quot;">Copy</button></div></li>
     </ul>
 </main>
 <!--FOOTER-->

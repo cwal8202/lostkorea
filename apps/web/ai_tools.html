@@ -54,7 +54,8 @@
           기관 이름·담당자·<b>기관 메일</b>·쓰는 목적·하루 예상 건수를 보내 주세요. 확인한 뒤 기관 메일로 키를 보내 드려요.</li>
       <li><b>조건</b>: 결과는 후보이며 주인 확인은 보관 기관에서 해요 · 신고 문장에 필요 없는 개인정보를 넣지 않아요 ·
           결과를 재배포·판매하지 않아요 · 어기면 키를 회수해요(<a href="/terms">이용약관</a>).</li>
-      <li><b>키 쓰기</b>: AI 앱의 MCP 설정에 머리글 <code>X-MCP-Key: 키</code>를 넣어요. Claude Code라면<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;">복사</button></div></li>
+      <li><b>키 쓰기</b>: Claude(웹·데스크톱)처럼 주소만 넣는 앱은 커넥터 주소를 <code>https://lostkorea.com/mcp?key=키</code>로 넣어요.
+          이 주소는 키와 같으니 남에게 보이지 않게 해 주세요. 머리글을 넣을 수 있는 앱은 <code>X-MCP-Key: 키</code>. Claude Code라면<div class="copy-row"><code>claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;</code><button type="button" class="btn btn-soft btn-sm copy-btn" data-copy="claude mcp add --transport http lostkorea https://lostkorea.com/mcp --header &quot;X-MCP-Key: &lt;키&gt;&quot;">복사</button></div></li>
     </ul>
 </main>
 <!--FOOTER-->
