@@ -91,7 +91,7 @@ def n_search(state: AgentState) -> dict:
     for q in queries:
         for it in search_mod.search(
             q, region_set=region_set, lost_date=lost_date, do_grade=False,
-            size=per, candidates=100, foreign_writer=foreign_writer(state),
+            size=per, candidates=100, foreign_writer=foreign_writer(state), query_color=ex.get("color") or "",
         ):
             key = cand_key(it)
             if key not in merged or it["score"] > merged[key]["score"]:

@@ -517,6 +517,24 @@ def _desc_lane(qv: list[float], groups: list[str], region_set: list[str], date_f
         return []
 
 
+# ── 색 모름 (2026-11-20) ──
+# 습득물 색 '기타'는 경찰이 색을 적지 않은 것(우체통 습득 96%·공항 세관) — '다른 색'이 아니라 '모름'. 임베딩은 '색상:기타'를
+# 틀린 색처럼 봐서, 색을 말한 신고('검정 지갑')에선 '기타' 지갑이 갈색·흰색 지갑과 같은 점수(0.893 vs 0.890·0.881, 검정 0.939)
+# → 우체통 지갑(내용물이 특이사항에만 있는 바로 그 습득물)이 색 하나로 밀림. 색을 말한 신고에서만 가점(설정 search_w_color_unknown).
+# 색을 말하지 않은 신고는 '기타'도 다른 색과 같은 점수라 손대지 않음.
+# 실측(11/21) 미달로 기본은 끔(0): 모든 '기타'에 주면 내용물이 안 맞는 우체통 지갑이 몰려 와 색까지 맞는 strong 후보를 밀어냄.
+# 다음 후보: 특이사항 내용물이 맞은 습득물(desc_match)에만 — 그땐 색 모름이 감점처럼 작동할 까닭이 없음.
+UNKNOWN_ITEM_COLORS = frozenset({"기타"})
+_NO_COLOR = re.compile(r"^\s*(?:기타|모름|모르|몰라|알\s*수\s*없|불명|없음|unknown|not\s+sure|n/?a|none|various|multi)", re.I)
+
+
+def color_unknown_bonus(item_color: str, query_color: str, w: float) -> float:
+    """색을 말한 신고에서 색이 '기타'(모름)인 습득물에 w — 신고 색이 비었거나 '모름'류면 0."""
+    if not (w and query_color and query_color.strip()) or _NO_COLOR.match(query_color):
+        return 0.0
+    return w if (item_color or "").strip() in UNKNOWN_ITEM_COLORS else 0.0
+
+
 def search(
     q: str,
     region_set: list[str] | None = None,
@@ -528,6 +546,8 @@ def search(
     w_time_near: float | None = None,
     w_desc: float | None = None,
     foreign_writer: bool = False,
+    query_color: str = "",
+    w_color_unknown: float | None = None,
 ) -> list[dict]:
     """의미 검색 + 지역 가점 (+ 분실일을 알면 그 전날 이후 습득물만) + 특이사항 레인·가점(내용물 낱말이 있을 때).
 
@@ -535,10 +555,12 @@ def search(
     특이사항: 질의에 외국인등록증·학생증 같은 내용물 낱말이 있으면 같은 지역·날짜에서 특이사항에만 그 낱말이 있는 습득물을
     더 모으고(최대 DESC_LANE_K개), 특이사항이 맞는 후보에 최대 w_desc 가점. 낱말이 없으면 예전과 똑같음.
     foreign_writer: 외국어로 쓴 신고 — 운전면허증을 외국 면허로 봄(query_groups).
+    query_color: 신고가 말한 색(추출) — 있으면 색 '기타'(모름) 습득물에 w_color_unknown 가점(color_unknown_bonus).
     """
     region_set = region_set or []
     near = settings.search_w_date_near if w_time_near is None else w_time_near
     w_desc = settings.search_w_desc if w_desc is None else w_desc
+    w_cu = settings.search_w_color_unknown if w_color_unknown is None else w_color_unknown
     groups = query_groups(q, foreign_writer) if w_desc else []
     floor = date_floor(lost_date, settings.search_date_grace_days)
     date_filter = {"range": {"found_at": {"gte": floor}}} if floor else None
@@ -580,6 +602,7 @@ def search(
         score -= date_penalty(s.get("found_at", ""), lost_date, near)  # 분실일 전날 습득 → 조금 낮춤
         delta, desc_hit, clash = content_score(s, groups, w_desc)
         score += delta
+        score += color_unknown_bonus(s.get("color", ""), query_color, w_cu)  # 색 모름 → 맞는 색과 틀린 색 사이로
         # 둘러보기와 같은 _item(영어 화면 칸 포함 — 전엔 따로 만들어 region_en 등이 AI 결과에 안 실림). 지역은 보관장소 해석 그대로
         it = _item(s, h["_id"], score)
         it.update(region=region, region_en=region_en(region))

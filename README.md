@@ -131,7 +131,7 @@
 신고 46건(15%) 중 67%를 1위로(3위 안 83%) 찾음. 브랜드·모델·여권 국적처럼 양쪽에 적힌 특징까지 맞는 보수적 하한은 16건(5%), 그중 1위 12건.
 영·중·일 문장으로는 하한 16건 중 12~15건(`eval/results/lost112.md`·`lost112_lang.md`, 판정은 AI라 정답 아님).
 
-**✅ 테스트**: `uv run pytest` — 핵심 로직 520개(운영 화면 인증·신고 대장·번역 저장·검색어 만들기·지역가점·특이사항 레인·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API·MCP(원격·기관 키·주소에 키·운영자 모드)), 외부서비스 불필요(목킹).
+**✅ 테스트**: `uv run pytest` — 핵심 로직 523개(운영 화면 인증·신고 대장·번역 저장·검색어 만들기·지역가점·특이사항 레인·지역 매칭·버스 노선표 경유 지역·store 생애주기·정규화·notifier·약한 후보 알림·알림 기간·이메일 확인·수집기·경찰 목록 대조·습득물 이탈 기록·메일 결과 링크·실시간 스트림·다국어 메일·6개 언어 결과 언어 검사·분실일 거름·보관장소 지역 해석·알림 재발송·수령 진행 기록·신고 문장 개인정보 가림·보안·레이트리밋(Cloudflare 경유 실제 IP)·운영 점검·개인정보 삭제·장애 대비·운영 관측·한영 화면·검색 노출·AI 비용·웹 페이지·API·MCP(원격·기관 키·주소에 키·운영자 모드)), 외부서비스 불필요(목킹).
 
 **⏳ 남은 것**: 운영자 결정·계정이 필요한 일(정식 도메인·검색엔진 등록·Gemini 유료 등급·개인정보 보호책임자 — [`docs/LAUNCH.md`](docs/LAUNCH.md)) ·
 카카오 알림톡(사업자 필요) · 이미지 임베딩(CLIP) 검색 · 인증(user_id) · 브라우저 확장.
@@ -158,7 +158,7 @@ eval/        골든셋 + 성능 실험 (BM25/임베딩/하이브리드/스윕, O
 infra/       로컬 docker-compose + OpenSearch(nori) Dockerfile + 인덱스 매핑 + Caddyfile(프로덕션 HTTPS)
 fixtures/    공공 API 실응답 샘플 (진실의 원천)
 scripts/     daily_collect.sh(cron 일일 수집) · backup_db.sh(일일 DB 백업 — 서버 + 암호화해 Cloudflare R2) · restore_test.sh(복구 시험) · migrate_rename.sh(1회용 이름 이전) · region 백필/지오코딩·지역 해석 캐시(build_geocode_cache) · build_bus_routes(버스 노선표, 월 1회 로컬)
-tests/       pytest 520개 (외부 서비스 목킹)
+tests/       pytest 523개 (외부 서비스 목킹)
 docs/        PROGRESS.md (설계·실험·결정 기록) · DEPLOY.md (배포·운영) · LAUNCH.md (서비스화 체크리스트) · screenshots/
 apps/api/       FastAPI — 신고·검색·알림 API(/lost-items[/stream, /image], /found-items/search·/browse, /alerts·/confirm·/dismiss·삭제,
                 /email/verify, /health[/deep]) + 레이트리밋·AI 상한(limits.py) + Gemini(gemini.py) + 지역 매칭(region.py)
